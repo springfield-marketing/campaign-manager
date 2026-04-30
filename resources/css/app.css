@@ -4,207 +4,281 @@
 
 @layer base {
     :root {
-        --app-font: "Figtree";
-        --color-primary: #314759;
-        --color-secondary: #260C06;
-        --color-accent: #C4DDF2;
-        --color-background: #ffffff;
-        --color-text: var(--color-primary);
-        --color-muted: color-mix(in srgb, var(--color-primary) 70%, white);
-        --color-border: color-mix(in srgb, var(--color-primary) 28%, white);
-        --color-button-primary: var(--color-secondary);
-        --color-button-primary-dark: color-mix(in srgb, var(--color-secondary) 75%, black);
-        --ivr-radius: 4px;
+        --font-family-base: Figtree, ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+        --space-0: 0;
+        --space-4: 4px;
+        --space-8: 8px;
+        --space-12: 12px;
+        --space-16: 16px;
+        --space-20: 20px;
+        --space-24: 24px;
+        --space-32: 32px;
+        --space-40: 40px;
+
+        --radius-base: 4px;
+
+        --font-12: 12px;
+        --font-16: 16px;
+        --font-20: 20px;
+        --font-24: 24px;
+        --font-32: 32px;
+
+        --line-16: 16px;
+        --line-24: 24px;
+        --line-32: 32px;
+        --line-40: 40px;
+
+        --color-white: #ffffff;
+        --color-black: #000000;
+        --color-gray-900: #111111;
+        --color-gray-800: #1a1a1a;
+        --color-gray-700: #262626;
+        --color-gray-600: #404040;
+        --color-gray-500: #525252;
+        --color-gray-400: #737373;
+        --color-gray-300: #a3a3a3;
+        --color-gray-200: #d4d4d4;
+        --color-gray-150: #e5e5e5;
+        --color-gray-100: #f5f5f5;
+
+        --bg-page: var(--color-white);
+        --bg-surface: var(--color-white);
+        --bg-subtle: var(--color-gray-100);
+        --bg-strong: var(--color-black);
+        --bg-header: var(--color-gray-900);
+
+        --text-primary: var(--color-black);
+        --text-secondary: var(--color-gray-600);
+        --text-muted: var(--color-gray-500);
+        --text-on-strong: var(--color-white);
+
+        --border-default: var(--color-gray-200);
+        --border-strong: var(--color-gray-800);
+        --focus-ring: var(--color-gray-500);
     }
 
+    .theme-dark {
+        --bg-page: #000000;
+        --bg-surface: #0d0d0d;
+        --bg-subtle: #141414;
+        --bg-strong: #ffffff;
+        --bg-header: #050505;
+
+        --text-primary: #ffffff;
+        --text-secondary: #e5e5e5;
+        --text-muted: #d4d4d4;
+        --text-on-strong: #000000;
+
+        --border-default: #3a3a3a;
+        --border-strong: #ffffff;
+        --focus-ring: #e5e5e5;
+    }
+
+    * {
+        border-radius: var(--radius-base);
+    }
+
+    html,
     body {
-        background-color: var(--color-background);
-        color: var(--color-text);
-        font-family: var(--app-font), ui-sans-serif, system-ui, sans-serif;
+        background: var(--bg-page);
+        color: var(--text-primary);
+        font-family: var(--font-family-base);
+        font-size: var(--font-16);
+        line-height: var(--line-24);
     }
 
     [x-cloak] {
         display: none !important;
     }
 
-    * {
+    a,
+    button,
+    input,
+    select,
+    textarea {
+        transition: none !important;
+    }
+
+    [class*="shadow"] {
         box-shadow: none !important;
     }
 }
 
 @layer components {
-    .ivr-dashboard {
-        background-color: var(--color-background);
-    }
-
-    .theme-dark,
-    .theme-dark .app-topbar,
-    .theme-dark .app-header,
-    .theme-dark .app-footer,
-    .theme-dark .ivr-dashboard,
-    .theme-dark [class*="bg-white"] {
-        background-color: #000000 !important;
-        color: #ffffff !important;
-    }
-
-    .theme-dark .ivr-panel {
-        background-color: #000000 !important;
-        border-color: #ffffff !important;
-        color: #ffffff !important;
-    }
-
-    .theme-dark .ivr-panel > .border-b {
-        background-color: #000000 !important;
-    }
-
-    .theme-dark .ivr-panel table thead {
-        background-color: #000000 !important;
-    }
-
-    .theme-dark .ivr-panel-dark,
-    .theme-dark [class*="bg-[#262526]"],
-    .theme-dark [class*="bg-[#314759]"] {
-        background-color: var(--color-primary) !important;
-        color: #ffffff !important;
-    }
-
-    .theme-dark,
-    .theme-dark main,
-    .theme-dark header,
-    .theme-dark footer,
-    .theme-dark section,
-    .theme-dark article,
-    .theme-dark div,
-    .theme-dark p,
-    .theme-dark h1,
-    .theme-dark h2,
-    .theme-dark h3,
-    .theme-dark h4,
-    .theme-dark h5,
-    .theme-dark h6,
-    .theme-dark a,
-    .theme-dark span,
-    .theme-dark dt,
-    .theme-dark dd,
-    .theme-dark th,
-    .theme-dark td,
-    .theme-dark label,
-    .theme-dark button {
-        color: #ffffff !important;
-    }
-
-    .theme-dark [class*="text-[#0D0D0D]"],
-    .theme-dark [class*="text-[#262526]"],
-    .theme-dark [class*="text-[#314759]"] {
-        color: #ffffff !important;
-    }
-
-    .theme-dark [class*="text-[#595859]"],
-    .theme-dark [class*="text-[#8C8C8C]"] {
-        color: #ffffff !important;
-    }
-
-    .theme-dark [class*="border-[#D9D9D9]"],
-    .theme-dark [class*="border-[#8C8C8C]"],
-    .theme-dark [class*="divide-[#D9D9D9]"] > :not([hidden]) ~ :not([hidden]) {
-        border-color: #ffffff !important;
-    }
-
-    .theme-dark input,
-    .theme-dark select,
-    .theme-dark textarea {
-        background-color: #000000 !important;
-        border-color: #ffffff !important;
-        color: #ffffff !important;
-    }
-
-    .theme-dark option {
-        background-color: #000000;
-        color: #ffffff;
-    }
-
+    .app-topbar,
+    .app-header,
+    .app-footer,
     .ivr-panel {
-        border: 1px solid var(--color-border);
-        border-radius: var(--ivr-radius);
-        box-shadow: none;
+        background: var(--bg-surface) !important;
+        border-color: var(--border-default) !important;
     }
 
-    .ivr-panel > .border-b {
-        background-color: #262526;
-        color: #ffffff !important;
+    .app-topbar,
+    .app-header,
+    .app-footer {
+        background: var(--bg-header) !important;
+        color: var(--text-on-strong);
     }
 
-    .ivr-panel table thead {
-        background-color: #262526;
-        color: #ffffff !important;
+    .app-topbar a,
+    .app-topbar p,
+    .app-topbar span,
+    .app-topbar button,
+    .app-footer a,
+    .app-footer p {
+        color: var(--text-on-strong) !important;
+        border-color: var(--border-strong) !important;
     }
 
-    .ivr-panel-dark {
-        background-color: var(--color-primary);
-        border: 1px solid var(--color-border);
-        border-radius: var(--ivr-radius);
-        box-shadow: none;
-        color: #fff;
+    .ivr-btn-accent,
+    button[type="submit"],
+    [type="button"] {
+        background: var(--bg-strong);
+        border: 1px solid var(--border-strong);
+        color: var(--text-on-strong);
     }
 
-    .ivr-badge {
-        border: 1px solid var(--color-border);
-        border-radius: var(--ivr-radius);
-        box-shadow: none;
+    .theme-dark .ivr-btn-accent,
+    .theme-dark button[type="submit"],
+    .theme-dark [type="button"] {
+        background: var(--bg-strong);
+        border-color: var(--border-strong);
+        color: var(--text-on-strong);
     }
 
-    .ivr-progress {
-        border-radius: var(--ivr-radius);
-        overflow: hidden;
+    input,
+    select,
+    textarea {
+        background: var(--bg-surface) !important;
+        border: 1px solid var(--border-default) !important;
+        color: var(--text-primary) !important;
+        font-size: var(--font-16);
+        line-height: var(--line-24);
+        padding: var(--space-8) var(--space-12);
     }
 
-    .ivr-progress-bar {
-        background-color: var(--color-primary);
-        border-radius: var(--ivr-radius);
+    input:focus,
+    select:focus,
+    textarea:focus {
+        border-color: var(--focus-ring) !important;
+        outline: 1px solid var(--focus-ring);
+        outline-offset: 0;
+        box-shadow: none !important;
     }
 
-    .ivr-card-radius {
-        border-radius: var(--ivr-radius);
+    table thead {
+        background: var(--bg-strong);
+        color: var(--text-on-strong);
     }
 
-    .ivr-btn-accent {
-        border: 1px solid var(--color-button-primary);
-        background-color: var(--color-button-primary);
-        color: #ffffff !important;
-        border-radius: var(--ivr-radius);
+    table,
+    th,
+    td {
+        border-color: var(--border-default) !important;
     }
 
-    .theme-dark .ivr-btn-accent {
-        border-color: var(--color-button-primary-dark) !important;
-        background-color: var(--color-button-primary-dark) !important;
-        color: #ffffff !important;
+    th,
+    td {
+        font-size: var(--font-16);
+        line-height: var(--line-24);
+        color: var(--text-primary);
+    }
+}
+
+@layer utilities {
+    .text-theme-primary {
+        color: var(--text-primary);
     }
 
-    /* Map existing Tailwind arbitrary color utilities to palette variables */
-    [class*="text-[#0D0D0D]"],
-    [class*="text-[#262526]"],
-    [class*="text-[#314759]"] {
-        color: var(--color-text) !important;
+    .text-theme-secondary {
+        color: var(--text-secondary);
     }
 
-    [class*="text-[#595859]"],
-    [class*="text-[#8C8C8C]"] {
-        color: var(--color-muted) !important;
+    .text-theme-muted {
+        color: var(--text-muted);
     }
 
-    [class*="bg-[#262526]"],
-    [class*="bg-[#314759]"] {
-        background-color: var(--color-primary) !important;
-        color: #ffffff !important;
+    .bg-theme-surface {
+        background: var(--bg-surface);
     }
 
-    [class*="border-[#D9D9D9]"],
-    [class*="border-[#8C8C8C]"] {
-        border-color: var(--color-border) !important;
+    .bg-theme-subtle {
+        background: var(--bg-subtle);
+    }
+}
+
+@layer base {
+    .text-\[\#0D0D0D\],
+    .text-\[\#262526\] {
+        color: var(--text-primary) !important;
     }
 
-    [class*="bg-[#D9D9D9]"],
-    [class*="bg-[#C4DDF2]"] {
-        background-color: var(--color-accent) !important;
+    .text-\[\#595859\],
+    .text-\[\#8C8C8C\] {
+        color: var(--text-secondary) !important;
+    }
+
+    .text-white {
+        color: var(--text-on-strong) !important;
+    }
+
+    .bg-white {
+        background: var(--bg-surface) !important;
+    }
+
+    .bg-\[\#262526\],
+    .bg-\[\#0D0D0D\] {
+        background: var(--bg-strong) !important;
+        color: var(--text-on-strong) !important;
+    }
+
+    .border-\[\#D9D9D9\],
+    .border-\[\#8C8C8C\] {
+        border-color: var(--border-default) !important;
+    }
+
+    .border-\[\#262526\] {
+        border-color: var(--border-strong) !important;
+    }
+
+    .rounded-\[4px\],
+    .rounded-sm,
+    .rounded,
+    .rounded-md,
+    .rounded-lg,
+    .rounded-xl,
+    .rounded-2xl,
+    .rounded-3xl,
+    .rounded-full,
+    .rounded-none {
+        border-radius: var(--radius-base) !important;
+    }
+
+    .text-xs {
+        font-size: var(--font-12) !important;
+        line-height: var(--line-16) !important;
+    }
+
+    .text-sm,
+    .text-base {
+        font-size: var(--font-16) !important;
+        line-height: var(--line-24) !important;
+    }
+
+    .text-lg {
+        font-size: var(--font-20) !important;
+        line-height: var(--line-32) !important;
+    }
+
+    .text-xl,
+    .text-2xl {
+        font-size: var(--font-24) !important;
+        line-height: var(--line-32) !important;
+    }
+
+    .text-3xl {
+        font-size: var(--font-32) !important;
+        line-height: var(--line-40) !important;
     }
 }
