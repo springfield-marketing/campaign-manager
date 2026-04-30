@@ -1,0 +1,210 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        --app-font: "Figtree";
+        --color-primary: #314759;
+        --color-secondary: #260C06;
+        --color-accent: #C4DDF2;
+        --color-background: #ffffff;
+        --color-text: var(--color-primary);
+        --color-muted: color-mix(in srgb, var(--color-primary) 70%, white);
+        --color-border: color-mix(in srgb, var(--color-primary) 28%, white);
+        --color-button-primary: var(--color-secondary);
+        --color-button-primary-dark: color-mix(in srgb, var(--color-secondary) 75%, black);
+        --ivr-radius: 4px;
+    }
+
+    body {
+        background-color: var(--color-background);
+        color: var(--color-text);
+        font-family: var(--app-font), ui-sans-serif, system-ui, sans-serif;
+    }
+
+    [x-cloak] {
+        display: none !important;
+    }
+
+    * {
+        box-shadow: none !important;
+    }
+}
+
+@layer components {
+    .ivr-dashboard {
+        background-color: var(--color-background);
+    }
+
+    .theme-dark,
+    .theme-dark .app-topbar,
+    .theme-dark .app-header,
+    .theme-dark .app-footer,
+    .theme-dark .ivr-dashboard,
+    .theme-dark [class*="bg-white"] {
+        background-color: #000000 !important;
+        color: #ffffff !important;
+    }
+
+    .theme-dark .ivr-panel {
+        background-color: #000000 !important;
+        border-color: #ffffff !important;
+        color: #ffffff !important;
+    }
+
+    .theme-dark .ivr-panel > .border-b {
+        background-color: #000000 !important;
+    }
+
+    .theme-dark .ivr-panel table thead {
+        background-color: #000000 !important;
+    }
+
+    .theme-dark .ivr-panel-dark,
+    .theme-dark [class*="bg-[#262526]"],
+    .theme-dark [class*="bg-[#314759]"] {
+        background-color: var(--color-primary) !important;
+        color: #ffffff !important;
+    }
+
+    .theme-dark,
+    .theme-dark main,
+    .theme-dark header,
+    .theme-dark footer,
+    .theme-dark section,
+    .theme-dark article,
+    .theme-dark div,
+    .theme-dark p,
+    .theme-dark h1,
+    .theme-dark h2,
+    .theme-dark h3,
+    .theme-dark h4,
+    .theme-dark h5,
+    .theme-dark h6,
+    .theme-dark a,
+    .theme-dark span,
+    .theme-dark dt,
+    .theme-dark dd,
+    .theme-dark th,
+    .theme-dark td,
+    .theme-dark label,
+    .theme-dark button {
+        color: #ffffff !important;
+    }
+
+    .theme-dark [class*="text-[#0D0D0D]"],
+    .theme-dark [class*="text-[#262526]"],
+    .theme-dark [class*="text-[#314759]"] {
+        color: #ffffff !important;
+    }
+
+    .theme-dark [class*="text-[#595859]"],
+    .theme-dark [class*="text-[#8C8C8C]"] {
+        color: #ffffff !important;
+    }
+
+    .theme-dark [class*="border-[#D9D9D9]"],
+    .theme-dark [class*="border-[#8C8C8C]"],
+    .theme-dark [class*="divide-[#D9D9D9]"] > :not([hidden]) ~ :not([hidden]) {
+        border-color: #ffffff !important;
+    }
+
+    .theme-dark input,
+    .theme-dark select,
+    .theme-dark textarea {
+        background-color: #000000 !important;
+        border-color: #ffffff !important;
+        color: #ffffff !important;
+    }
+
+    .theme-dark option {
+        background-color: #000000;
+        color: #ffffff;
+    }
+
+    .ivr-panel {
+        border: 1px solid var(--color-border);
+        border-radius: var(--ivr-radius);
+        box-shadow: none;
+    }
+
+    .ivr-panel > .border-b {
+        background-color: #262526;
+        color: #ffffff !important;
+    }
+
+    .ivr-panel table thead {
+        background-color: #262526;
+        color: #ffffff !important;
+    }
+
+    .ivr-panel-dark {
+        background-color: var(--color-primary);
+        border: 1px solid var(--color-border);
+        border-radius: var(--ivr-radius);
+        box-shadow: none;
+        color: #fff;
+    }
+
+    .ivr-badge {
+        border: 1px solid var(--color-border);
+        border-radius: var(--ivr-radius);
+        box-shadow: none;
+    }
+
+    .ivr-progress {
+        border-radius: var(--ivr-radius);
+        overflow: hidden;
+    }
+
+    .ivr-progress-bar {
+        background-color: var(--color-primary);
+        border-radius: var(--ivr-radius);
+    }
+
+    .ivr-card-radius {
+        border-radius: var(--ivr-radius);
+    }
+
+    .ivr-btn-accent {
+        border: 1px solid var(--color-button-primary);
+        background-color: var(--color-button-primary);
+        color: #ffffff !important;
+        border-radius: var(--ivr-radius);
+    }
+
+    .theme-dark .ivr-btn-accent {
+        border-color: var(--color-button-primary-dark) !important;
+        background-color: var(--color-button-primary-dark) !important;
+        color: #ffffff !important;
+    }
+
+    /* Map existing Tailwind arbitrary color utilities to palette variables */
+    [class*="text-[#0D0D0D]"],
+    [class*="text-[#262526]"],
+    [class*="text-[#314759]"] {
+        color: var(--color-text) !important;
+    }
+
+    [class*="text-[#595859]"],
+    [class*="text-[#8C8C8C]"] {
+        color: var(--color-muted) !important;
+    }
+
+    [class*="bg-[#262526]"],
+    [class*="bg-[#314759]"] {
+        background-color: var(--color-primary) !important;
+        color: #ffffff !important;
+    }
+
+    [class*="border-[#D9D9D9]"],
+    [class*="border-[#8C8C8C]"] {
+        border-color: var(--color-border) !important;
+    }
+
+    [class*="bg-[#D9D9D9]"],
+    [class*="bg-[#C4DDF2]"] {
+        background-color: var(--color-accent) !important;
+    }
+}
