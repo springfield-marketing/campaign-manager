@@ -12,7 +12,7 @@
         @foreach ($items as $item)
             <a
                 href="{{ route($item['route']) }}"
-                class="rounded-[4px] border px-3 py-2 {{ $item['active'] ? 'border-[#262526] bg-[#262526] text-white' : 'border-[#D9D9D9] text-[#262526]' }}"
+                class="rounded-[4px] border px-3 py-2 {{ $item['active'] ? 'border-[#D3D1CB] bg-[#F1F1EF] text-[#191919]' : 'border-[#E9E9E7] bg-white text-[#6B6A67]' }}"
                 @if ($item['active']) aria-current="page" @endif
             >
                 {{ $item['label'] }}
