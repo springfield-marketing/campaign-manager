@@ -58,23 +58,6 @@
         --focus-ring: var(--color-gray-500);
     }
 
-    .theme-dark {
-        --bg-page: #000000;
-        --bg-surface: #0d0d0d;
-        --bg-subtle: #141414;
-        --bg-strong: #ffffff;
-        --bg-header: #050505;
-
-        --text-primary: #ffffff;
-        --text-secondary: #e5e5e5;
-        --text-muted: #d4d4d4;
-        --text-on-strong: #000000;
-
-        --border-default: #3a3a3a;
-        --border-strong: #ffffff;
-        --focus-ring: #e5e5e5;
-    }
-
     * {
         border-radius: var(--radius-base);
     }
@@ -115,7 +98,6 @@
     }
 
     .app-topbar,
-    .app-header,
     .app-footer {
         background: var(--bg-header) !important;
         color: var(--text-on-strong);
@@ -139,12 +121,9 @@
         color: var(--text-on-strong);
     }
 
-    .theme-dark .ivr-btn-accent,
-    .theme-dark button[type="submit"],
-    .theme-dark [type="button"] {
-        background: var(--bg-strong);
-        border-color: var(--border-strong);
-        color: var(--text-on-strong);
+    .app-header {
+        background: var(--bg-surface) !important;
+        color: var(--text-primary) !important;
     }
 
     input,

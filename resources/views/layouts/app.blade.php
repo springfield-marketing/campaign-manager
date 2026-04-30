@@ -14,17 +14,7 @@
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body
-        x-data="{
-            darkMode: localStorage.getItem('theme') === 'dark',
-            toggleTheme() {
-                this.darkMode = ! this.darkMode;
-                localStorage.setItem('theme', this.darkMode ? 'dark' : 'light');
-            },
-        }"
-        :class="{ 'theme-dark': darkMode }"
-        class="font-sans antialiased"
-    >
+    <body class="font-sans antialiased">
         <div class="flex min-h-screen flex-col bg-white">
             <header class="app-topbar border-b border-[#D9D9D9] bg-white">
                 <div class="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
@@ -47,22 +37,6 @@
                     </div>
 
                     <div class="flex flex-wrap items-center gap-2">
-                        <button
-                            type="button"
-                            class="rounded-[4px] border border-[#8C8C8C] p-2 text-[#262526]"
-                            @click="toggleTheme()"
-                            :aria-label="darkMode ? 'Switch to light mode' : 'Switch to dark mode'"
-                            :title="darkMode ? 'Light mode' : 'Dark mode'"
-                        >
-                            <svg x-show="!darkMode" x-cloak xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-                                <circle cx="12" cy="12" r="4" />
-                                <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41m11.32-11.32 1.41-1.41" />
-                            </svg>
-                            <svg x-show="darkMode" x-cloak xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-                                <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
-                            </svg>
-                        </button>
-
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
                             <button type="submit" class="rounded-[4px] border border-[#262526] px-3 py-2 text-sm text-[#262526]">Sign out</button>
