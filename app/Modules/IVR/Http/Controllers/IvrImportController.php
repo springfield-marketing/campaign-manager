@@ -15,25 +15,11 @@ class IvrImportController extends Controller
 {
     public function index(): View
     {
-        $imports = IvrImport::query()
-            ->where('type', 'raw_contacts')
-            ->latest()
-            ->paginate(10);
-
-        $revertImports = IvrImport::query()
-            ->where('type', 'raw_contacts')
-            ->where(function ($query): void {
-                $query
-                    ->whereIn('status', ['reverting', 'revert_failed'])
-                    ->orWhereNotNull('reverted_at');
-            })
-            ->latest('updated_at')
-            ->limit(5)
-            ->get();
-
         return view('ivr::imports.index', [
-            'imports' => $imports,
-            'revertImports' => $revertImports,
+            'imports' => IvrImport::query()
+                ->where('type', 'raw_contacts')
+                ->latest()
+                ->paginate(10),
         ]);
     }
 
