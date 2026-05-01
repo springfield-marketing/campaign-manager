@@ -16,7 +16,19 @@ Alpine.data('importProgress', ({ endpoint, imports }) => ({
     },
 
     get(id) {
-        return this.imports.find((item) => item.id === id);
+        return this.imports.find((item) => item.id === id) || {
+            id,
+            status: 'unknown',
+            status_label: 'unknown',
+            status_message: 'Status is not available yet.',
+            total_rows: 0,
+            processed_rows: 0,
+            successful_rows: 0,
+            failed_rows: 0,
+            duplicate_rows: 0,
+            progress: 0,
+            is_active: false,
+        };
     },
 
     hasActiveImports() {

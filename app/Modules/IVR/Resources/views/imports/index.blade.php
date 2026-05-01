@@ -147,14 +147,24 @@
                                 </div>
 
                                 <div class="mt-3">
-                                    <div class="mb-1 flex items-center justify-between gap-3 text-xs ui-muted">
-                                        <span x-text="`${item.processed_rows} / ${item.total_rows || '-'}`"></span>
-                                        <span x-text="`${item.progress}%`"></span>
+                                    <div class="mb-1 flex items-center justify-between gap-3 text-xs font-medium text-theme-secondary">
+                                        <span x-text="`${item.processed_rows} / ${item.total_rows || '-'}`">
+                                            {{ $import->processed_rows }} / {{ $import->total_rows ?: '-' }}
+                                        </span>
+                                        <span x-text="`${item.progress}%`">
+                                            {{ $import->total_rows > 0 ? min(100, round(($import->processed_rows / $import->total_rows) * 100)) : 0 }}%
+                                        </span>
                                     </div>
                                     <div class="ui-progress">
-                                        <div class="ui-progress-bar" :style="`width: ${item.progress}%`"></div>
+                                        <div
+                                            class="ui-progress-bar"
+                                            style="width: {{ $import->total_rows > 0 ? min(100, round(($import->processed_rows / $import->total_rows) * 100)) : 0 }}%"
+                                            :style="`width: ${item.progress}%`"
+                                        ></div>
                                     </div>
-                                    <p class="mt-2 text-xs ui-muted" x-text="`${item.successful_rows} imported - ${item.failed_rows} failed - ${item.duplicate_rows} duplicates`"></p>
+                                    <p class="mt-2 text-xs ui-muted" x-text="`${item.successful_rows} imported - ${item.failed_rows} failed - ${item.duplicate_rows} duplicates`">
+                                        {{ $import->successful_rows }} imported - {{ $import->failed_rows }} failed - {{ $import->duplicate_rows }} duplicates
+                                    </p>
                                 </div>
                             </div>
                         @empty
