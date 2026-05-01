@@ -28,6 +28,16 @@
                         'duplicate_rows' => $import->duplicate_rows,
                         'progress' => $import->total_rows > 0 ? min(100, round(($import->processed_rows / $import->total_rows) * 100)) : 0,
                         'is_active' => in_array($import->status, ['pending', 'processing', 'reverting'], true),
+                        'status_message' => match ($import->status) {
+                            'pending' => 'Waiting for the queue worker to start.',
+                            'processing' => 'Import is running in the background.',
+                            'completed' => 'Import completed successfully.',
+                            'reverting' => 'Revert is running in the background. This can take a few minutes for large files.',
+                            'reverted' => 'Revert complete'.($import->reverted_at ? ' on '.$import->reverted_at->format('M j, Y g:i A') : '').'.',
+                            'revert_failed' => 'Revert failed'.($import->error_message ? ': '.$import->error_message : '.'),
+                            'failed' => 'Import failed'.($import->error_message ? ': '.$import->error_message : '.'),
+                            default => ucfirst(str_replace('_', ' ', $import->status)),
+                        },
                     ])->values())
                 })"
                 x-init="start()"
@@ -103,11 +113,25 @@
 
                                     <div class="flex flex-wrap items-center gap-2 sm:justify-end">
                                         <span
-                                            class="ui-pill"
+                                            class="ui-pill ui-pill-active"
                                             x-show="item.is_active"
                                             x-cloak
                                         >
-                                            Live
+                                            <span x-text="item.status === 'reverting' ? 'Reverting' : 'Live'"></span>
+                                        </span>
+                                        <span
+                                            class="ui-pill ui-pill-active"
+                                            x-show="item.status === 'reverted'"
+                                            x-cloak
+                                        >
+                                            Reverted
+                                        </span>
+                                        <span
+                                            class="ui-pill"
+                                            x-show="item.status === 'revert_failed'"
+                                            x-cloak
+                                        >
+                                            Revert failed
                                         </span>
                                         <a href="{{ route('modules.ivr.imports.show', $import) }}" class="ui-pill">Import log</a>
 
@@ -130,6 +154,7 @@
                                         <div class="ui-progress-bar" :style="`width: ${item.progress}%`"></div>
                                     </div>
                                     <p class="mt-2 text-xs ui-muted" x-text="`${item.successful_rows} imported - ${item.failed_rows} failed - ${item.duplicate_rows} duplicates`"></p>
+                                    <p class="mt-2 text-xs font-medium text-theme-secondary" x-text="item.status_message"></p>
                                 </div>
                             </div>
                         @empty

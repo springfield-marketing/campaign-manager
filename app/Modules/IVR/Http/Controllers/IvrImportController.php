@@ -134,9 +134,24 @@ class IvrImportController extends Controller
                     ? min(100, round(($import->processed_rows / $import->total_rows) * 100))
                     : 0,
                 'is_active' => in_array($import->status, ['pending', 'processing', 'reverting'], true),
+                'status_message' => $this->statusMessage($import),
             ])
             ->values();
 
         return response()->json(['imports' => $imports]);
+    }
+
+    private function statusMessage(IvrImport $import): string
+    {
+        return match ($import->status) {
+            'pending' => 'Waiting for the queue worker to start.',
+            'processing' => 'Import is running in the background.',
+            'completed' => 'Import completed successfully.',
+            'reverting' => 'Revert is running in the background. This can take a few minutes for large files.',
+            'reverted' => 'Revert complete'.($import->reverted_at ? ' on '.$import->reverted_at->format('M j, Y g:i A') : '').'.',
+            'revert_failed' => 'Revert failed'.($import->error_message ? ': '.$import->error_message : '.'),
+            'failed' => 'Import failed'.($import->error_message ? ': '.$import->error_message : '.'),
+            default => ucfirst(str_replace('_', ' ', $import->status)),
+        };
     }
 }
