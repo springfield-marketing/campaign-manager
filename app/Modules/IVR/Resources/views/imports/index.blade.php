@@ -1,14 +1,14 @@
 <x-app-layout>
     <x-slot name="header">
         <div>
-            <h2 class="text-2xl font-semibold text-[#0D0D0D]">Raw Import</h2>
+            <h2 class="page-title">Raw Import</h2>
         </div>
     </x-slot>
 
-    <div class="py-8">
-        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <div class="page-section">
+        <div class="page-wrap">
             @if (session('status'))
-                <div class="mb-6 rounded-[4px] border border-[#8C8C8C] bg-white px-4 py-3 text-sm text-[#262526]">
+                <div class="ui-alert mb-6">
                     {{ session('status') }}
                 </div>
             @endif
@@ -32,18 +32,43 @@
                 })"
                 x-init="start()"
             >
-                <section class="ivr-panel bg-white p-5">
-                    <h3 class="text-lg font-semibold text-[#0D0D0D]">Upload raw file</h3>
-                    <p class="mt-2 text-sm text-[#595859]">
+                <section class="ui-card ui-card-pad">
+                    <h3 class="ui-title">Upload raw file</h3>
+                    <p class="mt-2 text-sm ui-muted">
                         Required columns are name and phone. Other columns may be present or omitted, and column order can vary.
                     </p>
+
+                    <div class="mt-4 grid gap-3 rounded border border-[var(--line)] bg-theme-subtle p-4 text-sm md:grid-cols-2">
+                        <div>
+                            <p class="font-medium text-theme-primary">Accepted CSV format</p>
+                            <p class="mt-1 ui-muted">
+                                The file must include a header row. Required columns are <strong>name</strong> and <strong>phone</strong>.
+                                Accepted phone headers include phone, mobile, phone number, or contact number.
+                            </p>
+                        </div>
+
+                        <div>
+                            <p class="font-medium text-theme-primary">Optional columns</p>
+                            <p class="mt-1 ui-muted">
+                                You may also include email, country, nationality, community, resident, city, gender, interest, and source.
+                                Phone numbers can be UAE local or international format, such as 0501234567 or +971501234567.
+                            </p>
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <p class="font-medium text-theme-primary">Example header</p>
+                            <code class="mt-1 block overflow-x-auto whitespace-nowrap text-xs text-theme-secondary">
+                                name,phone,email,city,nationality,interest,source
+                            </code>
+                        </div>
+                    </div>
 
                     <form method="POST" action="{{ route('modules.ivr.imports.store') }}" enctype="multipart/form-data" class="mt-6 space-y-4">
                         @csrf
                         <div class="grid gap-4 md:grid-cols-2">
                             <div>
                                 <x-input-label for="file" :value="__('CSV file')" />
-                                <input id="file" name="file" type="file" class="mt-1 block w-full rounded-[4px] border border-[#8C8C8C] bg-white px-3 py-2 text-sm">
+                                <input id="file" name="file" type="file" class="ui-control mt-1 block w-full">
                                 <x-input-error :messages="$errors->get('file')" class="mt-2" />
                             </div>
 
@@ -58,52 +83,58 @@
                     </form>
                 </section>
 
-                <section class="ivr-panel overflow-hidden bg-white">
-                    <div class="border-b border-[#D9D9D9] px-5 py-4">
-                        <h3 class="text-lg font-semibold text-[#0D0D0D]">Import history</h3>
+                <section class="ui-card overflow-hidden">
+                    <div class="ui-section-head">
+                        <h3 class="ui-title">Import history</h3>
                     </div>
 
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full text-left text-sm">
-                            <thead class="border-b border-[#D9D9D9] text-[#595859]">
-                                <tr>
-                                    <th class="px-5 py-3 font-medium">File</th>
-                                    <th class="px-5 py-3 font-medium">Source</th>
-                                    <th class="px-5 py-3 font-medium">Status</th>
-                                    <th class="px-5 py-3 font-medium">Rows</th>
-                                    <th class="px-5 py-3 font-medium">Errors</th>
-                                    <th class="px-5 py-3 font-medium"></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse ($imports as $import)
-                                    <tr class="border-b border-[#D9D9D9]" x-data="{ item: get({{ $import->id }}) }">
-                                        <td class="px-5 py-3">{{ $import->original_file_name }}</td>
-                                        <td class="px-5 py-3">{{ $import->source_name ?: '-' }}</td>
-                                        <td class="px-5 py-3 capitalize" x-text="item.status_label"></td>
-                                        <td class="px-5 py-3">
-                                            <div class="min-w-40">
-                                                <div class="mb-1 flex items-center justify-between gap-3 text-xs text-[#595859]">
-                                                    <span x-text="`${item.processed_rows} / ${item.total_rows || '-'}`"></span>
-                                                    <span x-text="`${item.progress}%`"></span>
-                                                </div>
-                                                <div class="h-2 rounded-[4px] bg-[#D9D9D9]">
-                                                    <div class="h-2 rounded-[4px] bg-[#262526]" :style="`width: ${item.progress}%`"></div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td class="px-5 py-3" x-text="`${item.failed_rows} failed`"></td>
-                                        <td class="px-5 py-3">
-                                            <a href="{{ route('modules.ivr.imports.show', $import) }}" class="text-[#262526]">View</a>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="6" class="px-5 py-6 text-[#595859]">No imports yet.</td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
+                    <div class="ui-divide max-h-[560px] overflow-y-auto">
+                        @forelse ($imports as $import)
+                            <div class="px-5 py-4 text-sm" x-data="{ item: get({{ $import->id }}) }">
+                                <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                    <div class="min-w-0">
+                                        <p class="break-all font-medium text-theme-primary">{{ $import->original_file_name }}</p>
+                                        <p class="ui-muted">
+                                            <span>{{ $import->source_name ?: 'No source name' }}</span>
+                                            <span aria-hidden="true">-</span>
+                                            <span class="capitalize" x-text="item.status_label"></span>
+                                        </p>
+                                    </div>
+
+                                    <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+                                        <span
+                                            class="ui-pill"
+                                            x-show="item.is_active"
+                                            x-cloak
+                                        >
+                                            Live
+                                        </span>
+                                        <a href="{{ route('modules.ivr.imports.show', $import) }}" class="ui-pill">Import log</a>
+
+                                        @if (! in_array($import->status, ['pending', 'processing', 'reverted'], true) && $import->reverted_at === null)
+                                            <form method="POST" action="{{ route('modules.ivr.imports.destroy', $import) }}" onsubmit="return confirm('Revert this raw import? This will remove contacts and source links created only by this import. Shared contacts with other history will be kept.');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="ui-pill">Revert</button>
+                                            </form>
+                                        @endif
+                                    </div>
+                                </div>
+
+                                <div class="mt-3">
+                                    <div class="mb-1 flex items-center justify-between gap-3 text-xs ui-muted">
+                                        <span x-text="`${item.processed_rows} / ${item.total_rows || '-'}`"></span>
+                                        <span x-text="`${item.progress}%`"></span>
+                                    </div>
+                                    <div class="ui-progress">
+                                        <div class="ui-progress-bar" :style="`width: ${item.progress}%`"></div>
+                                    </div>
+                                    <p class="mt-2 text-xs ui-muted" x-text="`${item.successful_rows} imported - ${item.failed_rows} failed - ${item.duplicate_rows} duplicates`"></p>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="ui-empty">No imports yet.</div>
+                        @endforelse
                     </div>
 
                     <div class="px-5 py-4">

@@ -1,67 +1,129 @@
 <x-app-layout>
     <x-slot name="header">
         <div>
-            <h2 class="text-2xl font-semibold text-[#0D0D0D]">Number History</h2>
+            <h2 class="page-title">Number History</h2>
         </div>
     </x-slot>
 
-    <div class="py-8">
-        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <div class="page-section">
+        <div class="page-wrap">
             <div class="grid gap-6 lg:grid-cols-[0.7fr_1.3fr]">
-                <section class="ivr-panel bg-white p-5">
-                    <h3 class="text-lg font-semibold text-[#0D0D0D]">{{ $number->normalized_phone }}</h3>
+                <section class="ui-card ui-card-pad">
+                    <h3 class="ui-title">{{ $number->normalized_phone }}</h3>
                     <dl class="mt-4 space-y-3 text-sm">
                         <div>
-                            <dt class="text-[#595859]">Client</dt>
-                            <dd class="text-[#262526]">{{ $number->client?->full_name ?: '-' }}</dd>
+                            <dt class="ui-muted">Client</dt>
+                            <dd class="ui-strong">{{ $number->client?->full_name ?: '-' }}</dd>
                         </div>
                         <div>
-                            <dt class="text-[#595859]">City</dt>
-                            <dd class="text-[#262526]">{{ $number->client?->city ?: '-' }}</dd>
+                            <dt class="ui-muted">City</dt>
+                            <dd class="ui-strong">{{ $number->client?->city ?: '-' }}</dd>
                         </div>
                         <div>
-                            <dt class="text-[#595859]">Usage status</dt>
-                            <dd class="text-[#262526]">{{ ucfirst($number->usage_status) }}</dd>
+                            <dt class="ui-muted">Usage status</dt>
+                            <dd class="ui-strong">{{ ucfirst($number->usage_status) }}</dd>
                         </div>
                         <div>
-                            <dt class="text-[#595859]">Cooldown until</dt>
-                            <dd class="text-[#262526]">{{ optional($number->cooldown_until)->format('Y-m-d H:i') ?: '-' }}</dd>
+                            <dt class="ui-muted">Cooldown until</dt>
+                            <dd class="ui-strong">{{ optional($number->cooldown_until)->format('Y-m-d H:i') ?: '-' }}</dd>
                         </div>
                         <div>
-                            <dt class="text-[#595859]">Unsubscribed</dt>
-                            <dd class="text-[#262526]">{{ optional($number->unsubscribed_at)->format('Y-m-d H:i') ?: 'No' }}</dd>
+                            <dt class="ui-muted">Unsubscribed</dt>
+                            <dd class="ui-strong">{{ optional($number->unsubscribed_at)->format('Y-m-d H:i') ?: 'No' }}</dd>
                         </div>
                     </dl>
                 </section>
 
                 <section class="space-y-6">
-                    <div class="ivr-panel overflow-hidden bg-white">
-                        <div class="border-b border-[#D9D9D9] px-5 py-4">
-                            <h3 class="text-lg font-semibold text-[#0D0D0D]">Call history</h3>
+                    <div class="ui-card overflow-hidden">
+                        <div class="ui-section-head">
+                            <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                    <h3 class="ui-title">Client numbers</h3>
+                                    <p class="mt-1 text-sm ui-muted">
+                                        @if ($number->client)
+                                            {{ $number->client->phoneNumbers->count() }} number{{ $number->client->phoneNumbers->count() === 1 ? '' : 's' }} linked to this client.
+                                        @else
+                                            This number is not linked to a client.
+                                        @endif
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        @if ($number->client)
+                            <div class="overflow-x-auto">
+                                <table class="ui-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Phone</th>
+                                            <th>Label</th>
+                                            <th>Priority</th>
+                                            <th>Status</th>
+                                            <th>Uses</th>
+                                            <th>Last called</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach ($number->client->phoneNumbers as $clientNumber)
+                                            <tr>
+                                                <td>
+                                                    <div class="flex flex-wrap items-center gap-2">
+                                                        @if ($clientNumber->id === $number->id)
+                                                            <span class="ui-pill ui-pill-active">Current</span>
+                                                        @endif
+
+                                                        @if ($clientNumber->is_primary)
+                                                            <span class="ui-pill">Primary</span>
+                                                        @endif
+
+                                                        <a href="{{ route('modules.ivr.numbers.show', $clientNumber) }}" class="ui-link">
+                                                            {{ $clientNumber->normalized_phone }}
+                                                        </a>
+                                                    </div>
+                                                </td>
+                                                <td>{{ $clientNumber->label ?: '-' }}</td>
+                                                <td>{{ $clientNumber->priority }}</td>
+                                                <td>{{ ucfirst($clientNumber->usage_status) }}</td>
+                                                <td>{{ $clientNumber->ivr_use_count }}</td>
+                                                <td>{{ optional($clientNumber->last_called_at)->format('Y-m-d H:i') ?: '-' }}</td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @else
+                            <div class="ui-empty">No linked client numbers available.</div>
+                        @endif
+                    </div>
+
+                    <div class="ui-card overflow-hidden">
+                        <div class="ui-section-head">
+                            <h3 class="ui-title">Call history</h3>
                         </div>
                         <div class="overflow-x-auto">
-                            <table class="min-w-full text-left text-sm">
-                                <thead class="border-b border-[#D9D9D9] text-[#595859]">
+                            <table class="ui-table">
+                                <thead>
                                     <tr>
-                                        <th class="px-5 py-3 font-medium">Time</th>
-                                        <th class="px-5 py-3 font-medium">Campaign</th>
-                                        <th class="px-5 py-3 font-medium">Status</th>
-                                        <th class="px-5 py-3 font-medium">Outcome</th>
-                                        <th class="px-5 py-3 font-medium">Duration</th>
+                                        <th>Time</th>
+                                        <th>Campaign</th>
+                                        <th>Status</th>
+                                        <th>Outcome</th>
+                                        <th>Duration</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @forelse ($number->ivrCallRecords as $call)
-                                        <tr class="border-b border-[#D9D9D9]">
-                                            <td class="px-5 py-3">{{ optional($call->call_time)->format('Y-m-d H:i') }}</td>
-                                            <td class="px-5 py-3">{{ $call->campaign?->external_campaign_id }}</td>
-                                            <td class="px-5 py-3">{{ $call->call_status }}</td>
-                                            <td class="px-5 py-3">{{ $call->dtmf_outcome ?: '-' }}</td>
-                                            <td class="px-5 py-3">{{ $call->total_duration_seconds }}s</td>
+                                        <tr>
+                                            <td>{{ optional($call->call_time)->format('Y-m-d H:i') }}</td>
+                                            <td>{{ $call->campaign?->external_campaign_id }}</td>
+                                            <td>{{ $call->call_status }}</td>
+                                            <td>{{ $call->dtmf_outcome ?: '-' }}</td>
+                                            <td>{{ $call->total_duration_seconds }}s</td>
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="5" class="px-5 py-6 text-[#595859]">No call history available.</td>
+                                            <td colspan="5" class="ui-empty">No call history available.</td>
                                         </tr>
                                     @endforelse
                                 </tbody>
@@ -69,18 +131,18 @@
                         </div>
                     </div>
 
-                    <div class="ivr-panel overflow-hidden bg-white">
-                        <div class="border-b border-[#D9D9D9] px-5 py-4">
-                            <h3 class="text-lg font-semibold text-[#0D0D0D]">Source history</h3>
+                    <div class="ui-card overflow-hidden">
+                        <div class="ui-section-head">
+                            <h3 class="ui-title">Source history</h3>
                         </div>
-                        <div class="divide-y divide-[#D9D9D9]">
+                        <div class="ui-divide">
                             @forelse ($number->sources as $source)
                                 <div class="px-5 py-4 text-sm">
-                                    <p class="font-medium text-[#262526]">{{ $source->source_name ?: $source->source_type }}</p>
-                                    <p class="text-[#595859]">{{ $source->source_type }} • {{ $source->created_at->format('Y-m-d H:i') }}</p>
+                                    <p class="font-medium ui-strong">{{ $source->source_name ?: $source->source_type }}</p>
+                                    <p class="ui-muted">{{ $source->source_type }} - {{ $source->created_at->format('Y-m-d H:i') }}</p>
                                 </div>
                             @empty
-                                <div class="px-5 py-6 text-sm text-[#595859]">No source history available.</div>
+                                <div class="ui-empty">No source history available.</div>
                             @endforelse
                         </div>
                     </div>

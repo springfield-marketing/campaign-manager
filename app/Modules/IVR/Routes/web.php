@@ -15,6 +15,7 @@ Route::middleware(['auth', 'verified'])
         Route::get('/imports', [IvrImportController::class, 'index'])->name('imports.index');
         Route::post('/imports', [IvrImportController::class, 'store'])->name('imports.store');
         Route::get('/imports/status', [IvrImportController::class, 'status'])->name('imports.status');
+        Route::delete('/imports/{import}', [IvrImportController::class, 'destroy'])->name('imports.destroy');
         Route::get('/imports/{import}', [IvrImportController::class, 'show'])->name('imports.show');
         Route::get('/campaign-results', [IvrCampaignResultController::class, 'index'])->name('results.index');
         Route::post('/campaign-results', [IvrCampaignResultController::class, 'store'])->name('results.store');

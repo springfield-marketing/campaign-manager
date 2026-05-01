@@ -59,7 +59,7 @@ $maxWidth = [
 
     <div
         x-show="show"
-        class="mb-6 overflow-hidden rounded-[4px] border border-[#D9D9D9] bg-white sm:mx-auto sm:w-full {{ $maxWidth }}"
+        class="ui-card mb-6 overflow-hidden sm:mx-auto sm:w-full {{ $maxWidth }}"
     >
         {{ $slot }}
     </div>

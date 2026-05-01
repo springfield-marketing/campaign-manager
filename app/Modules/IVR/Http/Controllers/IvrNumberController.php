@@ -38,6 +38,11 @@ class IvrNumberController extends Controller
         return view('ivr::numbers.show', [
             'number' => $number->load([
                 'client',
+                'client.phoneNumbers' => fn ($query) => $query
+                    ->withCount(['ivrCallRecords as ivr_use_count'])
+                    ->orderByDesc('is_primary')
+                    ->orderBy('priority')
+                    ->orderBy('normalized_phone'),
                 'sources' => fn ($query) => $query->latest(),
                 'ivrCallRecords' => fn ($query) => $query->with('campaign')->latest('call_time'),
                 'suppressions' => fn ($query) => $query->latest('suppressed_at'),
@@ -49,7 +54,7 @@ class IvrNumberController extends Controller
     {
         $limit = $this->exportLimit($request);
 
-        $numbers = $this->filteredQuery($request)
+        $numbers = $this->eligibleExportQuery($request)
             ->with('client')
             ->when($limit, fn ($query) => $query->limit($limit))
             ->get();
@@ -69,6 +74,39 @@ class IvrNumberController extends Controller
         }, 'ivr_numbers_export.csv', [
             'Content-Type' => 'text/csv',
         ]);
+    }
+
+    private function eligibleExportQuery(Request $request): Builder
+    {
+        $rankedNumbers = $this->filteredQuery($request)
+            ->where('usage_status', 'active')
+            ->whereNull('unsubscribed_at')
+            ->where(function (Builder $query): void {
+                $query->whereNull('cooldown_until')
+                    ->orWhere('cooldown_until', '<=', now());
+            })
+            ->whereDoesntHave('suppressions', function (Builder $query): void {
+                $query->whereNull('released_at')
+                    ->where(function (Builder $query): void {
+                        $query->whereNull('channel')
+                            ->orWhere('channel', 'ivr');
+                    });
+            })
+            ->addSelect(DB::raw(
+                'ROW_NUMBER() OVER (
+                    PARTITION BY COALESCE(client_id, -id)
+                    ORDER BY is_primary DESC, priority ASC, last_called_at ASC, id ASC
+                ) AS export_rank'
+            ))
+            ->reorder();
+
+        return ClientPhoneNumber::query()
+            ->fromSub($rankedNumbers, 'client_phone_numbers')
+            ->where('export_rank', 1)
+            ->orderByDesc('is_primary')
+            ->orderBy('priority')
+            ->orderBy('last_called_at')
+            ->orderBy('id');
     }
 
     private function filteredQuery(Request $request): Builder

@@ -15,21 +15,21 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="font-sans antialiased">
-        <div class="flex min-h-screen flex-col bg-white">
-            <header class="app-topbar border-b border-[#D9D9D9] bg-white">
+        <div class="app-shell">
+            <header class="app-bar">
                 <div class="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
                     <div class="flex items-center gap-3">
-                        <a href="{{ route('dashboard') }}" class="flex h-10 w-10 items-center justify-center rounded-[4px] border border-[#D9D9D9] text-[#262526]" aria-label="{{ config('app.name', 'Laravel') }}">
+                        <a href="{{ route('dashboard') }}" class="ui-button-subtle h-10 w-10 p-0" aria-label="{{ config('app.name', 'Laravel') }}">
                             <x-application-logo class="h-6 w-6 fill-current" />
                         </a>
 
                         <div>
-                            <p class="text-sm font-semibold text-[#0D0D0D]">{{ config('app.name', 'Campaign Tracker') }}</p>
-                            <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-[#595859]">
+                            <p class="text-sm font-semibold text-theme-primary">{{ config('app.name', 'Campaign Tracker') }}</p>
+                            <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-theme-muted">
                                 @if (request()->routeIs('modules.ivr.*'))
-                                    <span class="rounded-[4px] border border-[#8C8C8C] px-2 py-1 text-[#262526]">IVR workspace</span>
+                                    <span class="ui-pill">IVR workspace</span>
                                 @else
-                                    <span class="rounded-[4px] border border-[#8C8C8C] px-2 py-1 text-[#262526]">Campaign workspace</span>
+                                    <span class="ui-pill">Campaign workspace</span>
                                 @endif
                                 <span>{{ now()->format('M d, Y') }}</span>
                             </div>
@@ -39,14 +39,14 @@
                     <div class="flex flex-wrap items-center gap-2">
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
-                            <button type="submit" class="rounded-[4px] border border-[#262526] px-3 py-2 text-sm text-[#262526]">Sign out</button>
+                            <button type="submit" class="ui-button-subtle">Sign out</button>
                         </form>
                     </div>
                 </div>
             </header>
 
             @isset($header)
-                <header class="app-header border-b border-[#D9D9D9] bg-white">
+                <header class="app-bar">
                     <div class="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
                         <div>
                             {{ $header }}
@@ -63,13 +63,13 @@
                 {{ $slot }}
             </main>
 
-            <footer class="app-footer border-t border-[#D9D9D9] bg-white">
-                <div class="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-4 text-sm text-[#595859] sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
+            <footer class="app-footer">
+                <div class="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-4 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
                     <div class="flex flex-wrap items-center gap-4">
-                        <a href="{{ route('dashboard') }}" class="text-[#262526]">Dashboard</a>
-                        <a href="{{ route('modules.ivr.index') }}" class="text-[#262526]">IVR</a>
-                        <a href="{{ route('modules.whatsapp.index') }}" class="text-[#262526]">WhatsApp</a>
-                        <a href="{{ route('modules.emails.index') }}" class="text-[#262526]">Emails</a>
+                        <a href="{{ route('dashboard') }}" class="ui-link">Dashboard</a>
+                        <a href="{{ route('modules.ivr.index') }}" class="ui-link">IVR</a>
+                        <a href="{{ route('modules.whatsapp.index') }}" class="ui-link">WhatsApp</a>
+                        <a href="{{ route('modules.emails.index') }}" class="ui-link">Emails</a>
                     </div>
 
                     <p>IVR campaign management</p>

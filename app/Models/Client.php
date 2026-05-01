@@ -19,6 +19,7 @@ class Client extends Model
         'resident',
         'city',
         'gender',
+        'interest',
         'metadata',
     ];
 

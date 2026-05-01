@@ -196,6 +196,7 @@ class RawImportProcessor
                 'resident' => $payload['resident'] ?? null,
                 'city' => $payload['city'] ?? null,
                 'gender' => $payload['gender'] ?? null,
+                'interest' => $payload['interest'] ?? null,
             ]);
 
             $phoneNumber = ClientPhoneNumber::create([
@@ -206,6 +207,8 @@ class RawImportProcessor
                 'national_number' => $normalized['national_number'],
                 'detected_country' => $normalized['detected_country'],
                 'is_uae' => $normalized['is_uae'],
+                'is_primary' => true,
+                'priority' => 1,
                 'last_source_name' => $sourceName,
                 'last_imported_at' => now(),
             ]);
@@ -221,6 +224,7 @@ class RawImportProcessor
                 'resident' => $client->resident ?: ($payload['resident'] ?? null),
                 'city' => $client->city ?: ($payload['city'] ?? null),
                 'gender' => $client->gender ?: ($payload['gender'] ?? null),
+                'interest' => $client->interest ?: ($payload['interest'] ?? null),
             ], fn ($value) => $value !== null && $value !== ''))->save();
 
             $phoneNumber->forceFill([

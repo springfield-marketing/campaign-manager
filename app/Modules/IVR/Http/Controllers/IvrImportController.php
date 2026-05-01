@@ -3,11 +3,15 @@
 namespace App\Modules\IVR\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\ClientPhoneNumber;
+use App\Models\ClientSource;
 use App\Modules\IVR\Jobs\ProcessRawIvrImport;
 use App\Modules\IVR\Models\IvrImport;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 
 class IvrImportController extends Controller
@@ -73,6 +77,98 @@ class IvrImportController extends Controller
         return view('ivr::imports.show', [
             'import' => $import->load(['errors' => fn ($query) => $query->latest()->limit(100)]),
         ]);
+    }
+
+    public function destroy(Request $request, IvrImport $import): RedirectResponse
+    {
+        if ($import->type !== 'raw_contacts') {
+            abort(404);
+        }
+
+        if (in_array($import->status, ['pending', 'processing'], true)) {
+            return back()->with('status', 'This raw import is still running and cannot be reverted yet.');
+        }
+
+        if ($import->reverted_at !== null) {
+            return back()->with('status', 'This raw import has already been reverted.');
+        }
+
+        $validated = $request->validate([
+            'revert_reason' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $affectedPhoneIds = collect();
+        $deletedPhoneCount = 0;
+        $deletedClientCount = 0;
+
+        DB::transaction(function () use ($import, $request, $validated, &$affectedPhoneIds, &$deletedPhoneCount, &$deletedClientCount): void {
+            $affectedPhoneIds = ClientSource::query()
+                ->where('channel', 'ivr')
+                ->where('source_type', 'raw_import')
+                ->where('source_reference', (string) $import->id)
+                ->pluck('client_phone_number_id')
+                ->filter()
+                ->unique()
+                ->values();
+
+            ClientSource::query()
+                ->where('channel', 'ivr')
+                ->where('source_type', 'raw_import')
+                ->where('source_reference', (string) $import->id)
+                ->delete();
+
+            ClientPhoneNumber::query()
+                ->whereIn('id', $affectedPhoneIds)
+                ->with(['client', 'sources', 'suppressions', 'ivrCallRecords'])
+                ->get()
+                ->each(function (ClientPhoneNumber $phoneNumber) use (&$deletedPhoneCount, &$deletedClientCount): void {
+                    $phoneNumber->load(['client', 'sources', 'suppressions', 'ivrCallRecords']);
+
+                    if ($phoneNumber->sources->isEmpty() && $phoneNumber->suppressions->isEmpty() && $phoneNumber->ivrCallRecords->isEmpty()) {
+                        $client = $phoneNumber->client;
+
+                        $phoneNumber->delete();
+                        $deletedPhoneCount++;
+
+                        if ($client && $client->phoneNumbers()->doesntExist() && $client->sources()->doesntExist()) {
+                            $client->delete();
+                            $deletedClientCount++;
+                        }
+
+                        return;
+                    }
+
+                    $latestRawSource = $phoneNumber->sources()
+                        ->where('channel', 'ivr')
+                        ->where('source_type', 'raw_import')
+                        ->latest()
+                        ->first();
+
+                    $phoneNumber->forceFill([
+                        'last_source_name' => $latestRawSource?->source_name,
+                        'last_imported_at' => $latestRawSource?->created_at,
+                    ])->save();
+                });
+
+            $import->update([
+                'status' => 'reverted',
+                'reverted_at' => now(),
+                'reverted_by' => $request->user()?->id,
+                'revert_reason' => $validated['revert_reason'] ?? null,
+            ]);
+        });
+
+        Log::channel('ivr')->info('Reverted raw IVR import.', [
+            'import_id' => $import->id,
+            'file_name' => $import->original_file_name,
+            'affected_phone_numbers' => $affectedPhoneIds->count(),
+            'deleted_phone_numbers' => $deletedPhoneCount,
+            'deleted_clients' => $deletedClientCount,
+        ]);
+
+        return redirect()
+            ->route('modules.ivr.imports.index')
+            ->with('status', "Raw import {$import->original_file_name} was reverted.");
     }
 
     public function status(Request $request): JsonResponse

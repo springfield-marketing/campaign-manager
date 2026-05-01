@@ -23,6 +23,7 @@ return [
             'resident' => ['resident', 'residency', 'resident status'],
             'city' => ['city'],
             'gender' => ['gender', 'sex'],
+            'interest' => ['interest', 'interested project', 'project interest', 'project', 'enquiry', 'inquiry'],
             'source_file' => ['source file', 'source', 'source name'],
         ],
     ],

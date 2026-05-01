@@ -1,4 +1,4 @@
-<nav x-data="{ open: false }" class="border-b border-[#D9D9D9] bg-white">
+<nav x-data="{ open: false }" class="app-bar">
     <!-- Primary Navigation Menu -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between h-16">
@@ -6,7 +6,7 @@
                 <!-- Logo -->
                 <div class="shrink-0 flex items-center">
                     <a href="{{ route('dashboard') }}">
-                        <x-application-logo class="block h-9 w-auto fill-current text-gray-800" />
+                        <x-application-logo class="block h-9 w-auto fill-current text-theme-primary" />
                     </a>
                 </div>
 
@@ -31,7 +31,7 @@
             <div class="hidden sm:flex sm:items-center sm:ms-6">
                 <x-dropdown align="right" width="48">
                     <x-slot name="trigger">
-                        <button class="inline-flex items-center rounded-[4px] border border-[#D9D9D9] bg-white px-3 py-2 text-sm font-medium leading-4 text-[#595859] focus:outline-none">
+                        <button class="ui-button-subtle leading-4 focus:outline-none">
                             <div>{{ Auth::user()->name }}</div>
 
                             <div class="ms-1">
@@ -63,7 +63,7 @@
 
             <!-- Hamburger -->
             <div class="-me-2 flex items-center sm:hidden">
-                <button @click="open = ! open" class="inline-flex items-center justify-center rounded-[4px] border border-[#D9D9D9] p-2 text-[#595859] focus:outline-none">
+                <button @click="open = ! open" class="ui-button-subtle p-2 focus:outline-none">
                     <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
                         <path :class="{'hidden': open, 'inline-flex': ! open }" class="inline-flex" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                         <path :class="{'hidden': ! open, 'inline-flex': open }" class="hidden" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -93,8 +93,8 @@
         <!-- Responsive Settings Options -->
         <div class="pt-4 pb-1 border-t border-gray-200">
             <div class="px-4">
-                <div class="font-medium text-base text-gray-800">{{ Auth::user()->name }}</div>
-                <div class="font-medium text-sm text-gray-500">{{ Auth::user()->email }}</div>
+                <div class="text-base font-medium text-theme-primary">{{ Auth::user()->name }}</div>
+                <div class="text-sm font-medium text-theme-muted">{{ Auth::user()->email }}</div>
             </div>
 
             <div class="mt-3 space-y-1">

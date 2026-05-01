@@ -18,8 +18,13 @@ class ClientPhoneNumber extends Model
         'normalized_phone',
         'country_code',
         'national_number',
+        'label',
         'detected_country',
         'is_uae',
+        'is_primary',
+        'is_whatsapp',
+        'verification_status',
+        'priority',
         'usage_status',
         'last_call_outcome',
         'last_source_name',
@@ -34,6 +39,9 @@ class ClientPhoneNumber extends Model
     {
         return [
             'is_uae' => 'boolean',
+            'is_primary' => 'boolean',
+            'is_whatsapp' => 'boolean',
+            'priority' => 'integer',
             'last_imported_at' => 'datetime',
             'last_called_at' => 'datetime',
             'cooldown_until' => 'datetime',

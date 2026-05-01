@@ -4,260 +4,292 @@
 
 @layer base {
     :root {
-        --font-family-base: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif;
+        --app-font: Figtree, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
-        --space-0: 0;
-        --space-4: 4px;
-        --space-8: 8px;
-        --space-12: 12px;
-        --space-16: 16px;
-        --space-20: 20px;
-        --space-24: 24px;
-        --space-32: 32px;
-        --space-40: 40px;
-
-        --radius-base: 4px;
-
-        --font-12: 12px;
-        --font-16: 16px;
-        --font-20: 20px;
-        --font-24: 24px;
-        --font-32: 32px;
-
-        --line-16: 16px;
-        --line-24: 24px;
-        --line-32: 32px;
-        --line-40: 40px;
-
-        --color-white: #ffffff;
-        --color-black: #191919;
-        --color-gray-900: #191919;
-        --color-gray-800: #2f2f2f;
-        --color-gray-700: #37352f;
-        --color-gray-600: #4d4b47;
-        --color-gray-500: #6b6a67;
-        --color-gray-400: #9b9a97;
-        --color-gray-300: #d3d1cb;
-        --color-gray-200: #e9e9e7;
-        --color-gray-150: #efefed;
-        --color-gray-100: #f7f7f5;
-
-        --bg-page: var(--color-gray-100);
-        --bg-surface: var(--color-white);
-        --bg-subtle: #f1f1ef;
-        --bg-strong: #2f2f2f;
-        --bg-header: var(--color-white);
-
-        --text-primary: var(--color-black);
-        --text-secondary: var(--color-gray-600);
-        --text-muted: var(--color-gray-500);
-        --text-on-strong: var(--color-white);
-
-        --border-default: var(--color-gray-200);
-        --border-strong: var(--color-gray-700);
-        --focus-ring: var(--color-gray-500);
-    }
-
-    * {
-        border-radius: var(--radius-base);
+        --page: #f7f7f5;
+        --surface: #ffffff;
+        --surface-muted: #f1f1ef;
+        --ink: #191919;
+        --ink-soft: #37352f;
+        --muted: #6b6a67;
+        --muted-strong: #4d4b47;
+        --line: #e3e1dc;
+        --line-strong: #8c8c8c;
+        --accent: #262526;
+        --accent-ink: #ffffff;
+        --radius: 0.25rem;
     }
 
     html,
     body {
-        background: var(--bg-page);
-        color: var(--text-primary);
-        font-family: var(--font-family-base);
-        font-size: var(--font-16);
-        line-height: var(--line-24);
+        background: var(--page);
+        color: var(--ink);
+        font-family: var(--app-font);
     }
 
     [x-cloak] {
         display: none !important;
     }
 
-    a,
-    button,
-    input,
-    select,
-    textarea {
-        transition: none !important;
-    }
-
-    [class*="shadow"] {
-        box-shadow: none !important;
-    }
-}
-
-@layer components {
-    .app-topbar,
-    .app-header,
-    .app-footer,
-    .ivr-panel {
-        background: var(--bg-surface) !important;
-        border-color: var(--border-default) !important;
-    }
-
-    .app-topbar,
-    .app-footer {
-        background: var(--bg-header) !important;
-        color: var(--text-primary);
-    }
-
-    .app-topbar a,
-    .app-topbar p,
-    .app-topbar span,
-    .app-topbar button,
-    .app-footer a,
-    .app-footer p {
-        color: var(--text-primary) !important;
-        border-color: var(--border-default) !important;
-    }
-
-    .ivr-btn-accent,
-    button[type="submit"],
-    [type="button"] {
-        background: var(--bg-strong);
-        border: 1px solid var(--border-strong);
-        color: var(--text-on-strong);
-    }
-
-    .app-header {
-        background: var(--bg-surface) !important;
-        color: var(--text-primary) !important;
+    a {
+        color: inherit;
     }
 
     input,
     select,
     textarea {
-        background: var(--bg-surface) !important;
-        border: 1px solid var(--border-default) !important;
-        color: var(--text-primary) !important;
-        font-size: var(--font-16);
-        line-height: var(--line-24);
-        padding: var(--space-8) var(--space-12);
+        border-color: var(--line-strong);
+        border-radius: var(--radius);
+        color: var(--ink);
     }
 
     input:focus,
     select:focus,
     textarea:focus {
-        border-color: var(--focus-ring) !important;
-        outline: 1px solid var(--focus-ring);
-        outline-offset: 0;
-        box-shadow: none !important;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 1px var(--accent);
+        outline: none;
+    }
+}
+
+@layer components {
+    .app-shell {
+        @apply flex min-h-screen flex-col;
+        background: var(--page);
     }
 
-    table thead {
-        background: var(--bg-subtle);
-        color: var(--text-secondary);
+    .app-bar {
+        @apply border-b;
+        background: var(--surface);
+        border-color: var(--line);
     }
 
-    table,
-    th,
-    td {
-        border-color: var(--border-default) !important;
+    .app-footer {
+        @apply border-t;
+        background: var(--surface);
+        border-color: var(--line);
+        color: var(--muted);
     }
 
-    th,
-    td {
-        font-size: var(--font-16);
-        line-height: var(--line-24);
-        color: var(--text-primary);
+    .page-wrap {
+        @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;
+    }
+
+    .page-section {
+        @apply py-8;
+    }
+
+    .page-title {
+        @apply text-2xl font-semibold leading-8;
+        color: var(--ink);
+    }
+
+    .ui-card {
+        @apply border;
+        background: var(--surface);
+        border-color: var(--line);
+        border-radius: var(--radius);
+    }
+
+    .ui-card-pad {
+        @apply p-5;
+    }
+
+    .ui-section-head {
+        @apply border-b px-5 py-4;
+        border-color: var(--line);
+    }
+
+    .ui-title {
+        @apply text-lg font-semibold;
+        color: var(--ink);
+    }
+
+    .ui-subtitle,
+    .ui-muted {
+        color: var(--muted);
+    }
+
+    .ui-strong {
+        color: var(--ink-soft);
+    }
+
+    .ui-link {
+        @apply font-medium;
+        color: var(--ink-soft);
+    }
+
+    .ui-link:hover {
+        color: var(--ink);
+        text-decoration: underline;
+        text-underline-offset: 3px;
+    }
+
+    .ui-pill {
+        @apply inline-flex items-center border px-2 py-1 text-xs font-medium;
+        background: var(--surface);
+        border-color: var(--line);
+        border-radius: var(--radius);
+        color: var(--ink-soft);
+    }
+
+    .ui-pill-active {
+        background: var(--surface-muted);
+        border-color: #d3d1cb;
+        color: var(--ink);
+    }
+
+    .ui-button {
+        @apply inline-flex items-center justify-center border px-3 py-2 text-sm font-medium;
+        background: var(--accent);
+        border-color: var(--accent);
+        border-radius: var(--radius);
+        color: var(--accent-ink);
+    }
+
+    .ui-button-subtle {
+        @apply inline-flex items-center justify-center border px-3 py-2 text-sm font-medium;
+        background: var(--surface);
+        border-color: var(--line);
+        border-radius: var(--radius);
+        color: var(--ink-soft);
+    }
+
+    .ui-button-subtle:hover,
+    .ui-button:hover {
+        filter: brightness(0.96);
+    }
+
+    .ui-control {
+        @apply border px-3 py-2 text-sm;
+        background: var(--surface);
+        border-color: var(--line-strong);
+        border-radius: var(--radius);
+        color: var(--ink);
+        min-height: 2.625rem;
+    }
+
+    input[type="file"].ui-control {
+        @apply py-1.5;
+    }
+
+    input[type="file"].ui-control::file-selector-button {
+        @apply mr-3 border-0 px-3 py-1 text-sm font-medium;
+        background: var(--surface-muted);
+        border-radius: var(--radius);
+        color: var(--ink-soft);
+    }
+
+    .ui-label {
+        @apply block text-sm font-medium;
+        color: var(--muted);
+    }
+
+    .ui-alert {
+        @apply border px-4 py-3 text-sm;
+        background: var(--surface);
+        border-color: var(--line-strong);
+        border-radius: var(--radius);
+        color: var(--ink-soft);
+    }
+
+    .ui-checkbox {
+        border-color: var(--line-strong);
+        border-radius: var(--radius);
+        color: var(--accent);
+    }
+
+    .ui-checkbox:focus {
+        --tw-ring-color: var(--accent);
+    }
+
+    .ui-nav-active {
+        border-color: var(--accent);
+        color: var(--ink);
+    }
+
+    .ui-table {
+        @apply min-w-full text-left text-sm;
+    }
+
+    .ui-table thead {
+        @apply border-b;
+        background: var(--surface-muted);
+        border-color: var(--line);
+        color: var(--muted);
+    }
+
+    .ui-table th {
+        @apply px-5 py-3 font-medium;
+    }
+
+    .ui-table td {
+        @apply px-5 py-3;
+        color: var(--ink-soft);
+    }
+
+    .ui-table tr {
+        @apply border-b;
+        border-color: var(--line);
+    }
+
+    .ui-empty {
+        @apply px-5 py-6 text-sm;
+        color: var(--muted);
+    }
+
+    .ui-stat {
+        @apply border p-4;
+        background: var(--surface);
+        border-color: var(--line);
+        border-radius: var(--radius);
+    }
+
+    .ui-stat-label {
+        @apply text-xs uppercase tracking-wide;
+        color: var(--muted);
+    }
+
+    .ui-stat-value {
+        @apply mt-2 font-semibold;
+        color: var(--ink);
+    }
+
+    .ui-progress {
+        @apply h-2 overflow-hidden;
+        background: var(--line);
+        border-radius: var(--radius);
+    }
+
+    .ui-progress-bar {
+        @apply h-2;
+        background: var(--accent);
+        border-radius: var(--radius);
+    }
+
+    .ui-divide > :not([hidden]) ~ :not([hidden]) {
+        border-top: 1px solid var(--line);
     }
 }
 
 @layer utilities {
     .text-theme-primary {
-        color: var(--text-primary);
+        color: var(--ink);
     }
 
     .text-theme-secondary {
-        color: var(--text-secondary);
+        color: var(--muted-strong);
     }
 
     .text-theme-muted {
-        color: var(--text-muted);
+        color: var(--muted);
     }
 
     .bg-theme-surface {
-        background: var(--bg-surface);
+        background: var(--surface);
     }
 
     .bg-theme-subtle {
-        background: var(--bg-subtle);
-    }
-}
-
-@layer base {
-    .text-\[\#0D0D0D\],
-    .text-\[\#262526\] {
-        color: var(--text-primary) !important;
-    }
-
-    .text-\[\#595859\],
-    .text-\[\#8C8C8C\] {
-        color: var(--text-secondary) !important;
-    }
-
-    .text-white {
-        color: var(--text-on-strong) !important;
-    }
-
-    .bg-white {
-        background: var(--bg-surface) !important;
-    }
-
-    .bg-\[\#262526\],
-    .bg-\[\#0D0D0D\] {
-        background: var(--bg-strong) !important;
-        color: var(--text-on-strong) !important;
-    }
-
-    .border-\[\#D9D9D9\],
-    .border-\[\#8C8C8C\] {
-        border-color: var(--border-default) !important;
-    }
-
-    .border-\[\#262526\] {
-        border-color: var(--border-strong) !important;
-    }
-
-    .rounded-\[4px\],
-    .rounded-sm,
-    .rounded,
-    .rounded-md,
-    .rounded-lg,
-    .rounded-xl,
-    .rounded-2xl,
-    .rounded-3xl,
-    .rounded-full,
-    .rounded-none {
-        border-radius: var(--radius-base) !important;
-    }
-
-    .text-xs {
-        font-size: var(--font-12) !important;
-        line-height: var(--line-16) !important;
-    }
-
-    .text-sm,
-    .text-base {
-        font-size: var(--font-16) !important;
-        line-height: var(--line-24) !important;
-    }
-
-    .text-lg {
-        font-size: var(--font-20) !important;
-        line-height: var(--line-32) !important;
-    }
-
-    .text-xl,
-    .text-2xl {
-        font-size: var(--font-24) !important;
-        line-height: var(--line-32) !important;
-    }
-
-    .text-3xl {
-        font-size: var(--font-32) !important;
-        line-height: var(--line-40) !important;
+        background: var(--surface-muted);
     }
 }
