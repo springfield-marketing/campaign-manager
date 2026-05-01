@@ -84,4 +84,48 @@ class IvrNumberExportTest extends TestCase
         $this->assertStringNotContainsString('+971500000003', $csv);
         $this->assertStringNotContainsString($suppressedNumber->normalized_phone, $csv);
     }
+
+    #[Test]
+    public function export_excludes_numbers_for_clients_without_names(): void
+    {
+        $user = User::factory()->create();
+
+        $namedClient = Client::create(['full_name' => 'Named Client']);
+        $namedNumber = ClientPhoneNumber::create([
+            'client_id' => $namedClient->id,
+            'raw_phone' => '0500000100',
+            'normalized_phone' => '+971500000100',
+            'is_uae' => true,
+            'usage_status' => 'active',
+            'is_primary' => true,
+            'priority' => 1,
+        ]);
+
+        foreach ([null, '', '   '] as $index => $name) {
+            $client = Client::create(['full_name' => $name]);
+
+            ClientPhoneNumber::create([
+                'client_id' => $client->id,
+                'raw_phone' => sprintf('050000010%d', $index + 1),
+                'normalized_phone' => '+97150000010'.($index + 1),
+                'is_uae' => true,
+                'usage_status' => 'active',
+                'is_primary' => true,
+                'priority' => 1,
+            ]);
+        }
+
+        $response = $this->actingAs($user)
+            ->get(route('modules.ivr.numbers.export'));
+
+        $response->assertOk();
+
+        $csv = $response->streamedContent();
+
+        $this->assertStringContainsString($namedNumber->normalized_phone, $csv);
+        $this->assertStringContainsString('Named Client', $csv);
+        $this->assertStringNotContainsString('+971500000101', $csv);
+        $this->assertStringNotContainsString('+971500000102', $csv);
+        $this->assertStringNotContainsString('+971500000103', $csv);
+    }
 }

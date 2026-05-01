@@ -113,6 +113,10 @@ class IvrNumberController extends Controller
     {
         $query = ClientPhoneNumber::query()
             ->where('is_uae', true)
+            ->whereHas('client', function (Builder $query): void {
+                $query->whereNotNull('full_name')
+                    ->whereRaw("trim(full_name) <> ''");
+            })
             ->withCount(['ivrCallRecords as ivr_use_count']);
 
         $includeSources = $this->selectedSources($request, 'source_include');

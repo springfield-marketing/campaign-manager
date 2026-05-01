@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Modules;
 
+use App\Models\Client;
 use App\Models\ClientPhoneNumber;
 use App\Models\ClientSource;
 use App\Models\User;
@@ -40,8 +41,10 @@ class ModulePagesTest extends TestCase
     public function numbers_page_supports_source_and_use_count_filters(): void
     {
         $user = User::factory()->create();
+        $client = Client::create(['full_name' => 'Named Filter Client']);
 
         $number = ClientPhoneNumber::create([
+            'client_id' => $client->id,
             'raw_phone' => '0500000001',
             'normalized_phone' => '+971500000001',
             'is_uae' => true,
