@@ -82,7 +82,8 @@ class IvrReportData
             ->selectRaw("sum(case when ivr_call_records.dtmf_outcome = 'more_info' then 1 else 0 end) as more_info_count_filtered")
             ->selectRaw("sum(case when ivr_call_records.dtmf_outcome = 'interested' then 1 else 0 end) as leads_count_filtered")
             ->selectRaw("{$billableMinutesExpression} as minutes_used")
-            ->orderByDesc('calls_count')
+            ->orderByDesc('campaign_completed_at')
+            ->orderByDesc('campaign_started_at')
             ->paginate(20, ['*'], 'campaign_page')
             ->withQueryString();
     }

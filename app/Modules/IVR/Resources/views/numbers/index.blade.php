@@ -34,7 +34,8 @@
                         </div>
                     </div>
 
-                    <div class="grid gap-3 md:grid-cols-6">
+                    <div class="grid gap-3 md:grid-cols-7">
+                    <input type="search" name="phone" value="{{ request('phone') }}" placeholder="Search number" class="ui-control">
                     <select name="city" class="ui-control">
                         <option value="">All cities</option>
                         @foreach (['Dubai', 'Abu Dhabi'] as $city)

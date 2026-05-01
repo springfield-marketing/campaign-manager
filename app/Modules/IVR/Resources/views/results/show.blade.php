@@ -77,6 +77,8 @@
                                 <th>Phone</th>
                                 <th>Email</th>
                                 <th>City</th>
+                                <th>Source</th>
+                                <th>Outcome</th>
                                 <th>Duration</th>
                             </tr>
                         </thead>
@@ -88,11 +90,13 @@
                                     <td>{{ $lead->phoneNumber?->normalized_phone }}</td>
                                     <td>{{ $lead->phoneNumber?->client?->email ?: '-' }}</td>
                                     <td>{{ $lead->phoneNumber?->client?->city ?: '-' }}</td>
+                                    <td>{{ $lead->phoneNumber?->last_source_name ?: '-' }}</td>
+                                    <td>{{ ucfirst(str_replace('_', ' ', $lead->dtmf_outcome)) }}</td>
                                     <td>{{ gmdate('H:i:s', $lead->total_duration_seconds) }}</td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" class="ui-empty">No leads found for this campaign.</td>
+                                    <td colspan="8" class="ui-empty">No leads found for this campaign.</td>
                                 </tr>
                             @endforelse
                         </tbody>

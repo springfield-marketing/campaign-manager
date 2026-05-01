@@ -23,6 +23,8 @@ use Illuminate\View\View;
 
 class IvrCampaignResultController extends Controller
 {
+    private const LEAD_OUTCOMES = ['interested', 'more_info'];
+
     public function index(Request $request): View
     {
         $resultImports = IvrImport::query()
@@ -167,7 +169,7 @@ class IvrCampaignResultController extends Controller
 
         $leads = $campaign->callRecords()
             ->with('phoneNumber.client')
-            ->where('dtmf_outcome', 'interested')
+            ->whereIn('dtmf_outcome', self::LEAD_OUTCOMES)
             ->latest('call_time')
             ->paginate(25);
 
@@ -207,7 +209,7 @@ class IvrCampaignResultController extends Controller
 
             $campaign->callRecords()
                 ->with(['import', 'phoneNumber.client'])
-                ->where('dtmf_outcome', 'interested')
+                ->whereIn('dtmf_outcome', self::LEAD_OUTCOMES)
                 ->latest('call_time')
                 ->chunk(500, function ($leads) use ($handle, $campaign): void {
                     foreach ($leads as $lead) {

@@ -27,7 +27,7 @@
                         'failed_rows' => $import->failed_rows,
                         'duplicate_rows' => $import->duplicate_rows,
                         'progress' => $import->total_rows > 0 ? min(100, round(($import->processed_rows / $import->total_rows) * 100)) : 0,
-                        'is_active' => in_array($import->status, ['pending', 'processing'], true),
+                        'is_active' => in_array($import->status, ['pending', 'processing', 'reverting'], true),
                     ])->values())
                 })"
                 x-init="start()"
@@ -111,7 +111,7 @@
                                         </span>
                                         <a href="{{ route('modules.ivr.imports.show', $import) }}" class="ui-pill">Import log</a>
 
-                                        @if (! in_array($import->status, ['pending', 'processing', 'reverted'], true) && $import->reverted_at === null)
+                                        @if (! in_array($import->status, ['pending', 'processing', 'reverting', 'reverted'], true) && $import->reverted_at === null)
                                             <form method="POST" action="{{ route('modules.ivr.imports.destroy', $import) }}" onsubmit="return confirm('Revert this raw import? This will remove contacts and source links created only by this import. Shared contacts with other history will be kept.');">
                                                 @csrf
                                                 @method('DELETE')

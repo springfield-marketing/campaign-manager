@@ -118,6 +118,22 @@ class IvrNumberController extends Controller
         $includeSources = $this->selectedSources($request, 'source_include');
         $excludeSources = $this->selectedSources($request, 'source_exclude');
 
+        if ($request->filled('phone')) {
+            $phone = trim((string) $request->input('phone'));
+            $phoneDigits = preg_replace('/\D+/', '', $phone) ?: null;
+
+            $query->where(function (Builder $query) use ($phone, $phoneDigits): void {
+                $query->where('normalized_phone', 'like', '%'.$phone.'%')
+                    ->orWhere('raw_phone', 'like', '%'.$phone.'%');
+
+                if ($phoneDigits) {
+                    $query->orWhere('normalized_phone', 'like', '%'.$phoneDigits.'%')
+                        ->orWhere('raw_phone', 'like', '%'.$phoneDigits.'%')
+                        ->orWhere('national_number', 'like', '%'.$phoneDigits.'%');
+                }
+            });
+        }
+
         if ($includeSources !== []) {
             $query->whereHas('sources', fn ($builder) => $builder
                 ->where('source_type', 'raw_import')
@@ -143,11 +159,11 @@ class IvrNumberController extends Controller
         }
 
         if ($request->filled('uses_min')) {
-            $query->having('ivr_use_count', '>=', (int) $request->integer('uses_min'));
+            $query->has('ivrCallRecords', '>=', (int) $request->integer('uses_min'));
         }
 
         if ($request->filled('uses_max')) {
-            $query->having('ivr_use_count', '<=', (int) $request->integer('uses_max'));
+            $query->has('ivrCallRecords', '<=', (int) $request->integer('uses_max'));
         }
 
         return $query->orderBy('usage_status')->orderByDesc('last_called_at');
