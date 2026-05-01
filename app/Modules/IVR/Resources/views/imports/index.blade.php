@@ -30,7 +30,7 @@
                         'failed_rows' => $import->failed_rows,
                         'duplicate_rows' => $import->duplicate_rows,
                         'progress' => $import->total_rows > 0 ? min(100, round(($import->processed_rows / $import->total_rows) * 100)) : 0,
-                        'is_active' => in_array($import->status, ['pending', 'processing', 'reverting'], true),
+                        'is_active' => in_array($import->status, ['pending', 'processing', 'deleting', 'reverting'], true),
                     ])->values())
                 })"
                 x-init="start()"
@@ -111,36 +111,36 @@
                                             x-show="item.is_active"
                                             x-cloak
                                         >
-                                            <span x-text="item.status === 'reverting' ? 'Reverting' : 'Live'"></span>
+                                            <span x-text="['deleting', 'reverting'].includes(item.status) ? 'Deleting' : 'Live'"></span>
                                         </span>
                                         <span
                                             class="ui-pill ui-pill-active"
-                                            x-show="item.status === 'reverted'"
+                                            x-show="['deleted', 'reverted'].includes(item.status)"
                                             x-cloak
                                         >
-                                            Reverted
+                                            Deleted
                                         </span>
                                         <span
                                             class="ui-pill ui-pill-active"
-                                            x-show="item.status === 'revert_failed'"
+                                            x-show="['delete_failed', 'revert_failed'].includes(item.status)"
                                             x-cloak
                                         >
-                                            Revert failed
+                                            Delete failed
                                         </span>
                                         <span
                                             class="ui-pill"
-                                            x-show="! item.is_active && ! ['reverted', 'revert_failed'].includes(item.status)"
+                                            x-show="! item.is_active && ! ['deleted', 'deleting', 'delete_failed', 'reverted', 'reverting', 'revert_failed'].includes(item.status)"
                                             x-cloak
                                         >
                                             <span class="capitalize" x-text="item.status_label"></span>
                                         </span>
                                         <a href="{{ route('modules.ivr.imports.show', $import) }}" class="ui-pill">Import log</a>
 
-                                        @if (! in_array($import->status, ['pending', 'processing', 'reverting', 'reverted'], true) && $import->reverted_at === null)
-                                            <form method="POST" action="{{ route('modules.ivr.imports.destroy', $import) }}" onsubmit="return confirm('Revert this raw import? This will remove contacts and source links created only by this import. Shared contacts with other history will be kept.');">
+                                        @if (! in_array($import->status, ['pending', 'processing', 'deleting', 'deleted', 'reverting', 'reverted'], true) && $import->reverted_at === null)
+                                            <form method="POST" action="{{ route('modules.ivr.imports.destroy', $import) }}" onsubmit="return confirm('Delete this raw import? This will remove contacts and source links created only by this import. Shared contacts with other history will be kept.');">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="ui-pill">Revert</button>
+                                                <button type="submit" class="ui-pill">Delete</button>
                                             </form>
                                         @endif
                                     </div>

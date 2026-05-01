@@ -12,12 +12,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
-class IvrRawImportRevertTest extends TestCase
+class IvrRawImportDeleteTest extends TestCase
 {
     use RefreshDatabase;
 
     #[Test]
-    public function raw_import_revert_removes_contacts_created_only_by_that_import(): void
+    public function raw_import_delete_removes_contacts_created_only_by_that_import(): void
     {
         $user = User::factory()->create();
 
@@ -57,7 +57,7 @@ class IvrRawImportRevertTest extends TestCase
 
         $this->assertDatabaseHas('ivr_imports', [
             'id' => $import->id,
-            'status' => 'reverted',
+            'status' => 'deleted',
         ]);
 
         $this->assertDatabaseMissing('client_phone_numbers', ['id' => $phoneNumber->id]);
@@ -66,7 +66,7 @@ class IvrRawImportRevertTest extends TestCase
     }
 
     #[Test]
-    public function raw_import_revert_keeps_contacts_with_other_sources_or_call_history(): void
+    public function raw_import_delete_keeps_contacts_with_other_sources_or_call_history(): void
     {
         $user = User::factory()->create();
 
@@ -121,7 +121,7 @@ class IvrRawImportRevertTest extends TestCase
 
         $this->assertDatabaseHas('ivr_imports', [
             'id' => $import->id,
-            'status' => 'reverted',
+            'status' => 'deleted',
         ]);
 
         $this->assertDatabaseHas('client_phone_numbers', [

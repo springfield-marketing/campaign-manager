@@ -3,8 +3,8 @@
 namespace App\Modules\IVR\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\IVR\Jobs\DeleteRawIvrImport;
 use App\Modules\IVR\Jobs\ProcessRawIvrImport;
-use App\Modules\IVR\Jobs\RevertRawIvrImport;
 use App\Modules\IVR\Models\IvrImport;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -82,32 +82,32 @@ class IvrImportController extends Controller
             abort(404);
         }
 
-        if (in_array($import->status, ['pending', 'processing', 'reverting'], true)) {
-            return back()->with('status', 'This raw import is still running and cannot be reverted yet.');
+        if (in_array($import->status, ['pending', 'processing', 'deleting', 'reverting'], true)) {
+            return back()->with('status', 'This raw import is still running and cannot be deleted yet.');
         }
 
         if ($import->reverted_at !== null) {
-            return back()->with('status', 'This raw import has already been reverted.');
+            return back()->with('status', 'This raw import has already been deleted.');
         }
 
         $validated = $request->validate([
-            'revert_reason' => ['nullable', 'string', 'max:1000'],
+            'delete_reason' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $import->forceFill([
-            'status' => 'reverting',
+            'status' => 'deleting',
             'error_message' => null,
         ])->save();
 
-        RevertRawIvrImport::dispatch(
+        DeleteRawIvrImport::dispatch(
             $import->id,
             $request->user()?->id,
-            $validated['revert_reason'] ?? null,
+            $validated['delete_reason'] ?? null,
         );
 
         return redirect()
             ->route('modules.ivr.imports.index')
-            ->with('status', "Raw import {$import->original_file_name} is being reverted. The status will update automatically.");
+            ->with('status', "Raw import {$import->original_file_name} is being deleted. The status will update automatically.");
     }
 
     public function status(Request $request): JsonResponse
@@ -144,7 +144,7 @@ class IvrImportController extends Controller
             'progress' => $import->total_rows > 0
                 ? min(100, round(($import->processed_rows / $import->total_rows) * 100))
                 : 0,
-            'is_active' => in_array($import->status, ['pending', 'processing', 'reverting'], true),
+            'is_active' => in_array($import->status, ['pending', 'processing', 'deleting', 'reverting'], true),
         ];
     }
 }
