@@ -30,154 +30,196 @@ class RawImportDeleter
                 return;
             }
 
-            DB::transaction(function () use ($import, $userId, $reason, &$affectedPhoneCount, &$deletedPhoneCount, &$deletedClientCount): void {
-                $now = now();
+            $now = now();
 
-                DB::statement('create temporary table raw_import_delete_phone_ids (id bigint primary key, client_id bigint) on commit drop');
-                DB::statement('create temporary table raw_import_delete_deletable_phone_ids (id bigint primary key) on commit drop');
-                DB::statement('create temporary table raw_import_delete_client_ids (id bigint primary key) on commit drop');
+            $this->updateProgress($import, 'preparing', 'Preparing delete workspace', 1);
 
-                DB::insert(
-                    <<<'SQL'
-                    insert into raw_import_delete_phone_ids (id, client_id)
-                    select distinct cpn.id, cpn.client_id
+            DB::statement('drop table if exists raw_import_delete_phone_ids');
+            DB::statement('drop table if exists raw_import_delete_deletable_phone_ids');
+            DB::statement('drop table if exists raw_import_delete_client_ids');
+
+            DB::statement('create temporary table raw_import_delete_phone_ids (id bigint primary key, client_id bigint)');
+            DB::statement('create temporary table raw_import_delete_deletable_phone_ids (id bigint primary key)');
+            DB::statement('create temporary table raw_import_delete_client_ids (id bigint primary key)');
+
+            DB::insert(
+                <<<'SQL'
+                insert into raw_import_delete_phone_ids (id, client_id)
+                select distinct cpn.id, cpn.client_id
+                from client_sources cs
+                inner join client_phone_numbers cpn on cpn.id = cs.client_phone_number_id
+                where cs.channel = ?
+                  and cs.source_type = ?
+                  and cs.source_reference = ?
+                  and cs.client_phone_number_id is not null
+                SQL,
+                ['ivr', 'raw_import', (string) $import->id],
+            );
+
+            $affectedPhoneCount = (int) DB::table('raw_import_delete_phone_ids')->count();
+
+            DB::insert(
+                <<<'SQL'
+                insert into raw_import_delete_client_ids (id)
+                select distinct client_id
+                from raw_import_delete_phone_ids
+                where client_id is not null
+                SQL,
+            );
+
+            DB::insert(
+                <<<'SQL'
+                insert into raw_import_delete_deletable_phone_ids (id)
+                select p.id
+                from raw_import_delete_phone_ids p
+                where not exists (
+                    select 1
                     from client_sources cs
-                    inner join client_phone_numbers cpn on cpn.id = cs.client_phone_number_id
-                    where cs.channel = ?
-                      and cs.source_type = ?
-                      and cs.source_reference = ?
-                      and cs.client_phone_number_id is not null
-                    SQL,
-                    ['ivr', 'raw_import', (string) $import->id],
-                );
+                    where cs.client_phone_number_id = p.id
+                      and not (
+                        cs.channel = ?
+                        and cs.source_type = ?
+                        and cs.source_reference = ?
+                      )
+                )
+                and not exists (
+                    select 1
+                    from contact_suppressions sup
+                    where sup.client_phone_number_id = p.id
+                )
+                and not exists (
+                    select 1
+                    from ivr_call_records calls
+                    where calls.client_phone_number_id = p.id
+                )
+                SQL,
+                ['ivr', 'raw_import', (string) $import->id],
+            );
 
-                $affectedPhoneCount = (int) DB::table('raw_import_delete_phone_ids')->count();
+            $deletedPhoneCount = (int) DB::table('raw_import_delete_deletable_phone_ids')->count();
 
-                DB::insert(
-                    <<<'SQL'
-                    insert into raw_import_delete_client_ids (id)
-                    select distinct client_id
-                    from raw_import_delete_phone_ids
-                    where client_id is not null
-                    SQL,
-                );
+            $this->updateProgress($import, 'analyzed', 'Analyzed contacts to delete safely', 2);
 
-                DB::insert(
-                    <<<'SQL'
-                    insert into raw_import_delete_deletable_phone_ids (id)
-                    select p.id
+            $deletedSourceCount = DB::delete(
+                <<<'SQL'
+                delete from client_sources
+                where channel = ?
+                  and source_type = ?
+                  and source_reference = ?
+                SQL,
+                ['ivr', 'raw_import', (string) $import->id],
+            );
+
+            $this->updateProgress($import, 'source_links_deleted', 'Deleted import source links', 3, [
+                'source_rows_deleted' => $deletedSourceCount,
+            ]);
+
+            DB::delete(
+                <<<'SQL'
+                delete from client_phone_numbers
+                where id in (
+                    select id
+                    from raw_import_delete_deletable_phone_ids
+                )
+                SQL,
+            );
+
+            $this->updateProgress($import, 'phone_numbers_deleted', 'Deleted import-only phone numbers', 4, [
+                'source_rows_deleted' => $deletedSourceCount,
+                'phone_numbers_deleted' => $deletedPhoneCount,
+            ]);
+
+            DB::update(
+                <<<'SQL'
+                update client_phone_numbers cpn
+                set last_source_name = (
+                        select cs.source_name
+                        from client_sources cs
+                        where cs.client_phone_number_id = cpn.id
+                          and cs.channel = ?
+                          and cs.source_type = ?
+                        order by cs.created_at desc, cs.id desc
+                        limit 1
+                    ),
+                    last_imported_at = (
+                        select cs.created_at
+                        from client_sources cs
+                        where cs.client_phone_number_id = cpn.id
+                          and cs.channel = ?
+                          and cs.source_type = ?
+                        order by cs.created_at desc, cs.id desc
+                        limit 1
+                    ),
+                    updated_at = ?
+                where exists (
+                    select 1
                     from raw_import_delete_phone_ids p
-                    where not exists (
-                        select 1
-                        from client_sources cs
-                        where cs.client_phone_number_id = p.id
-                          and not (
-                            cs.channel = ?
-                            and cs.source_type = ?
-                            and cs.source_reference = ?
-                          )
-                    )
-                    and not exists (
-                        select 1
-                        from contact_suppressions sup
-                        where sup.client_phone_number_id = p.id
-                    )
-                    and not exists (
-                        select 1
-                        from ivr_call_records calls
-                        where calls.client_phone_number_id = p.id
-                    )
-                    SQL,
-                    ['ivr', 'raw_import', (string) $import->id],
-                );
+                    where p.id = cpn.id
+                )
+                and not exists (
+                    select 1
+                    from raw_import_delete_deletable_phone_ids d
+                    where d.id = cpn.id
+                )
+                SQL,
+                ['ivr', 'raw_import', 'ivr', 'raw_import', $now],
+            );
 
-                $deletedPhoneCount = (int) DB::table('raw_import_delete_deletable_phone_ids')->count();
+            $this->updateProgress($import, 'shared_contacts_updated', 'Updated shared contact source details', 5, [
+                'source_rows_deleted' => $deletedSourceCount,
+                'phone_numbers_deleted' => $deletedPhoneCount,
+            ]);
 
-                DB::delete(
-                    <<<'SQL'
-                    delete from client_sources
-                    where channel = ?
-                      and source_type = ?
-                      and source_reference = ?
-                    SQL,
-                    ['ivr', 'raw_import', (string) $import->id],
-                );
+            $deletedClientCount = DB::delete(
+                <<<'SQL'
+                delete from clients c
+                where exists (
+                    select 1
+                    from raw_import_delete_client_ids ids
+                    where ids.id = c.id
+                )
+                and not exists (
+                    select 1
+                    from client_phone_numbers cpn
+                    where cpn.client_id = c.id
+                )
+                and not exists (
+                    select 1
+                    from client_sources cs
+                    where cs.client_id = c.id
+                )
+                SQL,
+            );
 
-                DB::delete(
-                    <<<'SQL'
-                    delete from client_phone_numbers
-                    where id in (
-                        select id
-                        from raw_import_delete_deletable_phone_ids
-                    )
-                    SQL,
-                );
+            $this->updateProgress($import, 'orphan_clients_deleted', 'Deleted orphan clients', 6, [
+                'source_rows_deleted' => $deletedSourceCount,
+                'phone_numbers_deleted' => $deletedPhoneCount,
+                'clients_deleted' => $deletedClientCount,
+            ]);
 
-                DB::update(
-                    <<<'SQL'
-                    update client_phone_numbers cpn
-                    set last_source_name = (
-                            select cs.source_name
-                            from client_sources cs
-                            where cs.client_phone_number_id = cpn.id
-                              and cs.channel = ?
-                              and cs.source_type = ?
-                            order by cs.created_at desc, cs.id desc
-                            limit 1
-                        ),
-                        last_imported_at = (
-                            select cs.created_at
-                            from client_sources cs
-                            where cs.client_phone_number_id = cpn.id
-                              and cs.channel = ?
-                              and cs.source_type = ?
-                            order by cs.created_at desc, cs.id desc
-                            limit 1
-                        ),
-                        updated_at = ?
-                    where exists (
-                        select 1
-                        from raw_import_delete_phone_ids p
-                        where p.id = cpn.id
-                    )
-                    and not exists (
-                        select 1
-                        from raw_import_delete_deletable_phone_ids d
-                        where d.id = cpn.id
-                    )
-                    SQL,
-                    ['ivr', 'raw_import', 'ivr', 'raw_import', $now],
-                );
+            DB::statement('drop table if exists raw_import_delete_phone_ids');
+            DB::statement('drop table if exists raw_import_delete_deletable_phone_ids');
+            DB::statement('drop table if exists raw_import_delete_client_ids');
 
-                $deletedClientCount = DB::delete(
-                    <<<'SQL'
-                    delete from clients c
-                    where exists (
-                        select 1
-                        from raw_import_delete_client_ids ids
-                        where ids.id = c.id
-                    )
-                    and not exists (
-                        select 1
-                        from client_phone_numbers cpn
-                        where cpn.client_id = c.id
-                    )
-                    and not exists (
-                        select 1
-                        from client_sources cs
-                        where cs.client_id = c.id
-                    )
-                    SQL,
-                );
-
-                $import->update([
-                    'status' => 'deleted',
-                    'reverted_at' => $now,
-                    'reverted_by' => $userId,
-                    'revert_reason' => $reason,
-                    'error_message' => null,
-                ]);
-            });
+            $import->update([
+                'status' => 'deleted',
+                'reverted_at' => $now,
+                'reverted_by' => $userId,
+                'revert_reason' => $reason,
+                'error_message' => null,
+                'summary' => array_merge($import->fresh()->summary ?? [], [
+                    'delete_progress' => [
+                        'stage' => 'complete',
+                        'stage_label' => 'Delete complete',
+                        'processed' => 7,
+                        'total' => 7,
+                        'percent' => 100,
+                        'source_rows_deleted' => $deletedSourceCount,
+                        'phone_numbers_deleted' => $deletedPhoneCount,
+                        'clients_deleted' => $deletedClientCount,
+                    ],
+                ]),
+            ]);
         } catch (Throwable $exception) {
             $import->forceFill([
                 'status' => 'delete_failed',
@@ -296,6 +338,28 @@ class RawImportDeleter
         });
 
         return [$affectedPhoneCount, $deletedPhoneCount, $deletedClientCount];
+    }
+
+    private function updateProgress(IvrImport $import, string $stage, string $stageLabel, int $processed, array $counts = []): void
+    {
+        $total = 7;
+        $summary = $import->fresh()->summary ?? [];
+        $current = $summary['delete_progress'] ?? [];
+
+        $summary['delete_progress'] = array_merge($current, [
+            'stage' => $stage,
+            'stage_label' => $stageLabel,
+            'processed' => $processed,
+            'total' => $total,
+            'percent' => min(99, (int) round(($processed / $total) * 100)),
+            'source_rows_deleted' => 0,
+            'phone_numbers_deleted' => 0,
+            'clients_deleted' => 0,
+        ], $counts);
+
+        $import->forceFill([
+            'summary' => $summary,
+        ])->save();
     }
 
     private function logDelete(IvrImport $import, int $affectedPhoneCount, int $deletedPhoneCount, int $deletedClientCount): void

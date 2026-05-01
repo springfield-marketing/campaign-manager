@@ -97,6 +97,18 @@ class IvrImportController extends Controller
         $import->forceFill([
             'status' => 'deleting',
             'error_message' => null,
+            'summary' => array_merge($import->summary ?? [], [
+                'delete_progress' => [
+                    'stage' => 'queued',
+                    'stage_label' => 'Delete queued',
+                    'processed' => 0,
+                    'total' => 7,
+                    'percent' => 0,
+                    'source_rows_deleted' => 0,
+                    'phone_numbers_deleted' => 0,
+                    'clients_deleted' => 0,
+                ],
+            ]),
         ])->save();
 
         DeleteRawIvrImport::dispatch(
@@ -129,6 +141,9 @@ class IvrImportController extends Controller
 
     private function statusPayload(IvrImport $import): array
     {
+        $deleteProgress = $import->deleteProgress();
+        $isDeleting = in_array($import->status, ['deleting', 'deleted', 'delete_failed'], true);
+
         return [
             'id' => $import->id,
             'status' => $import->status,
@@ -141,9 +156,16 @@ class IvrImportController extends Controller
             'successful_rows' => $import->successful_rows,
             'failed_rows' => $import->failed_rows,
             'duplicate_rows' => $import->duplicate_rows,
-            'progress' => $import->total_rows > 0
+            'progress' => $isDeleting ? $deleteProgress['percent'] : ($import->total_rows > 0
                 ? min(100, round(($import->processed_rows / $import->total_rows) * 100))
-                : 0,
+                : 0),
+            'delete_progress' => $deleteProgress,
+            'progress_label' => $isDeleting
+                ? "{$deleteProgress['processed']} / {$deleteProgress['total']} delete steps"
+                : "{$import->processed_rows} / ".($import->total_rows ?: '-'),
+            'detail_label' => $isDeleting
+                ? "{$deleteProgress['source_rows_deleted']} source links deleted - {$deleteProgress['phone_numbers_deleted']} phone numbers deleted - {$deleteProgress['clients_deleted']} clients deleted"
+                : "{$import->successful_rows} imported - {$import->failed_rows} failed - {$import->duplicate_rows} duplicates",
             'is_active' => in_array($import->status, ['pending', 'processing', 'deleting', 'reverting'], true),
         ];
     }

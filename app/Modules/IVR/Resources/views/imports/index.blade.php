@@ -30,6 +30,13 @@
                         'failed_rows' => $import->failed_rows,
                         'duplicate_rows' => $import->duplicate_rows,
                         'progress' => $import->total_rows > 0 ? min(100, round(($import->processed_rows / $import->total_rows) * 100)) : 0,
+                        'delete_progress' => $import->deleteProgress(),
+                        'progress_label' => in_array($import->status, ['deleting', 'deleted', 'delete_failed'], true)
+                            ? $import->deleteProgress()['processed'].' / '.$import->deleteProgress()['total'].' delete steps'
+                            : $import->processed_rows.' / '.($import->total_rows ?: '-'),
+                        'detail_label' => in_array($import->status, ['deleting', 'deleted', 'delete_failed'], true)
+                            ? $import->deleteProgress()['source_rows_deleted'].' source links deleted - '.$import->deleteProgress()['phone_numbers_deleted'].' phone numbers deleted - '.$import->deleteProgress()['clients_deleted'].' clients deleted'
+                            : $import->successful_rows.' imported - '.$import->failed_rows.' failed - '.$import->duplicate_rows.' duplicates',
                         'is_active' => in_array($import->status, ['pending', 'processing', 'deleting', 'reverting'], true),
                     ])->values())
                 })"
@@ -148,7 +155,7 @@
 
                                 <div class="mt-3">
                                     <div class="mb-1 flex items-center justify-between gap-3 text-xs font-medium text-theme-secondary">
-                                        <span x-text="`${item.processed_rows} / ${item.total_rows || '-'}`">
+                                        <span x-text="item.progress_label">
                                             {{ $import->processed_rows }} / {{ $import->total_rows ?: '-' }}
                                         </span>
                                         <span x-text="`${item.progress}%`">
@@ -162,7 +169,7 @@
                                             :style="`width: ${item.progress}%`"
                                         ></div>
                                     </div>
-                                    <p class="mt-2 text-xs ui-muted" x-text="`${item.successful_rows} imported - ${item.failed_rows} failed - ${item.duplicate_rows} duplicates`">
+                                    <p class="mt-2 text-xs ui-muted" x-text="item.detail_label">
                                         {{ $import->successful_rows }} imported - {{ $import->failed_rows }} failed - {{ $import->duplicate_rows }} duplicates
                                     </p>
                                 </div>

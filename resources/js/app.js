@@ -27,6 +27,9 @@ Alpine.data('importProgress', ({ endpoint, imports }) => ({
             failed_rows: 0,
             duplicate_rows: 0,
             progress: 0,
+            delete_progress: {},
+            progress_label: '0 / -',
+            detail_label: '0 imported - 0 failed - 0 duplicates',
             is_active: false,
         };
     },
