@@ -20,7 +20,10 @@
                     imports: @js($imports->map(fn ($import) => [
                         'id' => $import->id,
                         'status' => $import->status,
-                        'status_label' => str_replace('_', ' ', $import->status),
+                        'status_label' => $import->statusLabel(),
+                        'status_message' => $import->statusMessage(),
+                        'original_file_name' => $import->original_file_name,
+                        'source_name' => $import->source_name,
                         'total_rows' => $import->total_rows,
                         'processed_rows' => $import->processed_rows,
                         'successful_rows' => $import->successful_rows,
@@ -28,20 +31,72 @@
                         'duplicate_rows' => $import->duplicate_rows,
                         'progress' => $import->total_rows > 0 ? min(100, round(($import->processed_rows / $import->total_rows) * 100)) : 0,
                         'is_active' => in_array($import->status, ['pending', 'processing', 'reverting'], true),
-                        'status_message' => match ($import->status) {
-                            'pending' => 'Waiting for the queue worker to start.',
-                            'processing' => 'Import is running in the background.',
-                            'completed' => 'Import completed successfully.',
-                            'reverting' => 'Revert is running in the background. This can take a few minutes for large files.',
-                            'reverted' => 'Revert complete'.($import->reverted_at ? ' on '.$import->reverted_at->format('M j, Y g:i A') : '').'.',
-                            'revert_failed' => 'Revert failed'.($import->error_message ? ': '.$import->error_message : '.'),
-                            'failed' => 'Import failed'.($import->error_message ? ': '.$import->error_message : '.'),
-                            default => ucfirst(str_replace('_', ' ', $import->status)),
-                        },
                     ])->values())
                 })"
                 x-init="start()"
             >
+                @if ($revertImports->isNotEmpty())
+                    <section
+                        class="ui-card ui-card-pad"
+                        x-data="importProgress({
+                            endpoint: '{{ route('modules.ivr.imports.status') }}',
+                            imports: @js($revertImports->map(fn ($import) => [
+                                'id' => $import->id,
+                                'status' => $import->status,
+                                'status_label' => $import->statusLabel(),
+                                'status_message' => $import->statusMessage(),
+                                'original_file_name' => $import->original_file_name,
+                                'source_name' => $import->source_name,
+                                'total_rows' => $import->total_rows,
+                                'processed_rows' => $import->processed_rows,
+                                'successful_rows' => $import->successful_rows,
+                                'failed_rows' => $import->failed_rows,
+                                'duplicate_rows' => $import->duplicate_rows,
+                                'progress' => $import->total_rows > 0 ? min(100, round(($import->processed_rows / $import->total_rows) * 100)) : 0,
+                                'is_active' => in_array($import->status, ['pending', 'processing', 'reverting'], true),
+                            ])->values())
+                        })"
+                        x-init="start()"
+                    >
+                        <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <h3 class="ui-title">Revert activity</h3>
+                                <p class="mt-1 text-sm ui-muted">Current and recent raw import reverts are shown here, even if they are on another history page.</p>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 grid gap-3">
+                            <template x-for="item in imports" :key="item.id">
+                                <div class="rounded border border-[var(--line)] bg-theme-subtle p-4">
+                                    <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                        <div class="min-w-0">
+                                            <p class="break-all font-medium text-theme-primary" x-text="item.original_file_name"></p>
+                                            <p class="mt-1 text-sm ui-muted" x-text="item.source_name || 'No source name'"></p>
+                                        </div>
+
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <span class="ui-pill ui-pill-active capitalize" x-text="item.status_label"></span>
+                                            <a :href="`/ivr/imports/${item.id}`" class="ui-pill">Import log</a>
+                                        </div>
+                                    </div>
+
+                                    <p class="mt-3 text-sm font-medium text-theme-secondary" x-text="item.status_message"></p>
+
+                                    <div class="mt-3" x-show="item.is_active" x-cloak>
+                                        <div class="mb-1 flex items-center justify-between gap-3 text-xs ui-muted">
+                                            <span x-text="`${item.processed_rows} / ${item.total_rows || '-'}`"></span>
+                                            <span x-text="`${item.progress}%`"></span>
+                                        </div>
+                                        <div class="ui-progress">
+                                            <div class="ui-progress-bar" :style="`width: ${item.progress}%`"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </section>
+                @endif
+
                 <section class="ui-card ui-card-pad">
                     <h3 class="ui-title">Upload raw file</h3>
                     <p class="mt-2 text-sm ui-muted">

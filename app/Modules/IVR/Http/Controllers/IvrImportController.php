@@ -15,11 +15,25 @@ class IvrImportController extends Controller
 {
     public function index(): View
     {
+        $imports = IvrImport::query()
+            ->where('type', 'raw_contacts')
+            ->latest()
+            ->paginate(10);
+
+        $revertImports = IvrImport::query()
+            ->where('type', 'raw_contacts')
+            ->where(function ($query): void {
+                $query
+                    ->whereIn('status', ['reverting', 'revert_failed'])
+                    ->orWhereNotNull('reverted_at');
+            })
+            ->latest('updated_at')
+            ->limit(5)
+            ->get();
+
         return view('ivr::imports.index', [
-            'imports' => IvrImport::query()
-                ->where('type', 'raw_contacts')
-                ->latest()
-                ->paginate(10),
+            'imports' => $imports,
+            'revertImports' => $revertImports,
         ]);
     }
 
@@ -121,37 +135,30 @@ class IvrImportController extends Controller
             ->where('type', 'raw_contacts')
             ->whereIn('id', $ids)
             ->get()
-            ->map(fn (IvrImport $import): array => [
-                'id' => $import->id,
-                'status' => $import->status,
-                'status_label' => str_replace('_', ' ', $import->status),
-                'total_rows' => $import->total_rows,
-                'processed_rows' => $import->processed_rows,
-                'successful_rows' => $import->successful_rows,
-                'failed_rows' => $import->failed_rows,
-                'duplicate_rows' => $import->duplicate_rows,
-                'progress' => $import->total_rows > 0
-                    ? min(100, round(($import->processed_rows / $import->total_rows) * 100))
-                    : 0,
-                'is_active' => in_array($import->status, ['pending', 'processing', 'reverting'], true),
-                'status_message' => $this->statusMessage($import),
-            ])
+            ->map(fn (IvrImport $import): array => $this->statusPayload($import))
             ->values();
 
         return response()->json(['imports' => $imports]);
     }
 
-    private function statusMessage(IvrImport $import): string
+    private function statusPayload(IvrImport $import): array
     {
-        return match ($import->status) {
-            'pending' => 'Waiting for the queue worker to start.',
-            'processing' => 'Import is running in the background.',
-            'completed' => 'Import completed successfully.',
-            'reverting' => 'Revert is running in the background. This can take a few minutes for large files.',
-            'reverted' => 'Revert complete'.($import->reverted_at ? ' on '.$import->reverted_at->format('M j, Y g:i A') : '').'.',
-            'revert_failed' => 'Revert failed'.($import->error_message ? ': '.$import->error_message : '.'),
-            'failed' => 'Import failed'.($import->error_message ? ': '.$import->error_message : '.'),
-            default => ucfirst(str_replace('_', ' ', $import->status)),
-        };
+        return [
+            'id' => $import->id,
+            'status' => $import->status,
+            'status_label' => $import->statusLabel(),
+            'status_message' => $import->statusMessage(),
+            'original_file_name' => $import->original_file_name,
+            'source_name' => $import->source_name,
+            'total_rows' => $import->total_rows,
+            'processed_rows' => $import->processed_rows,
+            'successful_rows' => $import->successful_rows,
+            'failed_rows' => $import->failed_rows,
+            'duplicate_rows' => $import->duplicate_rows,
+            'progress' => $import->total_rows > 0
+                ? min(100, round(($import->processed_rows / $import->total_rows) * 100))
+                : 0,
+            'is_active' => in_array($import->status, ['pending', 'processing', 'reverting'], true),
+        ];
     }
 }
