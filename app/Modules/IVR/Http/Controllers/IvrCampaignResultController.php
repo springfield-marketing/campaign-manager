@@ -11,6 +11,7 @@ use App\Modules\IVR\Models\IvrCallRecord;
 use App\Modules\IVR\Models\IvrCampaign;
 use App\Modules\IVR\Models\IvrImport;
 use App\Modules\IVR\Support\BillableDuration;
+use App\Modules\IVR\Support\IvrImportStatusPayload;
 use App\Modules\IVR\Support\NumberEligibilityService;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\DB;
@@ -126,6 +127,8 @@ class IvrCampaignResultController extends Controller
             'uploaded_by' => $request->user()?->id,
         ]);
 
+        $import->broadcastProgress();
+
         ProcessIvrCampaignResultsImport::dispatch($import->id);
 
         return redirect()
@@ -144,20 +147,7 @@ class IvrCampaignResultController extends Controller
             ->where('type', 'campaign_results')
             ->whereIn('id', $ids)
             ->get()
-            ->map(fn (IvrImport $import): array => [
-                'id' => $import->id,
-                'status' => $import->status,
-                'status_label' => str_replace('_', ' ', $import->status),
-                'total_rows' => $import->total_rows,
-                'processed_rows' => $import->processed_rows,
-                'successful_rows' => $import->successful_rows,
-                'failed_rows' => $import->failed_rows,
-                'duplicate_rows' => $import->duplicate_rows,
-                'progress' => $import->total_rows > 0
-                    ? min(100, round(($import->processed_rows / $import->total_rows) * 100))
-                    : 0,
-                'is_active' => in_array($import->status, ['pending', 'processing'], true),
-            ])
+            ->map(fn (IvrImport $import): array => IvrImportStatusPayload::make($import))
             ->values();
 
         return response()->json(['imports' => $imports]);

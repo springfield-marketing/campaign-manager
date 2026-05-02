@@ -3,6 +3,7 @@
 namespace App\Modules\IVR\Models;
 
 use App\Models\User;
+use App\Modules\IVR\Events\IvrImportProgressUpdated;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -59,6 +60,11 @@ class IvrImport extends Model
     public function statusLabel(): string
     {
         return str_replace('_', ' ', $this->status);
+    }
+
+    public function broadcastProgress(): void
+    {
+        event(new IvrImportProgressUpdated($this));
     }
 
     public function statusMessage(): string

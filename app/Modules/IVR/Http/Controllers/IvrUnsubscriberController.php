@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ContactSuppression;
 use App\Modules\IVR\Jobs\ProcessUnsubscriberImport;
 use App\Modules\IVR\Models\IvrImport;
+use App\Modules\IVR\Support\IvrImportStatusPayload;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
@@ -86,6 +87,8 @@ class IvrUnsubscriberController extends Controller
             ],
         ]);
 
+        $import->broadcastProgress();
+
         ProcessUnsubscriberImport::dispatch($import->id);
 
         return redirect()
@@ -134,20 +137,7 @@ class IvrUnsubscriberController extends Controller
             ->where('type', 'unsubscribers')
             ->whereIn('id', $ids)
             ->get()
-            ->map(fn (IvrImport $import): array => [
-                'id' => $import->id,
-                'status' => $import->status,
-                'status_label' => $import->statusLabel(),
-                'total_rows' => $import->total_rows,
-                'processed_rows' => $import->processed_rows,
-                'successful_rows' => $import->successful_rows,
-                'failed_rows' => $import->failed_rows,
-                'duplicate_rows' => $import->duplicate_rows,
-                'progress' => $import->total_rows > 0
-                    ? min(100, round(($import->processed_rows / $import->total_rows) * 100))
-                    : 0,
-                'is_active' => in_array($import->status, ['pending', 'processing'], true),
-            ])
+            ->map(fn (IvrImport $import): array => IvrImportStatusPayload::make($import))
             ->values();
 
         return response()->json(['imports' => $imports]);

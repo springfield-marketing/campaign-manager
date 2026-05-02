@@ -27,6 +27,7 @@ class UnsubscriberImportProcessor
             'started_at' => now(),
             'error_message' => null,
         ]);
+        $import->broadcastProgress();
 
         try {
             $file = new SplFileObject(storage_path('app/private/'.$import->storage_path));
@@ -43,6 +44,7 @@ class UnsubscriberImportProcessor
                     'existing_rows' => 0,
                 ],
             ]);
+            $import->broadcastProgress();
 
             $file->rewind();
 
@@ -105,12 +107,14 @@ class UnsubscriberImportProcessor
                     'existing_rows' => $existing,
                 ],
             ]);
+            $import->broadcastProgress();
         } catch (Throwable $throwable) {
             $import->update([
                 'status' => 'failed',
                 'error_message' => $throwable->getMessage(),
                 'completed_at' => now(),
             ]);
+            $import->broadcastProgress();
 
             Log::channel('ivr')->error('Unsubscriber import failed.', [
                 'import_id' => $import->id,
@@ -131,6 +135,7 @@ class UnsubscriberImportProcessor
                 'existing_rows' => $existing,
             ]),
         ]);
+        $import->broadcastProgress();
     }
 
     private function countDataRows(SplFileObject $file): int

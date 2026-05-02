@@ -9,8 +9,10 @@ Alpine.data('importProgress', ({ endpoint, imports }) => ({
     imports,
     timer: null,
     inFlight: false,
+    channel: null,
 
     init() {
+        this.connectWebsocket();
         this.start();
 
         window.addEventListener('pageshow', () => this.start());
@@ -40,6 +42,21 @@ Alpine.data('importProgress', ({ endpoint, imports }) => ({
         }
     },
 
+    connectWebsocket() {
+        if (! window.Echo || this.channel) {
+            return;
+        }
+
+        this.channel = window.Echo.channel('ivr.imports')
+            .listen('.ivr.import.updated', (event) => {
+                if (! event.import) {
+                    return;
+                }
+
+                this.mergeImport(event.import);
+            });
+    },
+
     get(id) {
         return this.imports.find((item) => item.id === id) || {
             id,
@@ -57,6 +74,20 @@ Alpine.data('importProgress', ({ endpoint, imports }) => ({
             detail_label: '0 imported - 0 failed - 0 duplicates',
             is_active: false,
         };
+    },
+
+    mergeImport(updated) {
+        const index = this.imports.findIndex((item) => item.id === updated.id);
+
+        if (index === -1) {
+            return;
+        }
+
+        Object.assign(this.imports[index], updated);
+
+        if (! this.hasActiveImports()) {
+            this.stop();
+        }
     },
 
     hasActiveImports() {
@@ -90,13 +121,7 @@ Alpine.data('importProgress', ({ endpoint, imports }) => ({
 
             const payload = await response.json();
 
-            payload.imports.forEach((updated) => {
-                const index = this.imports.findIndex((item) => item.id === updated.id);
-
-                if (index !== -1) {
-                    Object.assign(this.imports[index], updated);
-                }
-            });
+            payload.imports.forEach((updated) => this.mergeImport(updated));
         } finally {
             this.inFlight = false;
         }

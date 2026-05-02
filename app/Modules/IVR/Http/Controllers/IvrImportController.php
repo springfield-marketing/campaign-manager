@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Modules\IVR\Jobs\DeleteRawIvrImport;
 use App\Modules\IVR\Jobs\ProcessRawIvrImport;
 use App\Modules\IVR\Models\IvrImport;
+use App\Modules\IVR\Support\IvrImportStatusPayload;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -62,6 +63,8 @@ class IvrImportController extends Controller
             'uploaded_by' => $request->user()?->id,
         ]);
 
+        $import->broadcastProgress();
+
         ProcessRawIvrImport::dispatch($import->id);
 
         return redirect()
@@ -111,6 +114,8 @@ class IvrImportController extends Controller
             ]),
         ])->save();
 
+        $import->broadcastProgress();
+
         DeleteRawIvrImport::dispatch(
             $import->id,
             $request->user()?->id,
@@ -133,40 +138,9 @@ class IvrImportController extends Controller
             ->where('type', 'raw_contacts')
             ->whereIn('id', $ids)
             ->get()
-            ->map(fn (IvrImport $import): array => $this->statusPayload($import))
+            ->map(fn (IvrImport $import): array => IvrImportStatusPayload::make($import))
             ->values();
 
         return response()->json(['imports' => $imports]);
-    }
-
-    private function statusPayload(IvrImport $import): array
-    {
-        $deleteProgress = $import->deleteProgress();
-        $isDeleting = in_array($import->status, ['deleting', 'deleted', 'delete_failed'], true);
-
-        return [
-            'id' => $import->id,
-            'status' => $import->status,
-            'status_label' => $import->statusLabel(),
-            'status_message' => $import->statusMessage(),
-            'original_file_name' => $import->original_file_name,
-            'source_name' => $import->source_name,
-            'total_rows' => $import->total_rows,
-            'processed_rows' => $import->processed_rows,
-            'successful_rows' => $import->successful_rows,
-            'failed_rows' => $import->failed_rows,
-            'duplicate_rows' => $import->duplicate_rows,
-            'progress' => $isDeleting ? $deleteProgress['percent'] : ($import->total_rows > 0
-                ? min(100, round(($import->processed_rows / $import->total_rows) * 100))
-                : 0),
-            'delete_progress' => $deleteProgress,
-            'progress_label' => $isDeleting
-                ? "{$deleteProgress['processed']} / {$deleteProgress['total']} delete steps"
-                : "{$import->processed_rows} / ".($import->total_rows ?: '-'),
-            'detail_label' => $isDeleting
-                ? "{$deleteProgress['source_rows_deleted']} source links deleted - {$deleteProgress['phone_numbers_deleted']} phone numbers deleted - {$deleteProgress['clients_deleted']} clients deleted"
-                : "{$import->successful_rows} imported - {$import->failed_rows} failed - {$import->duplicate_rows} duplicates",
-            'is_active' => in_array($import->status, ['pending', 'processing', 'deleting', 'reverting'], true),
-        ];
     }
 }

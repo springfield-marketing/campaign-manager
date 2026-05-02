@@ -25,6 +25,7 @@ class RawImportProcessor
             'started_at' => now(),
             'error_message' => null,
         ]);
+        $import->broadcastProgress();
 
         Log::channel('ivr')->info('Starting raw IVR import.', ['import_id' => $import->id]);
 
@@ -41,6 +42,7 @@ class RawImportProcessor
             }
 
             $import->update(['total_rows' => $this->countDataRows($file)]);
+            $import->broadcastProgress();
             $file->rewind();
             $this->readHeader($file);
 
@@ -92,6 +94,7 @@ class RawImportProcessor
                         'failed_rows' => $failed,
                         'duplicate_rows' => $duplicates,
                     ]);
+                    $import->broadcastProgress();
                 }
             }
 
@@ -108,6 +111,7 @@ class RawImportProcessor
                     'mapped_columns' => array_keys($mapping['mapped']),
                 ],
             ]);
+            $import->broadcastProgress();
 
             Log::channel('ivr')->info('Completed raw IVR import.', ['import_id' => $import->id]);
         } catch (Throwable $throwable) {
@@ -116,6 +120,7 @@ class RawImportProcessor
                 'error_message' => $throwable->getMessage(),
                 'completed_at' => now(),
             ]);
+            $import->broadcastProgress();
 
             Log::channel('ivr')->error('Raw IVR import failed.', [
                 'import_id' => $import->id,
