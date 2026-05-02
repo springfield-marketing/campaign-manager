@@ -6,7 +6,25 @@
     </x-slot>
 
     <div class="page-section">
-        <div class="page-wrap">
+        <div
+            class="page-wrap"
+            x-data="importProgress({
+                endpoint: '{{ route('modules.ivr.unsubscribers.status') }}',
+                imports: @js($imports->map(fn ($import) => [
+                    'id' => $import->id,
+                    'status' => $import->status,
+                    'status_label' => $import->statusLabel(),
+                    'total_rows' => $import->total_rows,
+                    'processed_rows' => $import->processed_rows,
+                    'successful_rows' => $import->successful_rows,
+                    'failed_rows' => $import->failed_rows,
+                    'duplicate_rows' => $import->duplicate_rows,
+                    'progress' => $import->total_rows > 0 ? min(100, round(($import->processed_rows / $import->total_rows) * 100)) : 0,
+                    'is_active' => in_array($import->status, ['pending', 'processing'], true),
+                ])->values())
+            })"
+            x-init="start()"
+        >
             @if (session('status'))
                 <div class="ui-alert mb-6">
                     {{ session('status') }}
@@ -31,6 +49,54 @@
 
                     <button type="submit" class="ui-button">Import</button>
                 </form>
+            </section>
+
+            <section class="ui-card mt-6 overflow-hidden">
+                <div class="ui-section-head">
+                    <h3 class="ui-title">Import history</h3>
+                </div>
+
+                <div class="ui-divide max-h-[360px] overflow-y-auto">
+                    @forelse ($imports as $import)
+                        <div class="px-5 py-4 text-sm" x-data="{ item: get({{ $import->id }}) }">
+                            <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                <div class="min-w-0">
+                                    <p class="break-all font-medium text-theme-primary">{{ $import->original_file_name }}</p>
+                                    <p class="capitalize ui-muted" x-text="item.status_label"></p>
+                                </div>
+
+                                <span class="ui-pill ui-pill-active" x-show="item.is_active" x-cloak>Live</span>
+                            </div>
+
+                            <div class="mt-3">
+                                <div class="mb-1 flex items-center justify-between gap-3 text-xs font-medium text-theme-secondary">
+                                    <span x-text="`${item.processed_rows} / ${item.total_rows || '-'}`">
+                                        {{ $import->processed_rows }} / {{ $import->total_rows ?: '-' }}
+                                    </span>
+                                    <span x-text="`${item.progress}%`">
+                                        {{ $import->total_rows > 0 ? min(100, round(($import->processed_rows / $import->total_rows) * 100)) : 0 }}%
+                                    </span>
+                                </div>
+                                <div class="ui-progress">
+                                    <div
+                                        class="ui-progress-bar"
+                                        style="width: {{ $import->total_rows > 0 ? min(100, round(($import->processed_rows / $import->total_rows) * 100)) : 0 }}%"
+                                        :style="`width: ${item.progress}%`"
+                                    ></div>
+                                </div>
+                                <p class="mt-2 text-xs ui-muted" x-text="`${item.successful_rows} added - ${item.duplicate_rows} already existed - ${item.failed_rows} failed`">
+                                    {{ $import->successful_rows }} added - {{ $import->duplicate_rows }} already existed - {{ $import->failed_rows }} failed
+                                </p>
+                            </div>
+                        </div>
+                    @empty
+                        <div class="ui-empty">No unsubscriber imports yet.</div>
+                    @endforelse
+                </div>
+
+                <div class="px-5 py-4">
+                    {{ $imports->links('pagination::tailwind', ['pageName' => 'imports_page']) }}
+                </div>
             </section>
 
             <section class="ui-card ui-card-pad mt-6">

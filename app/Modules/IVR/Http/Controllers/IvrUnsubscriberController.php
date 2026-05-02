@@ -3,25 +3,18 @@
 namespace App\Modules\IVR\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Models\Client;
-use App\Models\ClientPhoneNumber;
 use App\Models\ContactSuppression;
-use App\Modules\IVR\Support\PhoneNormalizer;
+use App\Modules\IVR\Jobs\ProcessUnsubscriberImport;
+use App\Modules\IVR\Models\IvrImport;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
-use SplFileObject;
-use Throwable;
 
 class IvrUnsubscriberController extends Controller
 {
-    public function __construct(
-        private readonly PhoneNormalizer $phoneNormalizer,
-    ) {
-    }
-
     public function index(Request $request): View
     {
         $unsubscribers = ContactSuppression::query()
@@ -56,6 +49,10 @@ class IvrUnsubscriberController extends Controller
 
         return view('ivr::unsubscribers.index', [
             'unsubscribers' => $unsubscribers,
+            'imports' => IvrImport::query()
+                ->where('type', 'unsubscribers')
+                ->latest()
+                ->paginate(10, ['*'], 'imports_page'),
         ]);
     }
 
@@ -71,47 +68,27 @@ class IvrUnsubscriberController extends Controller
             ],
         );
 
-        $file = new SplFileObject($validated['file']->getRealPath());
-        $file->setFlags(SplFileObject::READ_CSV | SplFileObject::DROP_NEW_LINE);
-        $file->setCsvControl(',', '"', '\\');
+        $storedPath = $validated['file']->store('ivr/imports/unsubscribers', 'local');
 
-        $processed = 0;
-        $created = 0;
-        $existing = 0;
-        $failed = 0;
-        $rowNumber = 0;
+        $import = IvrImport::create([
+            'type' => 'unsubscribers',
+            'status' => 'pending',
+            'original_file_name' => $validated['file']->getClientOriginalName(),
+            'stored_file_name' => basename($storedPath),
+            'storage_path' => $storedPath,
+            'uploaded_by' => $request->user()?->id,
+            'summary' => [
+                'format' => 'phone,name',
+                'created_rows' => 0,
+                'existing_rows' => 0,
+            ],
+        ]);
 
-        while (! $file->eof()) {
-            $row = $file->fgetcsv();
-            $rowNumber++;
-
-            if (! is_array($row) || $this->rowIsEmpty($row)) {
-                continue;
-            }
-
-            if ($rowNumber === 1 && $this->looksLikeHeader($row)) {
-                continue;
-            }
-
-            $processed++;
-
-            try {
-                $wasCreated = $this->upsertUnsubscriber(
-                    phone: trim((string) ($row[0] ?? '')),
-                    name: trim((string) ($row[1] ?? '')) ?: null,
-                    sourceFile: $validated['file']->getClientOriginalName(),
-                    rowNumber: $rowNumber,
-                );
-
-                $wasCreated ? $created++ : $existing++;
-            } catch (Throwable) {
-                $failed++;
-            }
-        }
+        ProcessUnsubscriberImport::dispatch($import->id);
 
         return redirect()
             ->route('modules.ivr.unsubscribers.index')
-            ->with('status', "Unsubscriber import complete. {$created} added, {$existing} already existed, {$failed} failed.");
+            ->with('status', 'Unsubscriber import queued successfully.');
     }
 
     public function destroy(ContactSuppression $suppression): RedirectResponse
@@ -141,99 +118,33 @@ class IvrUnsubscriberController extends Controller
         return back()->with('status', 'Unsubscriber removed.');
     }
 
-    private function upsertUnsubscriber(string $phone, ?string $name, string $sourceFile, int $rowNumber): bool
+    public function status(Request $request): JsonResponse
     {
-        if ($phone === '') {
-            throw new \RuntimeException('Phone number is required.');
-        }
+        $ids = collect(explode(',', (string) $request->query('ids')))
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->values();
 
-        $normalized = $this->phoneNormalizer->normalize($phone);
+        $imports = IvrImport::query()
+            ->where('type', 'unsubscribers')
+            ->whereIn('id', $ids)
+            ->get()
+            ->map(fn (IvrImport $import): array => [
+                'id' => $import->id,
+                'status' => $import->status,
+                'status_label' => $import->statusLabel(),
+                'total_rows' => $import->total_rows,
+                'processed_rows' => $import->processed_rows,
+                'successful_rows' => $import->successful_rows,
+                'failed_rows' => $import->failed_rows,
+                'duplicate_rows' => $import->duplicate_rows,
+                'progress' => $import->total_rows > 0
+                    ? min(100, round(($import->processed_rows / $import->total_rows) * 100))
+                    : 0,
+                'is_active' => in_array($import->status, ['pending', 'processing'], true),
+            ])
+            ->values();
 
-        return DB::transaction(function () use ($phone, $name, $sourceFile, $rowNumber, $normalized): bool {
-            $phoneNumber = ClientPhoneNumber::query()
-                ->where('normalized_phone', $normalized['normalized'])
-                ->first();
-
-            if (! $phoneNumber) {
-                $client = Client::create([
-                    'full_name' => $name,
-                ]);
-
-                $phoneNumber = ClientPhoneNumber::create([
-                    'client_id' => $client->id,
-                    'raw_phone' => $phone,
-                    'normalized_phone' => $normalized['normalized'],
-                    'country_code' => $normalized['country_code'],
-                    'national_number' => $normalized['national_number'],
-                    'detected_country' => $normalized['detected_country'],
-                    'is_uae' => $normalized['is_uae'],
-                    'is_primary' => true,
-                    'priority' => 1,
-                    'usage_status' => 'active',
-                    'unsubscribed_at' => now(),
-                ]);
-            } else {
-                $client = $phoneNumber->client ?: Client::create(['full_name' => $name]);
-
-                if ($name && trim((string) $client->full_name) === '') {
-                    $client->forceFill(['full_name' => $name])->save();
-                }
-
-                $phoneNumber->forceFill([
-                    'client_id' => $client->id,
-                    'raw_phone' => $phone,
-                    'unsubscribed_at' => $phoneNumber->unsubscribed_at ?: now(),
-                ])->save();
-            }
-
-            $existing = ContactSuppression::query()
-                ->where('client_phone_number_id', $phoneNumber->id)
-                ->where('channel', 'ivr')
-                ->where('reason', 'unsubscribe')
-                ->whereNull('released_at')
-                ->first();
-
-            if ($existing) {
-                return false;
-            }
-
-            ContactSuppression::create([
-                'client_phone_number_id' => $phoneNumber->id,
-                'channel' => 'ivr',
-                'reason' => 'unsubscribe',
-                'context' => [
-                    'source' => 'unsubscriber_import',
-                    'source_file' => $sourceFile,
-                    'row_number' => $rowNumber,
-                    'name' => $name,
-                ],
-                'suppressed_at' => now(),
-            ]);
-
-            return true;
-        });
-    }
-
-    /**
-     * @param  array<int, mixed>  $row
-     */
-    private function rowIsEmpty(array $row): bool
-    {
-        foreach ($row as $value) {
-            if (trim((string) $value) !== '') {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /**
-     * @param  array<int, mixed>  $row
-     */
-    private function looksLikeHeader(array $row): bool
-    {
-        return str_contains(strtolower((string) ($row[0] ?? '')), 'phone')
-            || str_contains(strtolower((string) ($row[1] ?? '')), 'name');
+        return response()->json(['imports' => $imports]);
     }
 }

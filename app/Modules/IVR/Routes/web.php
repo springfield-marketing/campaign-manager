@@ -29,6 +29,7 @@ Route::middleware(['auth', 'verified'])
         Route::get('/numbers/{number}', [IvrNumberController::class, 'show'])->name('numbers.show');
         Route::get('/unsubscribers', [IvrUnsubscriberController::class, 'index'])->name('unsubscribers.index');
         Route::post('/unsubscribers', [IvrUnsubscriberController::class, 'store'])->name('unsubscribers.store');
+        Route::get('/unsubscribers/status', [IvrUnsubscriberController::class, 'status'])->name('unsubscribers.status');
         Route::delete('/unsubscribers/{suppression}', [IvrUnsubscriberController::class, 'destroy'])->name('unsubscribers.destroy');
         Route::get('/reports', [IvrReportController::class, 'index'])->name('reports.index');
     });
