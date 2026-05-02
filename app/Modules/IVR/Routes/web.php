@@ -5,6 +5,7 @@ use App\Modules\IVR\Http\Controllers\IvrCampaignResultController;
 use App\Modules\IVR\Http\Controllers\IvrImportController;
 use App\Modules\IVR\Http\Controllers\IvrNumberController;
 use App\Modules\IVR\Http\Controllers\IvrReportController;
+use App\Modules\IVR\Http\Controllers\IvrUnsubscriberController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])
@@ -26,5 +27,8 @@ Route::middleware(['auth', 'verified'])
         Route::get('/numbers', [IvrNumberController::class, 'index'])->name('numbers.index');
         Route::get('/numbers/export', [IvrNumberController::class, 'export'])->name('numbers.export');
         Route::get('/numbers/{number}', [IvrNumberController::class, 'show'])->name('numbers.show');
+        Route::get('/unsubscribers', [IvrUnsubscriberController::class, 'index'])->name('unsubscribers.index');
+        Route::post('/unsubscribers', [IvrUnsubscriberController::class, 'store'])->name('unsubscribers.store');
+        Route::delete('/unsubscribers/{suppression}', [IvrUnsubscriberController::class, 'destroy'])->name('unsubscribers.destroy');
         Route::get('/reports', [IvrReportController::class, 'index'])->name('reports.index');
     });

@@ -27,6 +27,7 @@ class ModulePagesTest extends TestCase
             route('modules.ivr.imports.index'),
             route('modules.ivr.results.index'),
             route('modules.ivr.numbers.index'),
+            route('modules.ivr.unsubscribers.index'),
             route('modules.ivr.reports.index'),
         ];
 

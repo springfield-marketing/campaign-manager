@@ -3,6 +3,7 @@
         ['label' => 'Import', 'route' => 'modules.ivr.imports.index', 'active' => request()->routeIs('modules.ivr.imports.*')],
         ['label' => 'Campaign Results', 'route' => 'modules.ivr.results.index', 'active' => request()->routeIs('modules.ivr.results.*')],
         ['label' => 'Numbers', 'route' => 'modules.ivr.numbers.index', 'active' => request()->routeIs('modules.ivr.numbers.*')],
+        ['label' => 'Unsubscribers', 'route' => 'modules.ivr.unsubscribers.index', 'active' => request()->routeIs('modules.ivr.unsubscribers.*')],
         ['label' => 'Reports', 'route' => 'modules.ivr.index', 'active' => request()->routeIs('modules.ivr.index', 'modules.ivr.reports.*')],
     ];
 @endphp
