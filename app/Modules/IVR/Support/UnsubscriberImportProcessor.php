@@ -13,6 +13,8 @@ use Throwable;
 
 class UnsubscriberImportProcessor
 {
+    private const ACTIVE_UNSUBSCRIBE_REASONS = ['unsubscribe', 'customer_unsubscribed'];
+
     public function __construct(
         private readonly PhoneNormalizer $phoneNormalizer,
     ) {
@@ -202,7 +204,7 @@ class UnsubscriberImportProcessor
             $existing = ContactSuppression::query()
                 ->where('client_phone_number_id', $phoneNumber->id)
                 ->where('channel', 'ivr')
-                ->where('reason', 'unsubscribe')
+                ->whereIn('reason', self::ACTIVE_UNSUBSCRIBE_REASONS)
                 ->whereNull('released_at')
                 ->first();
 

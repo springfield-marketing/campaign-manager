@@ -126,7 +126,17 @@
                                     <td>{{ $suppression->phoneNumber?->client?->full_name ?: '-' }}</td>
                                     <td>{{ $suppression->phoneNumber?->normalized_phone ?: '-' }}</td>
                                     <td>{{ optional($suppression->suppressed_at)->format('Y-m-d H:i') ?: '-' }}</td>
-                                    <td>{{ $suppression->context['source_file'] ?? '-' }}</td>
+                                    <td>
+                                        @if ($suppression->context['source_file'] ?? null)
+                                            {{ $suppression->context['source_file'] }}
+                                        @elseif ($suppression->context['campaign_id'] ?? null)
+                                            Campaign: {{ $suppression->context['campaign_id'] }}
+                                        @elseif ($suppression->reason === 'customer_unsubscribed')
+                                            Campaign result
+                                        @else
+                                            -
+                                        @endif
+                                    </td>
                                     <td>
                                         <form method="POST" action="{{ route('modules.ivr.unsubscribers.destroy', $suppression) }}" onsubmit="return confirm('Remove this number from unsubscribers?');">
                                             @csrf

@@ -94,4 +94,41 @@ class IvrUnsubscriberTest extends TestCase
         $this->assertNotNull($suppression->fresh()->released_at);
         $this->assertNull($phoneNumber->fresh()->unsubscribed_at);
     }
+
+    #[Test]
+    public function campaign_unsubscribers_are_managed_on_the_unsubscriber_page(): void
+    {
+        $user = User::factory()->create();
+        $client = Client::create(['full_name' => 'Campaign Opt Out']);
+        $phoneNumber = ClientPhoneNumber::create([
+            'client_id' => $client->id,
+            'raw_phone' => '0500000400',
+            'normalized_phone' => '+971500000400',
+            'is_uae' => true,
+            'usage_status' => 'active',
+            'is_primary' => true,
+            'priority' => 1,
+            'unsubscribed_at' => now(),
+        ]);
+        $suppression = ContactSuppression::create([
+            'client_phone_number_id' => $phoneNumber->id,
+            'channel' => 'ivr',
+            'reason' => 'customer_unsubscribed',
+            'context' => ['campaign_id' => 42],
+            'suppressed_at' => now(),
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('modules.ivr.unsubscribers.index', ['phone' => '500000400']))
+            ->assertOk()
+            ->assertSee('+971500000400')
+            ->assertSee('Campaign: 42');
+
+        $this->actingAs($user)
+            ->delete(route('modules.ivr.unsubscribers.destroy', $suppression))
+            ->assertRedirect();
+
+        $this->assertNotNull($suppression->fresh()->released_at);
+        $this->assertNull($phoneNumber->fresh()->unsubscribed_at);
+    }
 }

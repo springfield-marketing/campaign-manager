@@ -15,12 +15,14 @@ use Illuminate\View\View;
 
 class IvrUnsubscriberController extends Controller
 {
+    private const UNSUBSCRIBE_REASONS = ['unsubscribe', 'customer_unsubscribed'];
+
     public function index(Request $request): View
     {
         $unsubscribers = ContactSuppression::query()
             ->with(['phoneNumber.client'])
             ->where('channel', 'ivr')
-            ->where('reason', 'unsubscribe')
+            ->whereIn('reason', self::UNSUBSCRIBE_REASONS)
             ->whereNull('released_at')
             ->when($request->filled('phone'), function (Builder $query) use ($request): void {
                 $phone = trim((string) $request->input('phone'));
@@ -93,7 +95,10 @@ class IvrUnsubscriberController extends Controller
 
     public function destroy(ContactSuppression $suppression): RedirectResponse
     {
-        abort_unless($suppression->channel === 'ivr' && $suppression->reason === 'unsubscribe', 404);
+        abort_unless(
+            $suppression->channel === 'ivr' && in_array($suppression->reason, self::UNSUBSCRIBE_REASONS, true),
+            404,
+        );
 
         DB::transaction(function () use ($suppression): void {
             $phoneNumber = $suppression->phoneNumber;
