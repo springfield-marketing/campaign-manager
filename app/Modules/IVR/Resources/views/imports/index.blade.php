@@ -40,7 +40,6 @@
                         'is_active' => in_array($import->status, ['pending', 'processing', 'deleting', 'reverting'], true),
                     ])->values())
                 })"
-                x-init="start()"
             >
                 <section class="ui-card ui-card-pad">
                     <h3 class="ui-title">Upload raw file</h3>

@@ -30,7 +30,6 @@
                         'is_active' => in_array($import->status, ['pending', 'processing'], true),
                     ])->values())
                 })"
-                x-init="start()"
             >
                 <section class="grid gap-6">
                     <article class="ui-card ui-card-pad">

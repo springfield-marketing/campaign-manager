@@ -8,10 +8,35 @@ Alpine.data('importProgress', ({ endpoint, imports }) => ({
     endpoint,
     imports,
     timer: null,
+    inFlight: false,
+
+    init() {
+        this.start();
+
+        window.addEventListener('pageshow', () => this.start());
+        document.addEventListener('visibilitychange', () => {
+            if (! document.hidden) {
+                this.start();
+            }
+        });
+    },
 
     start() {
-        if (this.hasActiveImports()) {
+        if (! this.hasActiveImports()) {
+            return;
+        }
+
+        void this.refresh();
+
+        if (! this.timer) {
             this.timer = setInterval(() => this.refresh(), 3000);
+        }
+    },
+
+    stop() {
+        if (this.timer) {
+            clearInterval(this.timer);
+            this.timer = null;
         }
     },
 
@@ -39,33 +64,45 @@ Alpine.data('importProgress', ({ endpoint, imports }) => ({
     },
 
     async refresh() {
+        if (this.inFlight) {
+            return;
+        }
+
         const ids = this.imports.filter((item) => item.is_active).map((item) => item.id);
 
         if (ids.length === 0) {
-            clearInterval(this.timer);
+            this.stop();
             return;
         }
 
-        const response = await fetch(`${this.endpoint}?ids=${ids.join(',')}`, {
-            headers: { Accept: 'application/json' },
-        });
+        this.inFlight = true;
 
-        if (! response.ok) {
-            return;
-        }
+        try {
+            const separator = this.endpoint.includes('?') ? '&' : '?';
+            const response = await fetch(`${this.endpoint}${separator}ids=${ids.join(',')}&_=${Date.now()}`, {
+                cache: 'no-store',
+                headers: { Accept: 'application/json' },
+            });
 
-        const payload = await response.json();
-
-        payload.imports.forEach((updated) => {
-            const index = this.imports.findIndex((item) => item.id === updated.id);
-
-            if (index !== -1) {
-                Object.assign(this.imports[index], updated);
+            if (! response.ok) {
+                return;
             }
-        });
+
+            const payload = await response.json();
+
+            payload.imports.forEach((updated) => {
+                const index = this.imports.findIndex((item) => item.id === updated.id);
+
+                if (index !== -1) {
+                    Object.assign(this.imports[index], updated);
+                }
+            });
+        } finally {
+            this.inFlight = false;
+        }
 
         if (! this.hasActiveImports()) {
-            clearInterval(this.timer);
+            this.stop();
         }
     },
 }));

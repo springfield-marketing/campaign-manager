@@ -23,7 +23,6 @@
                     'is_active' => in_array($import->status, ['pending', 'processing'], true),
                 ])->values())
             })"
-            x-init="start()"
         >
             @if (session('status'))
                 <div class="ui-alert mb-6">
