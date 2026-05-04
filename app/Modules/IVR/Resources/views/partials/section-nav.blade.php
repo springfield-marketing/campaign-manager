@@ -5,6 +5,7 @@
         ['label' => 'Numbers', 'route' => 'modules.ivr.numbers.index', 'active' => request()->routeIs('modules.ivr.numbers.*')],
         ['label' => 'Unsubscribers', 'route' => 'modules.ivr.unsubscribers.index', 'active' => request()->routeIs('modules.ivr.unsubscribers.*')],
         ['label' => 'Reports', 'route' => 'modules.ivr.index', 'active' => request()->routeIs('modules.ivr.index', 'modules.ivr.reports.*')],
+        ['label' => 'Settings', 'route' => 'modules.ivr.settings.edit', 'active' => request()->routeIs('modules.ivr.settings.*')],
     ];
 @endphp
 

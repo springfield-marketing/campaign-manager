@@ -29,6 +29,7 @@ class ModulePagesTest extends TestCase
             route('modules.ivr.numbers.index'),
             route('modules.ivr.unsubscribers.index'),
             route('modules.ivr.reports.index'),
+            route('modules.ivr.settings.edit'),
         ];
 
         foreach ($routes as $route) {
