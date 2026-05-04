@@ -4,7 +4,7 @@ namespace App\Modules\IVR\Events;
 
 use App\Modules\IVR\Models\IvrImport;
 use App\Modules\IVR\Support\IvrImportStatusPayload;
-use Illuminate\Broadcasting\Channel;
+use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
@@ -24,9 +24,9 @@ class IvrImportProgressUpdated implements ShouldBroadcastNow
         $this->import = IvrImportStatusPayload::make($import->refresh());
     }
 
-    public function broadcastOn(): Channel
+    public function broadcastOn(): PrivateChannel
     {
-        return new Channel('ivr.imports');
+        return new PrivateChannel('ivr.imports');
     }
 
     public function broadcastAs(): string

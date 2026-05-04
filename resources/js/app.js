@@ -47,7 +47,7 @@ Alpine.data('importProgress', ({ endpoint, imports }) => ({
             return;
         }
 
-        this.channel = window.Echo.channel('ivr.imports')
+        this.channel = window.Echo.private('ivr.imports')
             .listen('.ivr.import.updated', (event) => {
                 if (! event.import) {
                     return;
