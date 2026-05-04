@@ -15,6 +15,8 @@ class ProcessUnsubscriberImport implements ShouldQueue
 
     public int $tries = 1;
 
+    public bool $failOnTimeout = true;
+
     public function __construct(
         public readonly int $importId,
     ) {
