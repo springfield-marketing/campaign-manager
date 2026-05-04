@@ -14,6 +14,8 @@ use Throwable;
 
 class UnsubscriberImportProcessor
 {
+    use CsvRowTrait;
+
     private const ACTIVE_UNSUBSCRIBE_REASONS = ['unsubscribe', 'customer_unsubscribed'];
 
     public function __construct(
@@ -233,20 +235,6 @@ class UnsubscriberImportProcessor
 
             return true;
         });
-    }
-
-    /**
-     * @param  array<int, mixed>  $row
-     */
-    private function rowIsEmpty(array $row): bool
-    {
-        foreach ($row as $value) {
-            if (trim((string) $value) !== '') {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     /**

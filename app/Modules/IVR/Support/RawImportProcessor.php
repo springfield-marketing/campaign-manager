@@ -13,6 +13,8 @@ use Throwable;
 
 class RawImportProcessor
 {
+    use CsvRowTrait;
+
     public function __construct(
         private readonly RawImportColumnMapper $mapper,
         private readonly PhoneNormalizer $phoneNormalizer,
@@ -255,17 +257,4 @@ class RawImportProcessor
         return $duplicate;
     }
 
-    /**
-     * @param  array<int, mixed>  $row
-     */
-    private function rowIsEmpty(array $row): bool
-    {
-        foreach ($row as $value) {
-            if (trim((string) $value) !== '') {
-                return false;
-            }
-        }
-
-        return true;
-    }
 }
