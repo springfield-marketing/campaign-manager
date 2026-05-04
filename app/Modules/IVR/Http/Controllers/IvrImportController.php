@@ -9,6 +9,7 @@ use App\Modules\IVR\Jobs\DeleteRawIvrImport;
 use App\Modules\IVR\Jobs\ProcessRawIvrImport;
 use App\Modules\IVR\Models\IvrImport;
 use App\Modules\IVR\Support\IvrImportStatusPayload;
+use App\Modules\IVR\Support\RawImportDeleter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -112,7 +113,7 @@ class IvrImportController extends Controller
                     'stage' => 'queued',
                     'stage_label' => 'Delete queued',
                     'processed' => 0,
-                    'total' => 7,
+                    'total' => RawImportDeleter::DELETE_STEPS,
                     'percent' => 0,
                     'source_rows_deleted' => 0,
                     'phone_numbers_deleted' => 0,

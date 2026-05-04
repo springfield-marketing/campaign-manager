@@ -12,6 +12,8 @@ use Throwable;
 
 class RawImportDeleter
 {
+    public const DELETE_STEPS = 7;
+
     public function delete(IvrImport $import, ?int $userId = null, ?string $reason = null): void
     {
         if ($import->reverted_at !== null || $import->status === IvrImportStatus::Deleted->value) {
@@ -213,8 +215,8 @@ class RawImportDeleter
                         'delete_progress' => [
                             'stage' => 'complete',
                             'stage_label' => 'Delete complete',
-                            'processed' => 7,
-                            'total' => 7,
+                            'processed' => self::DELETE_STEPS,
+                            'total' => self::DELETE_STEPS,
                             'percent' => 100,
                             'source_rows_deleted' => $deletedSourceCount,
                             'phone_numbers_deleted' => $deletedPhoneCount,
@@ -348,7 +350,7 @@ class RawImportDeleter
 
     private function updateProgress(IvrImport $import, string $stage, string $stageLabel, int $processed, array $counts = []): void
     {
-        $total = 7;
+        $total = self::DELETE_STEPS;
         $summary = $import->fresh()->summary ?? [];
         $current = $summary['delete_progress'] ?? [];
 
