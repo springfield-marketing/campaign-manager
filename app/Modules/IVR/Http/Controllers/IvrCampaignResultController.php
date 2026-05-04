@@ -387,19 +387,20 @@ class IvrCampaignResultController extends Controller
      */
     private function campaignStats(IvrCampaign $campaign): array
     {
-        $records = $campaign->callRecords()
-            ->get(['call_status', 'dtmf_outcome', 'total_duration_seconds']);
+        $base = $campaign->callRecords();
+
+        $answeredSecondsList = (clone $base)
+            ->whereRaw('lower(call_status) = ?', ['answered'])
+            ->pluck('total_duration_seconds');
 
         return [
-            'total_calls' => $records->count(),
-            'answered_calls' => $records->filter(fn (IvrCallRecord $record): bool => strcasecmp((string) $record->call_status, 'Answered') === 0)->count(),
-            'missed_calls' => $records->filter(fn (IvrCallRecord $record): bool => strcasecmp((string) $record->call_status, 'Missed') === 0)->count(),
-            'leads_count' => $records->where('dtmf_outcome', 'interested')->count(),
-            'more_info_count' => $records->where('dtmf_outcome', 'more_info')->count(),
-            'unsubscribed_count' => $records->where('dtmf_outcome', 'unsubscribe')->count(),
-            'time_consumed_minutes' => $records
-                ->filter(fn (IvrCallRecord $record): bool => strcasecmp((string) $record->call_status, 'Answered') === 0)
-                ->sum(fn (IvrCallRecord $record): int => BillableDuration::minutes((int) $record->total_duration_seconds)),
+            'total_calls' => (clone $base)->count(),
+            'answered_calls' => $answeredSecondsList->count(),
+            'missed_calls' => (clone $base)->whereRaw('lower(call_status) = ?', ['missed'])->count(),
+            'leads_count' => (clone $base)->where('dtmf_outcome', 'interested')->count(),
+            'more_info_count' => (clone $base)->where('dtmf_outcome', 'more_info')->count(),
+            'unsubscribed_count' => (clone $base)->where('dtmf_outcome', 'unsubscribe')->count(),
+            'time_consumed_minutes' => $answeredSecondsList->sum(fn ($s): int => BillableDuration::minutes((int) $s)),
         ];
     }
 }
