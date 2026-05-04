@@ -8,6 +8,8 @@ use App\Modules\IVR\Events\IvrImportProgressUpdated;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class IvrImport extends Model
 {
@@ -65,7 +67,14 @@ class IvrImport extends Model
 
     public function broadcastProgress(): void
     {
-        event(new IvrImportProgressUpdated($this));
+        try {
+            event(new IvrImportProgressUpdated($this));
+        } catch (Throwable $e) {
+            Log::channel('ivr')->warning('Reverb broadcast failed — import continues.', [
+                'import_id' => $this->id,
+                'message' => $e->getMessage(),
+            ]);
+        }
     }
 
     public function statusMessage(): string
