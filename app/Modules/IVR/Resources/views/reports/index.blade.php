@@ -105,8 +105,8 @@
                                 <th>Total Calls</th>
                                 <th>Leads (1+2)</th>
                                 <th>Minutes Used</th>
+                                <th>Cost (Gross)</th>
                                 <th>Cost (Answered)</th>
-                                <th>Cost per Lead</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -114,9 +114,12 @@
                                 @php
                                     $started = $campaign->campaign_started_at ? \Illuminate\Support\Carbon::parse($campaign->campaign_started_at) : null;
                                     $completed = $campaign->campaign_completed_at ? \Illuminate\Support\Carbon::parse($campaign->campaign_completed_at) : null;
-                                    $campaignCost = (float) $campaign->campaign_cost;
-                                    $billableLeads = max(1, (int) $campaign->answered_calls - (int) $campaign->unsubscribed_calls);
-                                    $costPerLead = $campaignCost / $billableLeads;
+                                    $costGross = (float) $campaign->campaign_cost;
+                                    $answeredCalls = (int) $campaign->answered_calls;
+                                    $unsubscribedCalls = (int) $campaign->unsubscribed_calls;
+                                    $costAnswered = $answeredCalls > 0
+                                        ? $costGross * max(0, $answeredCalls - $unsubscribedCalls) / $answeredCalls
+                                        : 0;
                                 @endphp
                                 <tr>
                                     <td>
@@ -141,8 +144,8 @@
                                     <td>{{ number_format($campaign->calls_count) }}</td>
                                     <td>{{ number_format((int) $campaign->leads_count_filtered + (int) $campaign->more_info_count_filtered) }}</td>
                                     <td>{{ number_format($campaign->minutes_used) }}</td>
-                                    <td>{{ number_format($campaignCost, 2) }} AED</td>
-                                    <td>{{ number_format($costPerLead, 2) }} AED</td>
+                                    <td>{{ number_format($costGross, 2) }} AED</td>
+                                    <td>{{ number_format($costAnswered, 2) }} AED</td>
                                 </tr>
                             @empty
                                 <tr>
