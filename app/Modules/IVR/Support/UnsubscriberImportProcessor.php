@@ -133,7 +133,7 @@ class UnsubscriberImportProcessor
             'successful_rows' => $created,
             'failed_rows' => $failed,
             'duplicate_rows' => $existing,
-            'summary' => array_merge($import->fresh()->summary ?? [], [
+            'summary' => array_merge($import->summary ?? [], [
                 'created_rows' => $created,
                 'existing_rows' => $existing,
             ]),

@@ -211,7 +211,7 @@ class RawImportDeleter
                     'reverted_by' => $userId,
                     'revert_reason' => $reason,
                     'error_message' => null,
-                    'summary' => array_merge($import->fresh()->summary ?? [], [
+                    'summary' => array_merge($import->summary ?? [], [
                         'delete_progress' => [
                             'stage' => 'complete',
                             'stage_label' => 'Delete complete',
@@ -351,7 +351,7 @@ class RawImportDeleter
     private function updateProgress(IvrImport $import, string $stage, string $stageLabel, int $processed, array $counts = []): void
     {
         $total = self::DELETE_STEPS;
-        $summary = $import->fresh()->summary ?? [];
+        $summary = $import->summary ?? [];
         $current = $summary['delete_progress'] ?? [];
 
         $summary['delete_progress'] = array_merge($current, [
