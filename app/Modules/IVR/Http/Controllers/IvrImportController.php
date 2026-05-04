@@ -132,6 +132,7 @@ class IvrImportController extends Controller
         $ids = collect(explode(',', (string) $request->query('ids')))
             ->map(fn ($id) => (int) $id)
             ->filter()
+            ->take(50)
             ->values();
 
         $imports = IvrImport::query()
