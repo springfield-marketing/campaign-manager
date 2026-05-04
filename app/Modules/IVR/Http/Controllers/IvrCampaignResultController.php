@@ -16,6 +16,7 @@ use App\Modules\IVR\Support\BillableDuration;
 use App\Modules\IVR\Support\IvrImportStatusPayload;
 use App\Modules\IVR\Support\NumberEligibilityService;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\RedirectResponse;
@@ -345,7 +346,7 @@ class IvrCampaignResultController extends Controller
             ->with('status', "Campaign import {$import->original_file_name} was reverted.");
     }
 
-    private function cleanupAffectedPhoneNumbers($phoneIds, NumberEligibilityService $eligibilityService): void
+    private function cleanupAffectedPhoneNumbers(Collection $phoneIds, NumberEligibilityService $eligibilityService): void
     {
         ClientPhoneNumber::query()
             ->whereIn('id', $phoneIds)
