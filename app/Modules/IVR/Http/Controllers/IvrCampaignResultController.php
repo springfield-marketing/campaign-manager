@@ -296,16 +296,15 @@ class IvrCampaignResultController extends Controller
                     ->whereIn('source_reference', $campaignReferences)
                     ->delete();
 
-                ContactSuppression::query()
+                $suppressionQuery = ContactSuppression::query()
                     ->where('channel', 'ivr')
-                    ->where('reason', 'customer_unsubscribed')
-                    ->get()
-                    ->filter(fn (ContactSuppression $suppression): bool => in_array(
-                        $suppression->context['campaign_id'] ?? null,
-                        $campaignReferences->all(),
-                        true,
-                    ))
-                    ->each->delete();
+                    ->where('reason', 'customer_unsubscribed');
+
+                $suppressionQuery->where(function ($q) use ($campaignReferences): void {
+                    foreach ($campaignReferences as $ref) {
+                        $q->orWhereJsonContains('context->campaign_id', $ref);
+                    }
+                })->delete();
             }
 
             $import->callRecords()->delete();
