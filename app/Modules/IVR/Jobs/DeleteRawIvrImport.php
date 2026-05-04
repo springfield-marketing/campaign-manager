@@ -2,6 +2,7 @@
 
 namespace App\Modules\IVR\Jobs;
 
+use App\Modules\IVR\Enums\IvrImportStatus;
 use App\Modules\IVR\Models\IvrImport;
 use App\Modules\IVR\Support\RawImportDeleter;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -38,7 +39,7 @@ class DeleteRawIvrImport implements ShouldQueue
             ->whereKey($this->importId)
             ->whereNull('reverted_at')
             ->update([
-                'status' => 'delete_failed',
+                'status' => IvrImportStatus::DeleteFailed,
                 'error_message' => $exception->getMessage(),
             ]);
     }

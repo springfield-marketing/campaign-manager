@@ -2,6 +2,7 @@
 
 namespace App\Modules\IVR\Support;
 
+use App\Modules\IVR\Enums\IvrImportStatus;
 use App\Modules\IVR\Models\IvrImport;
 
 class IvrImportStatusPayload
@@ -12,7 +13,11 @@ class IvrImportStatusPayload
     public static function make(IvrImport $import): array
     {
         $deleteProgress = $import->deleteProgress();
-        $isDeleting = in_array($import->status, ['deleting', 'deleted', 'delete_failed'], true);
+        $isDeleting = in_array($import->status, [
+            IvrImportStatus::Deleting->value,
+            IvrImportStatus::Deleted->value,
+            IvrImportStatus::DeleteFailed->value,
+        ], true);
         $progress = $isDeleting ? $deleteProgress['percent'] : ($import->total_rows > 0
             ? min(100, round(($import->processed_rows / $import->total_rows) * 100))
             : 0);
@@ -34,7 +39,12 @@ class IvrImportStatusPayload
             'delete_progress' => $deleteProgress,
             'progress_label' => self::progressLabel($import, $isDeleting, $deleteProgress),
             'detail_label' => self::detailLabel($import, $isDeleting, $deleteProgress),
-            'is_active' => in_array($import->status, ['pending', 'processing', 'deleting', 'reverting'], true),
+            'is_active' => in_array($import->status, [
+                IvrImportStatus::Pending->value,
+                IvrImportStatus::Processing->value,
+                IvrImportStatus::Deleting->value,
+                IvrImportStatus::Reverting->value,
+            ], true),
         ];
     }
 

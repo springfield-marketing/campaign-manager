@@ -3,6 +3,7 @@
 namespace App\Modules\IVR\Models;
 
 use App\Models\User;
+use App\Modules\IVR\Enums\IvrImportStatus;
 use App\Modules\IVR\Events\IvrImportProgressUpdated;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -70,16 +71,16 @@ class IvrImport extends Model
     public function statusMessage(): string
     {
         return match ($this->status) {
-            'pending' => 'Waiting for the queue worker to start.',
-            'processing' => 'Import is running in the background.',
-            'completed' => 'Import completed successfully.',
-            'deleting' => $this->deleteStatusMessage(),
-            'deleted' => 'Delete complete'.($this->reverted_at ? ' on '.$this->reverted_at->format('M j, Y g:i A') : '').'.',
-            'delete_failed' => 'Delete failed'.($this->error_message ? ': '.$this->error_message : '.'),
-            'reverting' => 'Revert is running in the background. This can take a few minutes for large files.',
-            'reverted' => 'Revert complete'.($this->reverted_at ? ' on '.$this->reverted_at->format('M j, Y g:i A') : '').'.',
-            'revert_failed' => 'Revert failed'.($this->error_message ? ': '.$this->error_message : '.'),
-            'failed' => 'Import failed'.($this->error_message ? ': '.$this->error_message : '.'),
+            IvrImportStatus::Pending->value => 'Waiting for the queue worker to start.',
+            IvrImportStatus::Processing->value => 'Import is running in the background.',
+            IvrImportStatus::Completed->value => 'Import completed successfully.',
+            IvrImportStatus::Deleting->value => $this->deleteStatusMessage(),
+            IvrImportStatus::Deleted->value => 'Delete complete'.($this->reverted_at ? ' on '.$this->reverted_at->format('M j, Y g:i A') : '').'.',
+            IvrImportStatus::DeleteFailed->value => 'Delete failed'.($this->error_message ? ': '.$this->error_message : '.'),
+            IvrImportStatus::Reverting->value => 'Revert is running in the background. This can take a few minutes for large files.',
+            IvrImportStatus::Reverted->value => 'Revert complete'.($this->reverted_at ? ' on '.$this->reverted_at->format('M j, Y g:i A') : '').'.',
+            IvrImportStatus::RevertFailed->value => 'Revert failed'.($this->error_message ? ': '.$this->error_message : '.'),
+            IvrImportStatus::Failed->value => 'Import failed'.($this->error_message ? ': '.$this->error_message : '.'),
             default => ucfirst($this->statusLabel()),
         };
     }

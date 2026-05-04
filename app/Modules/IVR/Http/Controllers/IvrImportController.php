@@ -3,6 +3,8 @@
 namespace App\Modules\IVR\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\IVR\Enums\IvrImportStatus;
+use App\Modules\IVR\Enums\IvrImportType;
 use App\Modules\IVR\Jobs\DeleteRawIvrImport;
 use App\Modules\IVR\Jobs\ProcessRawIvrImport;
 use App\Modules\IVR\Models\IvrImport;
@@ -18,7 +20,7 @@ class IvrImportController extends Controller
     {
         return view('ivr::imports.index', [
             'imports' => IvrImport::query()
-                ->where('type', 'raw_contacts')
+                ->where('type', IvrImportType::RawContacts)
                 ->latest()
                 ->paginate(10),
         ]);
@@ -40,7 +42,7 @@ class IvrImportController extends Controller
         $originalFileName = $validated['file']->getClientOriginalName();
 
         $existingImport = IvrImport::query()
-            ->where('type', 'raw_contacts')
+            ->where('type', IvrImportType::RawContacts)
             ->where('original_file_name', $originalFileName)
             ->whereNull('reverted_at')
             ->exists();
@@ -54,8 +56,8 @@ class IvrImportController extends Controller
         $storedPath = $validated['file']->store('ivr/imports/raw', 'local');
 
         $import = IvrImport::create([
-            'type' => 'raw_contacts',
-            'status' => 'pending',
+            'type' => IvrImportType::RawContacts,
+            'status' => IvrImportStatus::Pending,
             'original_file_name' => $originalFileName,
             'stored_file_name' => basename($storedPath),
             'storage_path' => $storedPath,
@@ -81,11 +83,16 @@ class IvrImportController extends Controller
 
     public function destroy(Request $request, IvrImport $import): RedirectResponse
     {
-        if ($import->type !== 'raw_contacts') {
+        if ($import->type !== IvrImportType::RawContacts->value) {
             abort(404);
         }
 
-        if (in_array($import->status, ['pending', 'processing', 'deleting', 'reverting'], true)) {
+        if (in_array($import->status, [
+            IvrImportStatus::Pending->value,
+            IvrImportStatus::Processing->value,
+            IvrImportStatus::Deleting->value,
+            IvrImportStatus::Reverting->value,
+        ], true)) {
             return back()->with('status', 'This raw import is still running and cannot be deleted yet.');
         }
 
@@ -98,7 +105,7 @@ class IvrImportController extends Controller
         ]);
 
         $import->forceFill([
-            'status' => 'deleting',
+            'status' => IvrImportStatus::Deleting,
             'error_message' => null,
             'summary' => array_merge($import->summary ?? [], [
                 'delete_progress' => [
@@ -136,7 +143,7 @@ class IvrImportController extends Controller
             ->values();
 
         $imports = IvrImport::query()
-            ->where('type', 'raw_contacts')
+            ->where('type', IvrImportType::RawContacts)
             ->whereIn('id', $ids)
             ->get()
             ->map(fn (IvrImport $import): array => IvrImportStatusPayload::make($import))

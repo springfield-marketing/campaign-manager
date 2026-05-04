@@ -3,6 +3,8 @@
 namespace App\Modules\IVR\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\IVR\Enums\IvrImportStatus;
+use App\Modules\IVR\Enums\IvrImportType;
 use App\Models\ClientPhoneNumber;
 use App\Models\ClientSource;
 use App\Models\ContactSuppression;
@@ -29,7 +31,7 @@ class IvrCampaignResultController extends Controller
     public function index(Request $request): View
     {
         $resultImports = IvrImport::query()
-            ->where('type', 'campaign_results')
+            ->where('type', IvrImportType::CampaignResults)
             ->latest()
             ->paginate(10, ['*'], 'imports');
 
@@ -45,8 +47,8 @@ class IvrCampaignResultController extends Controller
             ->keyBy('external_campaign_id');
 
         $latestImport = IvrImport::query()
-            ->where('type', 'campaign_results')
-            ->whereIn('status', ['completed', 'completed_with_errors'])
+            ->where('type', IvrImportType::CampaignResults)
+            ->whereIn('status', [IvrImportStatus::Completed, IvrImportStatus::CompletedWithErrors])
             ->whereNull('reverted_at')
             ->latest()
             ->get()
@@ -105,7 +107,7 @@ class IvrCampaignResultController extends Controller
         $originalFileName = $validated['file']->getClientOriginalName();
 
         $existingImport = IvrImport::query()
-            ->where('type', 'campaign_results')
+            ->where('type', IvrImportType::CampaignResults)
             ->where('original_file_name', $originalFileName)
             ->whereNull('reverted_at')
             ->exists();
@@ -119,8 +121,8 @@ class IvrCampaignResultController extends Controller
         $storedPath = $validated['file']->store('ivr/imports/results', 'local');
 
         $import = IvrImport::create([
-            'type' => 'campaign_results',
-            'status' => 'pending',
+            'type' => IvrImportType::CampaignResults,
+            'status' => IvrImportStatus::Pending,
             'original_file_name' => $originalFileName,
             'stored_file_name' => basename($storedPath),
             'storage_path' => $storedPath,
@@ -145,7 +147,7 @@ class IvrCampaignResultController extends Controller
             ->values();
 
         $imports = IvrImport::query()
-            ->where('type', 'campaign_results')
+            ->where('type', IvrImportType::CampaignResults)
             ->whereIn('id', $ids)
             ->get()
             ->map(fn (IvrImport $import): array => IvrImportStatusPayload::make($import))
@@ -236,11 +238,11 @@ class IvrCampaignResultController extends Controller
 
     public function destroy(Request $request, IvrImport $import, NumberEligibilityService $eligibilityService): RedirectResponse
     {
-        if ($import->type !== 'campaign_results') {
+        if ($import->type !== IvrImportType::CampaignResults->value) {
             abort(404);
         }
 
-        if (in_array($import->status, ['pending', 'processing'], true)) {
+        if (in_array($import->status, [IvrImportStatus::Pending->value, IvrImportStatus::Processing->value], true)) {
             return back()->with('status', 'This campaign import is still running and cannot be reverted yet.');
         }
 
@@ -323,7 +325,7 @@ class IvrCampaignResultController extends Controller
             }
 
             $import->update([
-                'status' => 'reverted',
+                'status' => IvrImportStatus::Reverted,
                 'reverted_at' => now(),
                 'reverted_by' => $request->user()?->id,
                 'revert_reason' => $validated['revert_reason'] ?? null,

@@ -4,6 +4,7 @@ namespace App\Modules\IVR\Support;
 
 use App\Models\ClientPhoneNumber;
 use App\Models\ClientSource;
+use App\Modules\IVR\Enums\IvrImportStatus;
 use App\Modules\IVR\Models\IvrImport;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -13,7 +14,7 @@ class RawImportDeleter
 {
     public function delete(IvrImport $import, ?int $userId = null, ?string $reason = null): void
     {
-        if ($import->reverted_at !== null || $import->status === 'deleted') {
+        if ($import->reverted_at !== null || $import->status === IvrImportStatus::Deleted->value) {
             return;
         }
 
@@ -203,7 +204,7 @@ class RawImportDeleter
                 DB::statement('drop table if exists raw_import_delete_client_ids');
 
                 $import->update([
-                    'status' => 'deleted',
+                    'status' => IvrImportStatus::Deleted,
                     'reverted_at' => $now,
                     'reverted_by' => $userId,
                     'revert_reason' => $reason,
@@ -225,7 +226,7 @@ class RawImportDeleter
             $import->broadcastProgress();
         } catch (Throwable $exception) {
             $import->forceFill([
-                'status' => 'delete_failed',
+                'status' => IvrImportStatus::DeleteFailed,
                 'error_message' => $exception->getMessage(),
             ])->save();
             $import->broadcastProgress();
@@ -333,7 +334,7 @@ class RawImportDeleter
                 });
 
             $import->update([
-                'status' => 'deleted',
+                'status' => IvrImportStatus::Deleted,
                 'reverted_at' => now(),
                 'reverted_by' => $userId,
                 'revert_reason' => $reason,

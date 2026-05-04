@@ -6,6 +6,7 @@ use App\Models\Client;
 use App\Models\ClientPhoneNumber;
 use App\Models\ClientSource;
 use App\Models\ContactSuppression;
+use App\Modules\IVR\Enums\IvrImportStatus;
 use App\Modules\IVR\Models\IvrCallRecord;
 use App\Modules\IVR\Models\IvrCampaign;
 use App\Modules\IVR\Models\IvrImport;
@@ -25,7 +26,7 @@ class CampaignResultsProcessor
     public function process(IvrImport $import): void
     {
         $import->update([
-            'status' => 'processing',
+            'status' => IvrImportStatus::Processing,
             'started_at' => now(),
             'error_message' => null,
         ]);
@@ -128,7 +129,7 @@ class CampaignResultsProcessor
             }
 
             $import->update([
-                'status' => $failed > 0 ? 'completed_with_errors' : 'completed',
+                'status' => $failed > 0 ? IvrImportStatus::CompletedWithErrors : IvrImportStatus::Completed,
                 'total_rows' => $processed,
                 'processed_rows' => $processed,
                 'successful_rows' => $successful,
@@ -144,7 +145,7 @@ class CampaignResultsProcessor
             Log::channel('ivr')->info('Completed IVR campaign results import.', ['import_id' => $import->id]);
         } catch (Throwable $throwable) {
             $import->update([
-                'status' => 'failed',
+                'status' => IvrImportStatus::Failed,
                 'error_message' => $throwable->getMessage(),
                 'completed_at' => now(),
             ]);

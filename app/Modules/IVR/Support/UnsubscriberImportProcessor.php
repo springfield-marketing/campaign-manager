@@ -5,6 +5,7 @@ namespace App\Modules\IVR\Support;
 use App\Models\Client;
 use App\Models\ClientPhoneNumber;
 use App\Models\ContactSuppression;
+use App\Modules\IVR\Enums\IvrImportStatus;
 use App\Modules\IVR\Models\IvrImport;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -23,7 +24,7 @@ class UnsubscriberImportProcessor
     public function process(IvrImport $import): void
     {
         $import->update([
-            'status' => 'processing',
+            'status' => IvrImportStatus::Processing,
             'started_at' => now(),
             'error_message' => null,
         ]);
@@ -94,7 +95,7 @@ class UnsubscriberImportProcessor
             }
 
             $import->update([
-                'status' => $failed > 0 ? 'completed_with_errors' : 'completed',
+                'status' => $failed > 0 ? IvrImportStatus::CompletedWithErrors : IvrImportStatus::Completed,
                 'total_rows' => $processed,
                 'processed_rows' => $processed,
                 'successful_rows' => $created,
@@ -110,7 +111,7 @@ class UnsubscriberImportProcessor
             $import->broadcastProgress();
         } catch (Throwable $throwable) {
             $import->update([
-                'status' => 'failed',
+                'status' => IvrImportStatus::Failed,
                 'error_message' => $throwable->getMessage(),
                 'completed_at' => now(),
             ]);

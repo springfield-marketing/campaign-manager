@@ -4,6 +4,8 @@ namespace App\Modules\IVR\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\ContactSuppression;
+use App\Modules\IVR\Enums\IvrImportStatus;
+use App\Modules\IVR\Enums\IvrImportType;
 use App\Modules\IVR\Jobs\ProcessUnsubscriberImport;
 use App\Modules\IVR\Models\IvrImport;
 use App\Modules\IVR\Support\IvrImportStatusPayload;
@@ -53,7 +55,7 @@ class IvrUnsubscriberController extends Controller
         return view('ivr::unsubscribers.index', [
             'unsubscribers' => $unsubscribers,
             'imports' => IvrImport::query()
-                ->where('type', 'unsubscribers')
+                ->where('type', IvrImportType::Unsubscribers)
                 ->latest()
                 ->paginate(10, ['*'], 'imports_page'),
         ]);
@@ -74,8 +76,8 @@ class IvrUnsubscriberController extends Controller
         $storedPath = $validated['file']->store('ivr/imports/unsubscribers', 'local');
 
         $import = IvrImport::create([
-            'type' => 'unsubscribers',
-            'status' => 'pending',
+            'type' => IvrImportType::Unsubscribers,
+            'status' => IvrImportStatus::Pending,
             'original_file_name' => $validated['file']->getClientOriginalName(),
             'stored_file_name' => basename($storedPath),
             'storage_path' => $storedPath,
@@ -135,7 +137,7 @@ class IvrUnsubscriberController extends Controller
             ->values();
 
         $imports = IvrImport::query()
-            ->where('type', 'unsubscribers')
+            ->where('type', IvrImportType::Unsubscribers)
             ->whereIn('id', $ids)
             ->get()
             ->map(fn (IvrImport $import): array => IvrImportStatusPayload::make($import))

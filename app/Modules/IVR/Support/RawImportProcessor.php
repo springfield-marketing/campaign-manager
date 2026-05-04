@@ -5,6 +5,7 @@ namespace App\Modules\IVR\Support;
 use App\Models\Client;
 use App\Models\ClientPhoneNumber;
 use App\Models\ClientSource;
+use App\Modules\IVR\Enums\IvrImportStatus;
 use App\Modules\IVR\Models\IvrImport;
 use Illuminate\Support\Facades\Log;
 use SplFileObject;
@@ -21,7 +22,7 @@ class RawImportProcessor
     public function process(IvrImport $import): void
     {
         $import->update([
-            'status' => 'processing',
+            'status' => IvrImportStatus::Processing,
             'started_at' => now(),
             'error_message' => null,
         ]);
@@ -99,7 +100,7 @@ class RawImportProcessor
             }
 
             $import->update([
-                'status' => $failed > 0 ? 'completed_with_errors' : 'completed',
+                'status' => $failed > 0 ? IvrImportStatus::CompletedWithErrors : IvrImportStatus::Completed,
                 'total_rows' => $processed,
                 'processed_rows' => $processed,
                 'successful_rows' => $successful,
@@ -116,7 +117,7 @@ class RawImportProcessor
             Log::channel('ivr')->info('Completed raw IVR import.', ['import_id' => $import->id]);
         } catch (Throwable $throwable) {
             $import->update([
-                'status' => 'failed',
+                'status' => IvrImportStatus::Failed,
                 'error_message' => $throwable->getMessage(),
                 'completed_at' => now(),
             ]);
