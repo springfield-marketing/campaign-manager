@@ -3,6 +3,7 @@
 namespace App\Modules\IVR\Support;
 
 use App\Models\ClientPhoneNumber;
+use App\Modules\IVR\Models\IvrPhoneProfile;
 use Carbon\CarbonInterface;
 
 class NumberEligibilityService
@@ -32,11 +33,14 @@ class NumberEligibilityService
             $status = 'inactive';
         }
 
-        $phoneNumber->forceFill([
-            'usage_status' => $status,
-            'last_call_outcome' => $lastCall?->dtmf_outcome,
-            'last_called_at' => $lastCall?->call_time,
-            'cooldown_until' => $cooldownUntil,
-        ])->save();
+        IvrPhoneProfile::updateOrCreate(
+            ['client_phone_number_id' => $phoneNumber->id],
+            [
+                'usage_status' => $status,
+                'last_call_outcome' => $lastCall?->dtmf_outcome,
+                'last_called_at' => $lastCall?->call_time,
+                'cooldown_until' => $cooldownUntil,
+            ]
+        );
     }
 }

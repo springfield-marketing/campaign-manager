@@ -192,7 +192,6 @@ class UnsubscriberImportProcessor
                     'is_uae' => $normalized['is_uae'],
                     'is_primary' => true,
                     'priority' => 1,
-                    'usage_status' => 'active',
                     'unsubscribed_at' => now(),
                 ]);
             } else {

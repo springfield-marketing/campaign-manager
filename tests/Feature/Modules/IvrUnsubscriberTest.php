@@ -26,7 +26,6 @@ class IvrUnsubscriberTest extends TestCase
             'raw_phone' => '0500000200',
             'normalized_phone' => '+971500000200',
             'is_uae' => true,
-            'usage_status' => 'active',
             'is_primary' => true,
             'priority' => 1,
         ]);
@@ -69,7 +68,6 @@ class IvrUnsubscriberTest extends TestCase
             'raw_phone' => '0500000300',
             'normalized_phone' => '+971500000300',
             'is_uae' => true,
-            'usage_status' => 'active',
             'is_primary' => true,
             'priority' => 1,
             'unsubscribed_at' => now(),
@@ -105,7 +103,6 @@ class IvrUnsubscriberTest extends TestCase
             'raw_phone' => '0500000400',
             'normalized_phone' => '+971500000400',
             'is_uae' => true,
-            'usage_status' => 'active',
             'is_primary' => true,
             'priority' => 1,
             'unsubscribed_at' => now(),

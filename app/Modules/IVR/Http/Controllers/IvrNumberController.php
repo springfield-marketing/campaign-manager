@@ -15,7 +15,7 @@ class IvrNumberController extends Controller
     public function index(Request $request): View
     {
         $numbers = $this->filteredQuery($request)
-            ->with(['client', 'sources' => fn ($query) => $query->latest()->limit(5)])
+            ->with(['client', 'ivrProfile', 'sources' => fn ($query) => $query->latest()->limit(5)])
             ->paginate(25)
             ->withQueryString();
 
@@ -37,9 +37,11 @@ class IvrNumberController extends Controller
 
         return view('ivr::numbers.show', [
             'number' => $number->load([
+                'ivrProfile',
                 'client',
                 'client.phoneNumbers' => fn ($query) => $query
                     ->withCount(['ivrCallRecords as ivr_use_count'])
+                    ->with('ivrProfile')
                     ->orderByDesc('is_primary')
                     ->orderBy('priority')
                     ->orderBy('normalized_phone'),
@@ -79,11 +81,14 @@ class IvrNumberController extends Controller
     private function eligibleExportQuery(Request $request): Builder
     {
         $rankedNumbers = $this->filteredQuery($request)
-            ->where('usage_status', 'active')
+            ->where(function (Builder $query): void {
+                $query->whereNull('ivr_phone_profiles.client_phone_number_id')
+                    ->orWhere('ivr_phone_profiles.usage_status', 'active');
+            })
             ->whereNull('unsubscribed_at')
             ->where(function (Builder $query): void {
-                $query->whereNull('cooldown_until')
-                    ->orWhere('cooldown_until', '<=', now());
+                $query->whereNull('ivr_phone_profiles.cooldown_until')
+                    ->orWhere('ivr_phone_profiles.cooldown_until', '<=', now());
             })
             ->whereDoesntHave('suppressions', function (Builder $query): void {
                 $query->whereNull('released_at')
@@ -92,10 +97,11 @@ class IvrNumberController extends Controller
                             ->orWhere('channel', 'ivr');
                     });
             })
+            ->addSelect(DB::raw('ivr_phone_profiles.last_called_at AS ivr_last_called_at'))
             ->addSelect(DB::raw(
                 'ROW_NUMBER() OVER (
-                    PARTITION BY COALESCE(client_id, -id)
-                    ORDER BY is_primary DESC, priority ASC, last_called_at ASC, id ASC
+                    PARTITION BY COALESCE(client_phone_numbers.client_id, -client_phone_numbers.id)
+                    ORDER BY client_phone_numbers.is_primary DESC, client_phone_numbers.priority ASC, ivr_phone_profiles.last_called_at ASC, client_phone_numbers.id ASC
                 ) AS export_rank'
             ))
             ->reorder();
@@ -105,7 +111,7 @@ class IvrNumberController extends Controller
             ->where('export_rank', 1)
             ->orderByDesc('is_primary')
             ->orderBy('priority')
-            ->orderBy('last_called_at')
+            ->orderBy('ivr_last_called_at')
             ->orderBy('id');
     }
 
@@ -117,7 +123,8 @@ class IvrNumberController extends Controller
                 $query->whereNotNull('full_name')
                     ->whereRaw("trim(full_name) <> ''");
             })
-            ->withCount(['ivrCallRecords as ivr_use_count']);
+            ->withCount(['ivrCallRecords as ivr_use_count'])
+            ->leftJoin('ivr_phone_profiles', 'ivr_phone_profiles.client_phone_number_id', '=', 'client_phone_numbers.id');
 
         $includeSources = $this->selectedSources($request, 'source_include');
         $excludeSources = $this->selectedSources($request, 'source_exclude');
@@ -159,7 +166,13 @@ class IvrNumberController extends Controller
         }
 
         if ($request->filled('status')) {
-            $query->where('usage_status', $request->string('status'));
+            $status = $request->string('status');
+            $query->where(function (Builder $query) use ($status): void {
+                if ($status === 'active') {
+                    $query->whereNull('ivr_phone_profiles.client_phone_number_id');
+                }
+                $query->orWhere('ivr_phone_profiles.usage_status', $status);
+            });
         }
 
         if ($request->filled('uses_min')) {
@@ -170,7 +183,8 @@ class IvrNumberController extends Controller
             $query->has('ivrCallRecords', '<=', (int) $request->integer('uses_max'));
         }
 
-        return $query->orderBy('usage_status')->orderByDesc('last_called_at');
+        return $query->orderByRaw("COALESCE(ivr_phone_profiles.usage_status, 'active')")
+            ->orderByDesc('ivr_phone_profiles.last_called_at');
     }
 
     /**

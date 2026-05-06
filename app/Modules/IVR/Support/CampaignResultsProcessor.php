@@ -10,6 +10,7 @@ use App\Modules\IVR\Enums\IvrImportStatus;
 use App\Modules\IVR\Models\IvrCallRecord;
 use App\Modules\IVR\Models\IvrCampaign;
 use App\Modules\IVR\Models\IvrImport;
+use App\Modules\IVR\Support\IvrSummaryService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use SplFileObject;
@@ -128,6 +129,21 @@ class CampaignResultsProcessor
 
             if ($campaign) {
                 $this->refreshCampaignMetrics($campaign);
+
+                if ($import->audio_file_path || $import->audio_script) {
+                    $campaign->update([
+                        'audio_file_path' => $import->audio_file_path,
+                        'audio_original_name' => $import->audio_original_name,
+                        'audio_script' => $import->audio_script,
+                    ]);
+                }
+
+                if ($campaign->started_at) {
+                    app(IvrSummaryService::class)->recompute(
+                        $campaign->started_at->year,
+                        $campaign->started_at->month,
+                    );
+                }
             }
 
             $import->update([
@@ -341,11 +357,6 @@ class CampaignResultsProcessor
 
             $phoneNumber->forceFill(['unsubscribed_at' => $callTime ?: now()])->save();
         }
-
-        $phoneNumber->forceFill([
-            'last_called_at' => $callTime,
-            'last_call_outcome' => $dtmfOutcome,
-        ])->save();
 
         $this->eligibilityService->refresh($phoneNumber);
 

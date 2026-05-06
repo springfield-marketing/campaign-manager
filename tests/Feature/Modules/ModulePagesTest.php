@@ -54,7 +54,6 @@ class ModulePagesTest extends TestCase
             'raw_phone' => '0500000001',
             'normalized_phone' => '+971500000001',
             'is_uae' => true,
-            'usage_status' => 'active',
         ]);
 
         ClientSource::create([

@@ -36,7 +36,6 @@ class IvrRawImportDeleteTest extends TestCase
             'raw_phone' => '0500000999',
             'normalized_phone' => '+971500000999',
             'is_uae' => true,
-            'usage_status' => 'active',
             'is_primary' => true,
             'priority' => 1,
         ]);
@@ -85,7 +84,6 @@ class IvrRawImportDeleteTest extends TestCase
             'raw_phone' => '0500000888',
             'normalized_phone' => '+971500000888',
             'is_uae' => true,
-            'usage_status' => 'active',
             'is_primary' => true,
             'priority' => 1,
             'last_source_name' => 'shared',

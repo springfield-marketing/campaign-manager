@@ -21,11 +21,11 @@
                         </div>
                         <div>
                             <dt class="ui-muted">Usage status</dt>
-                            <dd class="ui-strong">{{ ucfirst($number->usage_status) }}</dd>
+                            <dd class="ui-strong">{{ ucfirst($number->ivrProfile?->usage_status ?? 'active') }}</dd>
                         </div>
                         <div>
                             <dt class="ui-muted">Cooldown until</dt>
-                            <dd class="ui-strong">{{ optional($number->cooldown_until)->format('Y-m-d H:i') ?: '-' }}</dd>
+                            <dd class="ui-strong">{{ optional($number->ivrProfile?->cooldown_until)->format('Y-m-d H:i') ?: '-' }}</dd>
                         </div>
                         <div>
                             <dt class="ui-muted">Unsubscribed</dt>
@@ -84,9 +84,9 @@
                                                 </td>
                                                 <td>{{ $clientNumber->label ?: '-' }}</td>
                                                 <td>{{ $clientNumber->priority }}</td>
-                                                <td>{{ ucfirst($clientNumber->usage_status) }}</td>
+                                                <td>{{ ucfirst($clientNumber->ivrProfile?->usage_status ?? 'active') }}</td>
                                                 <td>{{ $clientNumber->ivr_use_count }}</td>
-                                                <td>{{ optional($clientNumber->last_called_at)->format('Y-m-d H:i') ?: '-' }}</td>
+                                                <td>{{ optional($clientNumber->ivrProfile?->last_called_at)->format('Y-m-d H:i') ?: '-' }}</td>
                                             </tr>
                                         @endforeach
                                     </tbody>

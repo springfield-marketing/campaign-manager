@@ -82,8 +82,8 @@
                                     <td>{{ $number->client?->city ?: '-' }}</td>
                                     <td>{{ $number->last_source_name ?: '-' }}</td>
                                     <td>{{ $number->ivr_use_count }}</td>
-                                    <td>{{ ucfirst($number->usage_status) }}</td>
-                                    <td>{{ optional($number->cooldown_until)->format('Y-m-d H:i') ?: '-' }}</td>
+                                    <td>{{ ucfirst($number->ivrProfile?->usage_status ?? 'active') }}</td>
+                                    <td>{{ optional($number->ivrProfile?->cooldown_until)->format('Y-m-d H:i') ?: '-' }}</td>
                                     <td>
                                         <a href="{{ route('modules.ivr.numbers.show', $number) }}" class="ui-link">History</a>
                                     </td>
