@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Modules\IVR\Models\IvrCallRecord;
+use App\Modules\WhatsApp\Models\WhatsAppMessage;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -68,5 +69,10 @@ class ClientPhoneNumber extends Model
     public function ivrCallRecords(): HasMany
     {
         return $this->hasMany(IvrCallRecord::class);
+    }
+
+    public function whatsAppMessages(): HasMany
+    {
+        return $this->hasMany(WhatsAppMessage::class);
     }
 }
