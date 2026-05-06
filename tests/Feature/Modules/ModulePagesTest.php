@@ -22,7 +22,11 @@ class ModulePagesTest extends TestCase
 
         $routes = [
             route('modules.ivr.index'),
-            route('modules.whatsapp.index'),
+            route('modules.whatsapp.campaigns.index'),
+            route('modules.whatsapp.imports.index'),
+            route('modules.whatsapp.numbers.index'),
+            route('modules.whatsapp.unsubscribers.index'),
+            route('modules.whatsapp.reports.index'),
             route('modules.emails.index'),
             route('modules.ivr.imports.index'),
             route('modules.ivr.results.index'),

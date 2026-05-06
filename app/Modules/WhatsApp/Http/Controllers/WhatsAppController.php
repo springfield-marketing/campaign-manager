@@ -3,18 +3,12 @@
 namespace App\Modules\WhatsApp\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use Illuminate\View\View;
+use Illuminate\Http\RedirectResponse;
 
 class WhatsAppController extends Controller
 {
-    public function __invoke(): View
+    public function __invoke(): RedirectResponse
     {
-        return view('whatsapp::index', [
-            'capabilities' => [
-                'Template management and approval workflows',
-                'Conversation state handling and outbound messaging',
-                'Delivery events, retries, and channel analytics',
-            ],
-        ]);
+        return redirect()->route('modules.whatsapp.campaigns.index');
     }
 }
