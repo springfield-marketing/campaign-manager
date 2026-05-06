@@ -28,6 +28,8 @@
                             <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-theme-muted">
                                 @if (request()->routeIs('modules.ivr.*'))
                                     <span class="ui-pill">IVR workspace</span>
+                                @elseif (request()->routeIs('modules.whatsapp.*'))
+                                    <span class="ui-pill">WhatsApp workspace</span>
                                 @else
                                     <span class="ui-pill">Campaign workspace</span>
                                 @endif
@@ -54,6 +56,8 @@
 
                         @if (request()->routeIs('modules.ivr.*'))
                             @include('ivr::partials.section-nav')
+                        @elseif (request()->routeIs('modules.whatsapp.*'))
+                            @include('whatsapp::partials.section-nav')
                         @endif
                     </div>
                 </header>
@@ -72,7 +76,13 @@
                         <a href="{{ route('modules.emails.index') }}" class="ui-link">Emails</a>
                     </div>
 
-                    <p>IVR campaign management</p>
+                    <p>
+                        @if (request()->routeIs('modules.whatsapp.*'))
+                            WhatsApp campaign management
+                        @else
+                            IVR campaign management
+                        @endif
+                    </p>
                 </div>
             </footer>
         </div>

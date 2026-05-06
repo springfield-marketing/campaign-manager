@@ -2,7 +2,6 @@
     <x-slot name="header">
         <div>
             <h2 class="page-title">Numbers</h2>
-            <div class="mt-3">@include('whatsapp::partials.section-nav')</div>
         </div>
     </x-slot>
 

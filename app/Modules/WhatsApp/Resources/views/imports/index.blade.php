@@ -1,8 +1,7 @@
 <x-app-layout>
     <x-slot name="header">
         <div>
-            <h2 class="page-title">WhatsApp Import</h2>
-            <div class="mt-3">@include('whatsapp::partials.section-nav')</div>
+            <h2 class="page-title">Import</h2>
         </div>
     </x-slot>
 
