@@ -28,12 +28,8 @@ class ClientPhoneNumber extends Model
         'is_whatsapp',
         'verification_status',
         'priority',
-        'usage_status',
-        'last_call_outcome',
         'last_source_name',
         'last_imported_at',
-        'last_called_at',
-        'cooldown_until',
         'unsubscribed_at',
         'metadata',
     ];
@@ -46,8 +42,6 @@ class ClientPhoneNumber extends Model
             'is_whatsapp' => 'boolean',
             'priority' => 'integer',
             'last_imported_at' => 'datetime',
-            'last_called_at' => 'datetime',
-            'cooldown_until' => 'datetime',
             'unsubscribed_at' => 'datetime',
             'metadata' => 'array',
         ];
