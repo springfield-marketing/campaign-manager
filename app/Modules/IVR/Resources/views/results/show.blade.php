@@ -57,6 +57,47 @@
                 </div>
             </section>
 
+            <section class="ui-card ui-card-pad mt-6">
+                <h3 class="ui-title">IVR Audio</h3>
+
+                @if ($campaign->audio_file_path)
+                    <div class="mt-4">
+                        <audio controls class="w-full" src="{{ route('modules.ivr.results.audio', $campaign) }}">
+                            Your browser does not support audio playback.
+                        </audio>
+                        <p class="mt-1 text-xs ui-muted">{{ $campaign->audio_original_name }}</p>
+                    </div>
+                @endif
+
+                @if ($campaign->audio_script)
+                    <div class="mt-4 {{ $campaign->audio_file_path ? 'border-t pt-4' : '' }}">
+                        <p class="text-sm font-medium">Script</p>
+                        <p class="mt-2 text-sm whitespace-pre-wrap ui-muted">{{ $campaign->audio_script }}</p>
+                    </div>
+                @endif
+
+                <form method="POST" action="{{ route('modules.ivr.results.audio.update', $campaign) }}" enctype="multipart/form-data" class="mt-6 space-y-4 border-t pt-4">
+                    @csrf
+                    <p class="text-sm font-medium">{{ $campaign->audio_file_path ? 'Replace audio' : 'Upload audio' }}</p>
+
+                    @if (session('status'))
+                        <div class="ui-alert">{{ session('status') }}</div>
+                    @endif
+
+                    <div>
+                        <x-input-label for="audio_file" :value="__('Audio file')" />
+                        <input id="audio_file" name="audio_file" type="file" accept="audio/*" class="ui-control mt-1 block w-full">
+                        <x-input-error :messages="$errors->get('audio_file')" class="mt-2" />
+                    </div>
+                    <div>
+                        <x-input-label for="audio_script" :value="__('Script')" />
+                        <textarea id="audio_script" name="audio_script" rows="5" class="ui-control mt-1 block w-full" placeholder="Paste the IVR script here…">{{ old('audio_script', $campaign->audio_script) }}</textarea>
+                        <x-input-error :messages="$errors->get('audio_script')" class="mt-2" />
+                    </div>
+                    <x-primary-button>Save</x-primary-button>
+                </form>
+            </section>
+
             <section class="ui-card mt-6 overflow-hidden">
                 <div class="ui-section-head flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>

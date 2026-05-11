@@ -23,7 +23,10 @@ Route::middleware(['auth', 'verified'])
         Route::post('/campaign-results', [IvrCampaignResultController::class, 'store'])->name('results.store');
         Route::get('/campaign-results/status', [IvrCampaignResultController::class, 'status'])->name('results.status');
         Route::delete('/campaign-results/imports/{import}', [IvrCampaignResultController::class, 'destroy'])->name('results.destroy');
+        Route::get('/campaign-results/export', [IvrCampaignResultController::class, 'export'])->name('results.export');
         Route::get('/campaign-results/{campaign}/leads/export', [IvrCampaignResultController::class, 'exportLeads'])->name('results.leads.export');
+        Route::get('/campaign-results/{campaign}/audio', [IvrCampaignResultController::class, 'audio'])->name('results.audio');
+        Route::post('/campaign-results/{campaign}/audio', [IvrCampaignResultController::class, 'updateAudio'])->name('results.audio.update');
         Route::get('/campaign-results/{campaign}', [IvrCampaignResultController::class, 'show'])->name('results.show');
         Route::get('/numbers', [IvrNumberController::class, 'index'])->name('numbers.index');
         Route::get('/numbers/export', [IvrNumberController::class, 'export'])->name('numbers.export');
@@ -35,4 +38,6 @@ Route::middleware(['auth', 'verified'])
         Route::get('/reports', [IvrReportController::class, 'index'])->name('reports.index');
         Route::get('/settings', [IvrSettingsController::class, 'edit'])->name('settings.edit');
         Route::put('/settings', [IvrSettingsController::class, 'update'])->name('settings.update');
+        Route::post('/settings/database-export', [IvrSettingsController::class, 'exportDatabase'])->name('settings.database-export.store');
+        Route::get('/settings/database-export/{export}', [IvrSettingsController::class, 'downloadDatabaseExport'])->name('settings.database-export.download');
     });

@@ -71,6 +71,71 @@
                     </div>
                 </form>
             </section>
+
+            <section class="ui-card ui-card-pad mt-6">
+                <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div>
+                        <h3 class="ui-title">Central database export</h3>
+                        <p class="mt-2 text-sm ui-muted">
+                            Create a full Excel workbook of the business database for safekeeping or migration.
+                        </p>
+                    </div>
+
+                    <form method="POST" action="{{ route('modules.ivr.settings.database-export.store') }}">
+                        @csrf
+                        <button type="submit" class="ui-button">Start Excel export</button>
+                    </form>
+                </div>
+
+                <div class="mt-6 overflow-x-auto">
+                    <table class="ui-table">
+                        <thead>
+                            <tr>
+                                <th>Requested</th>
+                                <th>Status</th>
+                                <th>Progress</th>
+                                <th>Size</th>
+                                <th>Requested by</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($databaseExports as $export)
+                                <tr>
+                                    <td>{{ $export->created_at?->format('Y-m-d H:i') }}</td>
+                                    <td class="capitalize">{{ str_replace('_', ' ', $export->status) }}</td>
+                                    <td>
+                                        {{ number_format($export->processed_rows) }} / {{ number_format($export->total_rows) }}
+                                        <span class="ui-muted">({{ $export->progressPercent() }}%)</span>
+                                        @if ($export->status === 'failed' && $export->error_message)
+                                            <div class="mt-1 text-xs text-red-700">{{ $export->error_message }}</div>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        {{ $export->file_size ? number_format($export->file_size / 1024 / 1024, 2).' MB' : '-' }}
+                                    </td>
+                                    <td>{{ $export->requester?->name ?: '-' }}</td>
+                                    <td class="text-right">
+                                        @if ($export->status === 'completed')
+                                            <a href="{{ route('modules.ivr.settings.database-export.download', $export) }}" class="ui-link">
+                                                Download
+                                            </a>
+                                        @elseif (in_array($export->status, ['pending', 'processing'], true))
+                                            <span class="ui-muted">Refresh to update</span>
+                                        @else
+                                            <span class="ui-muted">Unavailable</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="6" class="ui-empty">No database exports yet.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </section>
         </div>
     </div>
 </x-app-layout>

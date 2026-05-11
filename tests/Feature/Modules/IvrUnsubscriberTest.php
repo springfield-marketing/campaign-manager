@@ -6,6 +6,7 @@ use App\Models\Client;
 use App\Models\ClientPhoneNumber;
 use App\Models\ContactSuppression;
 use App\Models\User;
+use App\Modules\IVR\Models\IvrPhoneProfile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use PHPUnit\Framework\Attributes\Test;
@@ -44,6 +45,10 @@ class IvrUnsubscriberTest extends TestCase
             'channel' => 'ivr',
             'reason' => 'unsubscribe',
             'released_at' => null,
+        ]);
+        $this->assertDatabaseHas('ivr_phone_profiles', [
+            'client_phone_number_id' => $phoneNumber->id,
+            'usage_status' => 'dead',
         ]);
 
         $this->assertNotNull(ClientPhoneNumber::query()
@@ -91,6 +96,9 @@ class IvrUnsubscriberTest extends TestCase
 
         $this->assertNotNull($suppression->fresh()->released_at);
         $this->assertNull($phoneNumber->fresh()->unsubscribed_at);
+        $this->assertSame('active', IvrPhoneProfile::query()
+            ->where('client_phone_number_id', $phoneNumber->id)
+            ->value('usage_status'));
     }
 
     #[Test]

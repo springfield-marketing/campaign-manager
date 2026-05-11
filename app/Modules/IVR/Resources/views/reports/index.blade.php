@@ -7,8 +7,6 @@
 
     <div class="page-section">
         <div class="page-wrap">
-            @include('ivr::partials.section-nav')
-
             @php
                 $summaryLabels = [
                     'total_calls' => 'Total calls',
@@ -65,10 +63,6 @@
                         <article>
                             <p class="text-sm ui-muted">Quota</p>
                             <p class="mt-1 text-2xl font-semibold text-theme-primary">{{ number_format($monthlyBudget['minutes_quota']) }} min</p>
-                        </article>
-                        <article>
-                            <p class="text-sm ui-muted">Used this month</p>
-                            <p class="mt-1 text-2xl font-semibold text-theme-primary">{{ number_format($monthlyBudget['minutes_used']) }} min</p>
                         </article>
                         <article>
                             <p class="text-sm ui-muted">Remaining minutes</p>

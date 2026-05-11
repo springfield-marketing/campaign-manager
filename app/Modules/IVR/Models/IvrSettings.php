@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class IvrSettings extends Model
 {
     protected $fillable = [
+        'lock_key',
         'monthly_minutes_quota',
         'price_per_minute_under',
         'price_per_minute_over',
@@ -23,10 +24,13 @@ class IvrSettings extends Model
 
     public static function current(): self
     {
-        return self::firstOrCreate([], [
-            'monthly_minutes_quota' => 50000,
-            'price_per_minute_under' => '0.3700',
-            'price_per_minute_over' => '0.4000',
-        ]);
+        return self::firstOrCreate(
+            ['lock_key' => 'default'],
+            [
+                'monthly_minutes_quota' => 50000,
+                'price_per_minute_under' => '0.3700',
+                'price_per_minute_over' => '0.4000',
+            ]
+        );
     }
 }

@@ -9,6 +9,7 @@ use App\Modules\IVR\Enums\IvrImportType;
 use App\Modules\IVR\Jobs\ProcessUnsubscriberImport;
 use App\Modules\IVR\Models\IvrImport;
 use App\Modules\IVR\Support\IvrImportStatusPayload;
+use App\Modules\IVR\Support\NumberEligibilityService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
@@ -98,14 +99,14 @@ class IvrUnsubscriberController extends Controller
             ->with('status', 'Unsubscriber import queued successfully.');
     }
 
-    public function destroy(ContactSuppression $suppression): RedirectResponse
+    public function destroy(ContactSuppression $suppression, NumberEligibilityService $eligibilityService): RedirectResponse
     {
         abort_unless(
             $suppression->channel === 'ivr' && in_array($suppression->reason, self::UNSUBSCRIBE_REASONS, true),
             404,
         );
 
-        DB::transaction(function () use ($suppression): void {
+        DB::transaction(function () use ($suppression, $eligibilityService): void {
             $phoneNumber = $suppression->phoneNumber;
 
             $suppression->forceFill([
@@ -122,6 +123,10 @@ class IvrUnsubscriberController extends Controller
                 $phoneNumber->forceFill([
                     'unsubscribed_at' => null,
                 ])->save();
+            }
+
+            if ($phoneNumber) {
+                $eligibilityService->refresh($phoneNumber->refresh());
             }
         });
 

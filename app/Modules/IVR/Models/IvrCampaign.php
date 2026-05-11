@@ -22,6 +22,9 @@ class IvrCampaign extends Model
         'started_at',
         'completed_at',
         'summary',
+        'audio_file_path',
+        'audio_original_name',
+        'audio_script',
     ];
 
     protected function casts(): array

@@ -5,7 +5,6 @@ namespace App\Modules\IVR\Support;
 use App\Modules\IVR\Models\IvrCallRecord;
 use App\Modules\IVR\Models\IvrSettings;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class IvrReportData
@@ -37,31 +36,7 @@ class IvrReportData
                 else ceiling(total_duration_seconds / 60.0)
             end), 0)";
 
-        $summaryCacheKey = "ivr:reports:v3:summary:{$year}:".($month ?? 'all');
-
-        $summary = Cache::remember($summaryCacheKey, now()->addMinutes(2), function () use ($year, $month, $billableMinutesExpression): array {
-            $aggregate = IvrCallRecord::query()
-                ->when($year, fn ($query) => $query->whereYear('call_time', $year))
-                ->when($month, fn ($query) => $query->whereMonth('call_time', $month))
-                ->selectRaw('count(*) as total_calls')
-                ->selectRaw("sum(case when call_status = 'Answered' then 1 else 0 end) as answered_calls")
-                ->selectRaw("sum(case when call_status = 'Missed' then 1 else 0 end) as missed_calls")
-                ->selectRaw("sum(case when dtmf_outcome = 'interested' then 1 else 0 end) as leads")
-                ->selectRaw("sum(case when dtmf_outcome = 'more_info' then 1 else 0 end) as more_info")
-                ->selectRaw("sum(case when dtmf_outcome = 'unsubscribe' then 1 else 0 end) as unsubscribed")
-                ->selectRaw($billableMinutesExpression.' as minutes_consumed')
-                ->first();
-
-            return [
-                'total_calls' => (int) ($aggregate->total_calls ?? 0),
-                'answered_calls' => (int) ($aggregate->answered_calls ?? 0),
-                'missed_calls' => (int) ($aggregate->missed_calls ?? 0),
-                'leads' => (int) ($aggregate->leads ?? 0),
-                'more_info' => (int) ($aggregate->more_info ?? 0),
-                'unsubscribed' => (int) ($aggregate->unsubscribed ?? 0),
-                'minutes_consumed' => (int) ($aggregate->minutes_consumed ?? 0),
-            ];
-        });
+        $summary = $this->summaryForPeriod($year, $month, $billableMinutesExpression);
 
         $settings = IvrSettings::current();
         $monthlyBudget = null;
@@ -135,6 +110,51 @@ class IvrReportData
         }
 
         return $count;
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private function summaryForPeriod(int $year, ?int $month, string $billableMinutesExpression): array
+    {
+        $row = DB::table('ivr_monthly_summaries')
+            ->where('year', $year)
+            ->where('month', $month)
+            ->first();
+
+        if ($row !== null) {
+            return [
+                'total_calls' => (int) $row->total_calls,
+                'answered_calls' => (int) $row->answered_calls,
+                'missed_calls' => (int) $row->missed_calls,
+                'leads' => (int) $row->leads,
+                'more_info' => (int) $row->more_info,
+                'unsubscribed' => (int) $row->unsubscribed,
+                'minutes_consumed' => (int) $row->minutes_consumed,
+            ];
+        }
+
+        $aggregate = IvrCallRecord::query()
+            ->when($year, fn ($q) => $q->whereYear('call_time', $year))
+            ->when($month, fn ($q) => $q->whereMonth('call_time', $month))
+            ->selectRaw('count(*) as total_calls')
+            ->selectRaw("sum(case when call_status = 'Answered' then 1 else 0 end) as answered_calls")
+            ->selectRaw("sum(case when call_status = 'Missed' then 1 else 0 end) as missed_calls")
+            ->selectRaw("sum(case when dtmf_outcome = 'interested' then 1 else 0 end) as leads")
+            ->selectRaw("sum(case when dtmf_outcome = 'more_info' then 1 else 0 end) as more_info")
+            ->selectRaw("sum(case when dtmf_outcome = 'unsubscribe' then 1 else 0 end) as unsubscribed")
+            ->selectRaw($billableMinutesExpression.' as minutes_consumed')
+            ->first();
+
+        return [
+            'total_calls' => (int) ($aggregate->total_calls ?? 0),
+            'answered_calls' => (int) ($aggregate->answered_calls ?? 0),
+            'missed_calls' => (int) ($aggregate->missed_calls ?? 0),
+            'leads' => (int) ($aggregate->leads ?? 0),
+            'more_info' => (int) ($aggregate->more_info ?? 0),
+            'unsubscribed' => (int) ($aggregate->unsubscribed ?? 0),
+            'minutes_consumed' => (int) ($aggregate->minutes_consumed ?? 0),
+        ];
     }
 
     private function campaignBreakdown(int $year, ?int $month, string $billableMinutesExpression, float $blendedRate)

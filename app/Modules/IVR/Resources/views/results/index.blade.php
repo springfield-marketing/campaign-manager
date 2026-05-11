@@ -41,6 +41,16 @@
                                 <input id="file" name="file" type="file" class="ui-control mt-1 block w-full">
                                 <x-input-error :messages="$errors->get('file')" class="mt-2" />
                             </div>
+                            <div>
+                                <x-input-label for="audio_file" :value="__('IVR Audio File (optional)')" />
+                                <input id="audio_file" name="audio_file" type="file" accept="audio/*" class="ui-control mt-1 block w-full">
+                                <x-input-error :messages="$errors->get('audio_file')" class="mt-2" />
+                            </div>
+                            <div>
+                                <x-input-label for="audio_script" :value="__('Audio Script (optional)')" />
+                                <textarea id="audio_script" name="audio_script" rows="4" class="ui-control mt-1 block w-full" placeholder="Paste the script for the IVR audio here…">{{ old('audio_script') }}</textarea>
+                                <x-input-error :messages="$errors->get('audio_script')" class="mt-2" />
+                            </div>
                             <x-primary-button>Queue Results Import</x-primary-button>
                         </form>
                     </article>
@@ -109,6 +119,11 @@
                                 none yet
                             @endif
                         </p>
+                        <form method="GET" action="{{ route('modules.ivr.results.export') }}" class="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto]">
+                            <input type="date" name="from" value="{{ request('from', now()->startOfYear()->format('Y-m-d')) }}" aria-label="Export from date" class="ui-control" required>
+                            <input type="date" name="to" value="{{ request('to', now()->format('Y-m-d')) }}" aria-label="Export to date" class="ui-control" required>
+                            <button type="submit" class="ui-button">Export CSV</button>
+                        </form>
                         <form method="GET" class="mt-4 grid gap-3 md:grid-cols-3">
                             <select name="outcome" class="ui-control">
                                 <option value="">All outcomes</option>

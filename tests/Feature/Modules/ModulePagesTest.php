@@ -6,8 +6,12 @@ use App\Models\Client;
 use App\Models\ClientPhoneNumber;
 use App\Models\ClientSource;
 use App\Models\User;
+use App\Modules\IVR\Jobs\ExportCentralDatabase;
+use App\Modules\IVR\Models\CentralDatabaseExport;
 use App\Modules\IVR\Models\IvrCallRecord;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -76,6 +80,38 @@ class ModulePagesTest extends TestCase
                 'uses_max' => 3,
             ]))
             ->assertOk()
+            ->assertSee('Campaign ready')
+            ->assertSee('Total numbers')
             ->assertSee('+971500000001');
+    }
+
+    #[Test]
+    public function users_can_queue_and_download_central_database_exports(): void
+    {
+        Queue::fake();
+        Storage::fake('local');
+
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->post(route('modules.ivr.settings.database-export.store'))
+            ->assertRedirect(route('modules.ivr.settings.edit'));
+
+        $export = CentralDatabaseExport::query()->firstOrFail();
+
+        $this->assertSame(CentralDatabaseExport::STATUS_PENDING, $export->status);
+        Queue::assertPushed(ExportCentralDatabase::class);
+
+        Storage::disk('local')->put('central-database-exports/test.xlsx', 'xlsx-data');
+        $export->update([
+            'status' => CentralDatabaseExport::STATUS_COMPLETED,
+            'file_name' => 'test.xlsx',
+            'storage_path' => 'central-database-exports/test.xlsx',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('modules.ivr.settings.database-export.download', $export))
+            ->assertOk()
+            ->assertDownload('test.xlsx');
     }
 }

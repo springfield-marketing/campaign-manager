@@ -21,6 +21,7 @@ class IvrNumberController extends Controller
 
         return view('ivr::numbers.index', [
             'numbers' => $numbers,
+            'stats' => $this->numberStats($request),
             'availableSources' => DB::table('client_sources')
                 ->where('channel', 'ivr')
                 ->where('source_type', 'raw_import')
@@ -78,9 +79,9 @@ class IvrNumberController extends Controller
         ]);
     }
 
-    private function eligibleExportQuery(Request $request): Builder
+    private function eligibleExportQuery(Request $request, bool $applyStatusFilter = true): Builder
     {
-        $rankedNumbers = $this->filteredQuery($request)
+        $rankedNumbers = $this->filteredQuery($request, $applyStatusFilter)
             ->where(function (Builder $query): void {
                 $query->whereNull('ivr_phone_profiles.client_phone_number_id')
                     ->orWhere('ivr_phone_profiles.usage_status', 'active');
@@ -115,7 +116,7 @@ class IvrNumberController extends Controller
             ->orderBy('id');
     }
 
-    private function filteredQuery(Request $request): Builder
+    private function filteredQuery(Request $request, bool $applyStatusFilter = true): Builder
     {
         $query = ClientPhoneNumber::query()
             ->where('is_uae', true)
@@ -165,8 +166,8 @@ class IvrNumberController extends Controller
             $query->whereHas('client', fn ($builder) => $builder->where('city', $request->string('city')));
         }
 
-        if ($request->filled('status')) {
-            $status = $request->string('status');
+        if ($applyStatusFilter && $request->filled('status')) {
+            $status = (string) $request->string('status');
             $query->where(function (Builder $query) use ($status): void {
                 if ($status === 'active') {
                     $query->whereNull('ivr_phone_profiles.client_phone_number_id');
@@ -212,5 +213,55 @@ class IvrNumberController extends Controller
         $limit = (int) ($request->integer('export_limit') ?: 1000);
 
         return min(max($limit, 1), 50000);
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private function numberStats(Request $request): array
+    {
+        $base = $this->filteredQuery($request, applyStatusFilter: false)->reorder();
+
+        $active = (clone $base)
+            ->where(function (Builder $query): void {
+                $query->whereNull('ivr_phone_profiles.client_phone_number_id')
+                    ->orWhere('ivr_phone_profiles.usage_status', 'active');
+            })
+            ->count();
+
+        $inactive = (clone $base)
+            ->where('ivr_phone_profiles.usage_status', 'inactive')
+            ->count();
+
+        $dead = (clone $base)
+            ->where('ivr_phone_profiles.usage_status', 'dead')
+            ->count();
+
+        $unsubscribers = (clone $base)
+            ->where(function (Builder $query): void {
+                $query->whereNotNull('unsubscribed_at')
+                    ->orWhereHas('suppressions', function (Builder $query): void {
+                        $query->whereNull('released_at')
+                            ->where(function (Builder $query): void {
+                                $query->whereNull('channel')
+                                    ->orWhere('channel', 'ivr');
+                            });
+                    });
+            })
+            ->count();
+
+        $cooldown = (clone $base)
+            ->where('ivr_phone_profiles.cooldown_until', '>', now())
+            ->count();
+
+        return [
+            'total' => (clone $base)->count(),
+            'campaign_ready' => $this->eligibleExportQuery($request, applyStatusFilter: false)->count(),
+            'active' => $active,
+            'inactive' => $inactive,
+            'dead' => $dead,
+            'unsubscribers' => $unsubscribers,
+            'cooldown' => $cooldown,
+        ];
     }
 }

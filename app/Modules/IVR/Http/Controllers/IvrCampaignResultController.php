@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -98,10 +99,13 @@ class IvrCampaignResultController extends Controller
         $validated = $request->validate(
             [
                 'file' => ['required', 'file', 'mimes:csv,txt', 'max:51200'],
+                'audio_file' => ['nullable', 'file', 'mimes:mp3,wav,ogg,m4a,aac', 'max:102400'],
+                'audio_script' => ['nullable', 'string', 'max:10000'],
             ],
             [
                 'file.uploaded' => 'The file could not be uploaded because it is larger than the current PHP upload limit. Increase upload_max_filesize and post_max_size, then try again.',
                 'file.max' => 'The file must be 50 MB or smaller.',
+                'audio_file.max' => 'The audio file must be 100 MB or smaller.',
             ],
         );
 
@@ -121,12 +125,22 @@ class IvrCampaignResultController extends Controller
 
         $storedPath = $validated['file']->store('ivr/imports/results', 'local');
 
+        $audioPath = null;
+        $audioOriginalName = null;
+        if ($request->hasFile('audio_file') && $request->file('audio_file')->isValid()) {
+            $audioPath = $validated['audio_file']->store('ivr/campaigns/audio', 'local');
+            $audioOriginalName = $validated['audio_file']->getClientOriginalName();
+        }
+
         $import = IvrImport::create([
             'type' => IvrImportType::CampaignResults,
             'status' => IvrImportStatus::Pending,
             'original_file_name' => $originalFileName,
             'stored_file_name' => basename($storedPath),
             'storage_path' => $storedPath,
+            'audio_file_path' => $audioPath,
+            'audio_original_name' => $audioOriginalName,
+            'audio_script' => $validated['audio_script'] ?? null,
             'uploaded_by' => $request->user()?->id,
         ]);
 
@@ -137,6 +151,39 @@ class IvrCampaignResultController extends Controller
         return redirect()
             ->route('modules.ivr.results.index')
             ->with('status', 'Campaign results import queued successfully.');
+    }
+
+    public function audio(IvrCampaign $campaign): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
+        abort_unless($campaign->audio_file_path, 404);
+        $path = storage_path('app/private/'.$campaign->audio_file_path);
+        abort_unless(file_exists($path), 404);
+
+        return response()->file($path);
+    }
+
+    public function updateAudio(Request $request, IvrCampaign $campaign): RedirectResponse
+    {
+        $validated = $request->validate([
+            'audio_file' => ['nullable', 'file', 'mimes:mp3,wav,ogg,m4a,aac', 'max:102400'],
+            'audio_script' => ['nullable', 'string', 'max:10000'],
+        ], [
+            'audio_file.max' => 'The audio file must be 100 MB or smaller.',
+        ]);
+
+        $updates = ['audio_script' => $validated['audio_script'] ?? null];
+
+        if ($request->hasFile('audio_file') && $request->file('audio_file')->isValid()) {
+            if ($campaign->audio_file_path) {
+                Storage::disk('local')->delete($campaign->audio_file_path);
+            }
+            $updates['audio_file_path'] = $validated['audio_file']->store('ivr/campaigns/audio', 'local');
+            $updates['audio_original_name'] = $validated['audio_file']->getClientOriginalName();
+        }
+
+        $campaign->update($updates);
+
+        return back()->with('status', 'Audio updated successfully.');
     }
 
     public function status(Request $request): JsonResponse
@@ -237,6 +284,102 @@ class IvrCampaignResultController extends Controller
         ]);
     }
 
+    public function export(Request $request): StreamedResponse
+    {
+        $request->validate([
+            'from' => ['required', 'date'],
+            'to' => ['required', 'date', 'after_or_equal:from'],
+        ]);
+
+        $from = $request->date('from')->startOfDay();
+        $to = $request->date('to')->endOfDay();
+        $fileName = sprintf('ivr-campaign-results-%s-to-%s.csv', $from->format('Y-m-d'), $to->format('Y-m-d'));
+
+        return response()->streamDownload(function () use ($from, $to): void {
+            $handle = fopen('php://output', 'w');
+
+            fputcsv($handle, [
+                'Campaign',
+                'Call UUID',
+                'Call Time',
+                'Name',
+                'Phone',
+                'Email',
+                'Country',
+                'Nationality',
+                'Community',
+                'Resident',
+                'City',
+                'Gender',
+                'Interest',
+                'Call Direction',
+                'Call Status',
+                'Customer Status',
+                'Agent Status',
+                'DTMF Outcome',
+                'DTMF Extensions',
+                'Duration',
+                'Duration Seconds',
+                'Talk Time',
+                'Talk Time Seconds',
+                'Disposition',
+                'Sub Disposition',
+                'Hangup By',
+                'Credits Deducted',
+                'Source File',
+            ]);
+
+            IvrCallRecord::query()
+                ->with(['campaign', 'import', 'phoneNumber.client'])
+                ->whereBetween('call_time', [$from, $to])
+                ->orderBy('call_time')
+                ->orderBy('id')
+                ->chunk(1000, function ($records) use ($handle): void {
+                    foreach ($records as $record) {
+                        $client = $record->phoneNumber?->client;
+                        $dtmfExtensions = is_array($record->dtmf_extensions)
+                            ? implode('|', $record->dtmf_extensions)
+                            : null;
+
+                        fputcsv($handle, [
+                            $record->campaign?->external_campaign_id,
+                            $record->external_call_uuid,
+                            optional($record->call_time)->format('Y-m-d H:i:s'),
+                            $client?->full_name,
+                            $record->phoneNumber?->normalized_phone,
+                            $client?->email,
+                            $client?->country,
+                            $client?->nationality,
+                            $client?->community,
+                            $client?->resident,
+                            $client?->city,
+                            $client?->gender,
+                            $client?->interest,
+                            $record->call_direction,
+                            $record->call_status,
+                            $record->customer_status,
+                            $record->agent_status,
+                            $record->dtmf_outcome,
+                            $dtmfExtensions,
+                            gmdate('H:i:s', (int) $record->total_duration_seconds),
+                            $record->total_duration_seconds,
+                            gmdate('H:i:s', (int) $record->talk_time_seconds),
+                            $record->talk_time_seconds,
+                            $record->disposition,
+                            $record->sub_disposition,
+                            $record->hangup_by,
+                            $record->credits_deducted,
+                            $record->import?->original_file_name,
+                        ]);
+                    }
+                });
+
+            fclose($handle);
+        }, $fileName, [
+            'Content-Type' => 'text/csv',
+        ]);
+    }
+
     public function destroy(Request $request, IvrImport $import, NumberEligibilityService $eligibilityService): RedirectResponse
     {
         if ($import->type !== IvrImportType::CampaignResults->value) {
@@ -256,6 +399,15 @@ class IvrCampaignResultController extends Controller
         ]);
 
         $affectedPhoneIds = collect();
+
+        $callRecordsForAudio = $import->callRecords()->whereNotNull('ivr_campaign_id')->get(['ivr_campaign_id', 'ivr_import_id']);
+        $importCampaignIds = $callRecordsForAudio->pluck('ivr_campaign_id')->unique();
+
+        $audioPathsToDelete = IvrCampaign::query()
+            ->whereIn('id', $importCampaignIds)
+            ->whereNotNull('audio_file_path')
+            ->whereDoesntHave('callRecords', fn ($q) => $q->where('ivr_import_id', '!=', $import->id))
+            ->pluck('audio_file_path');
 
         DB::transaction(function () use ($import, $request, $validated, &$affectedPhoneIds): void {
             /** @var EloquentCollection<int, IvrCallRecord> $callRecords */
@@ -332,6 +484,10 @@ class IvrCampaignResultController extends Controller
                 'revert_reason' => $validated['revert_reason'] ?? null,
             ]);
         });
+
+        foreach ($audioPathsToDelete as $audioPath) {
+            Storage::disk('local')->delete($audioPath);
+        }
 
         $this->cleanupAffectedPhoneNumbers($affectedPhoneIds, $eligibilityService);
 

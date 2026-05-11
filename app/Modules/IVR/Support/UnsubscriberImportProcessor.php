@@ -20,6 +20,7 @@ class UnsubscriberImportProcessor
 
     public function __construct(
         private readonly PhoneNormalizer $phoneNormalizer,
+        private readonly NumberEligibilityService $eligibilityService,
     ) {
     }
 
@@ -216,6 +217,8 @@ class UnsubscriberImportProcessor
                 ->first();
 
             if ($existing) {
+                $this->eligibilityService->refresh($phoneNumber->refresh());
+
                 return false;
             }
 
@@ -231,6 +234,8 @@ class UnsubscriberImportProcessor
                 ],
                 'suppressed_at' => now(),
             ]);
+
+            $this->eligibilityService->refresh($phoneNumber->refresh());
 
             return true;
         });
