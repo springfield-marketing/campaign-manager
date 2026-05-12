@@ -80,7 +80,7 @@ class ModulePagesTest extends TestCase
                 'uses_max' => 3,
             ]))
             ->assertOk()
-            ->assertSee('Campaign ready')
+            ->assertSee('Active status')
             ->assertSee('Total numbers')
             ->assertSee('+971500000001');
     }

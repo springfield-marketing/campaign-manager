@@ -9,7 +9,7 @@ use App\Modules\IVR\Models\IvrSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Illuminate\View\View;
 
 class IvrSettingsController extends Controller
@@ -69,13 +69,13 @@ class IvrSettingsController extends Controller
             ->with('status', 'Database export queued. It will appear here when it is ready.');
     }
 
-    public function downloadDatabaseExport(CentralDatabaseExport $export): StreamedResponse
+    public function downloadDatabaseExport(CentralDatabaseExport $export): BinaryFileResponse
     {
         abort_unless($export->status === CentralDatabaseExport::STATUS_COMPLETED, 404);
         abort_unless($export->storage_path && Storage::disk('local')->exists($export->storage_path), 404);
 
-        return Storage::disk('local')->download(
-            $export->storage_path,
+        return response()->download(
+            Storage::disk('local')->path($export->storage_path),
             $export->file_name ?: 'central-database-export.xlsx',
             ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
         );

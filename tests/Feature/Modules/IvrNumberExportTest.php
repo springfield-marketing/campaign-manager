@@ -96,6 +96,14 @@ class IvrNumberExportTest extends TestCase
             'is_primary' => true,
             'priority' => 1,
         ]);
+        $shortUaeNumber = ClientPhoneNumber::create([
+            'client_id' => $namedClient->id,
+            'raw_phone' => '+9715000000',
+            'normalized_phone' => '+9715000000',
+            'is_uae' => true,
+            'is_primary' => false,
+            'priority' => 2,
+        ]);
 
         foreach ([null, '', '   '] as $index => $name) {
             $client = Client::create(['full_name' => $name]);
@@ -119,6 +127,7 @@ class IvrNumberExportTest extends TestCase
 
         $this->assertStringContainsString($namedNumber->normalized_phone, $csv);
         $this->assertStringContainsString('Named Client', $csv);
+        $this->assertStringNotContainsString($shortUaeNumber->normalized_phone, $csv);
         $this->assertStringNotContainsString('+971500000101', $csv);
         $this->assertStringNotContainsString('+971500000102', $csv);
         $this->assertStringNotContainsString('+971500000103', $csv);

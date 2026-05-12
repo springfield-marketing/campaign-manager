@@ -7,40 +7,35 @@
 
     <div class="page-section">
         <div class="page-wrap">
-            <section class="grid gap-2 sm:grid-cols-2 lg:grid-cols-7">
-                <article class="ui-card px-3 py-2">
-                    <p class="text-[11px] font-medium uppercase ui-muted">Campaign ready</p>
-                    <p class="text-lg font-semibold ui-strong">{{ number_format($stats['campaign_ready']) }}</p>
+            <section class="grid gap-6 md:grid-cols-3 xl:grid-cols-6">
+                <article class="ui-card ui-card-pad">
+                    <p class="text-sm ui-muted">Total numbers</p>
+                    <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($stats['total']) }}</p>
                 </article>
 
-                <article class="ui-card px-3 py-2">
-                    <p class="text-[11px] font-medium uppercase ui-muted">Total numbers</p>
-                    <p class="text-lg font-semibold ui-strong">{{ number_format($stats['total']) }}</p>
+                <article class="ui-card ui-card-pad">
+                    <p class="text-sm ui-muted">Active status</p>
+                    <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($stats['active']) }}</p>
                 </article>
 
-                <article class="ui-card px-3 py-2">
-                    <p class="text-[11px] font-medium uppercase ui-muted">Active status</p>
-                    <p class="text-lg font-semibold ui-strong">{{ number_format($stats['active']) }}</p>
+                <article class="ui-card ui-card-pad">
+                    <p class="text-sm ui-muted">Unsubscribers</p>
+                    <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($stats['unsubscribers']) }}</p>
                 </article>
 
-                <article class="ui-card px-3 py-2">
-                    <p class="text-[11px] font-medium uppercase ui-muted">Unsubscribers</p>
-                    <p class="text-lg font-semibold ui-strong">{{ number_format($stats['unsubscribers']) }}</p>
+                <article class="ui-card ui-card-pad">
+                    <p class="text-sm ui-muted">Cooldown</p>
+                    <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($stats['cooldown']) }}</p>
                 </article>
 
-                <article class="ui-card px-3 py-2">
-                    <p class="text-[11px] font-medium uppercase ui-muted">Cooldown</p>
-                    <p class="text-lg font-semibold ui-strong">{{ number_format($stats['cooldown']) }}</p>
+                <article class="ui-card ui-card-pad">
+                    <p class="text-sm ui-muted">Inactive</p>
+                    <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($stats['inactive']) }}</p>
                 </article>
 
-                <article class="ui-card px-3 py-2">
-                    <p class="text-[11px] font-medium uppercase ui-muted">Inactive</p>
-                    <p class="text-lg font-semibold ui-strong">{{ number_format($stats['inactive']) }}</p>
-                </article>
-
-                <article class="ui-card px-3 py-2">
-                    <p class="text-[11px] font-medium uppercase ui-muted">Dead</p>
-                    <p class="text-lg font-semibold ui-strong">{{ number_format($stats['dead']) }}</p>
+                <article class="ui-card ui-card-pad">
+                    <p class="text-sm ui-muted">Dead</p>
+                    <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($stats['dead']) }}</p>
                 </article>
             </section>
 

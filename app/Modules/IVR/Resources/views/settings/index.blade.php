@@ -7,8 +7,6 @@
 
     <div class="page-section">
         <div class="page-wrap">
-            @include('ivr::partials.section-nav')
-
             @if (session('status'))
                 <div class="ui-alert mt-6">
                     {{ session('status') }}

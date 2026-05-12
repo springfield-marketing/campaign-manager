@@ -81,11 +81,14 @@ class IvrNumberController extends Controller
 
     private function eligibleExportQuery(Request $request, bool $applyStatusFilter = true): Builder
     {
+        $digitsSql = "replace(replace(replace(replace(replace(replace(coalesce(client_phone_numbers.normalized_phone, client_phone_numbers.raw_phone, ''), '+', ''), ' ', ''), '-', ''), '(', ''), ')', ''), '.', '')";
+
         $rankedNumbers = $this->filteredQuery($request, $applyStatusFilter)
             ->where(function (Builder $query): void {
                 $query->whereNull('ivr_phone_profiles.client_phone_number_id')
                     ->orWhere('ivr_phone_profiles.usage_status', 'active');
             })
+            ->whereRaw("NOT ({$digitsSql} LIKE '971%' AND length({$digitsSql}) < 12)")
             ->whereNull('unsubscribed_at')
             ->where(function (Builder $query): void {
                 $query->whereNull('ivr_phone_profiles.cooldown_until')
@@ -256,7 +259,6 @@ class IvrNumberController extends Controller
 
         return [
             'total' => (clone $base)->count(),
-            'campaign_ready' => $this->eligibleExportQuery($request, applyStatusFilter: false)->count(),
             'active' => $active,
             'inactive' => $inactive,
             'dead' => $dead,
