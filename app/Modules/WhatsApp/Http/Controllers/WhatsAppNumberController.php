@@ -43,6 +43,7 @@ class WhatsAppNumberController extends Controller
             'sources' => fn ($q) => $q->where('channel', 'whatsapp')->latest(),
             'whatsAppMessages' => fn ($q) => $q->with('campaign')->latest('scheduled_at'),
             'suppressions' => fn ($q) => $q->where('channel', 'whatsapp')->whereNull('released_at')->latest('suppressed_at'),
+            'whatsAppProfile',
         ]);
 
         return view('whatsapp::numbers.show', [

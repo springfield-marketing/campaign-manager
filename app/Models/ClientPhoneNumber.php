@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Modules\IVR\Models\IvrCallRecord;
 use App\Modules\IVR\Models\IvrPhoneProfile;
 use App\Modules\WhatsApp\Models\WhatsAppMessage;
+use App\Modules\WhatsApp\Models\WhatsAppPhoneProfile;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -26,6 +27,7 @@ class ClientPhoneNumber extends Model
         'is_uae',
         'is_primary',
         'is_whatsapp',
+        'is_whatsapp_lead',
         'verification_status',
         'priority',
         'last_source_name',
@@ -40,6 +42,7 @@ class ClientPhoneNumber extends Model
             'is_uae' => 'boolean',
             'is_primary' => 'boolean',
             'is_whatsapp' => 'boolean',
+            'is_whatsapp_lead' => 'boolean',
             'priority' => 'integer',
             'last_imported_at' => 'datetime',
             'unsubscribed_at' => 'datetime',
@@ -75,5 +78,10 @@ class ClientPhoneNumber extends Model
     public function ivrProfile(): HasOne
     {
         return $this->hasOne(IvrPhoneProfile::class);
+    }
+
+    public function whatsAppProfile(): HasOne
+    {
+        return $this->hasOne(WhatsAppPhoneProfile::class);
     }
 }

@@ -3,6 +3,7 @@
         ['label' => 'Import', 'route' => 'modules.whatsapp.imports.index', 'active' => request()->routeIs('modules.whatsapp.imports.*')],
         ['label' => 'Campaign Results', 'route' => 'modules.whatsapp.campaigns.index', 'active' => request()->routeIs('modules.whatsapp.campaigns.*')],
         ['label' => 'Numbers', 'route' => 'modules.whatsapp.numbers.index', 'active' => request()->routeIs('modules.whatsapp.numbers.*')],
+        ['label' => 'Leads', 'route' => 'modules.whatsapp.leads.index', 'active' => request()->routeIs('modules.whatsapp.leads.*')],
         ['label' => 'Unsubscribers', 'route' => 'modules.whatsapp.unsubscribers.index', 'active' => request()->routeIs('modules.whatsapp.unsubscribers.*')],
         ['label' => 'Reports', 'route' => 'modules.whatsapp.reports.index', 'active' => request()->routeIs('modules.whatsapp.index', 'modules.whatsapp.reports.*')],
     ];

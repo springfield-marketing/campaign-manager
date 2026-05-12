@@ -108,10 +108,29 @@
                                 <dd class="ui-strong">{{ optional($number->last_imported_at)->format('Y-m-d H:i') ?: '-' }}</dd>
                             </div>
                             <div>
-                                <dt class="ui-muted">WhatsApp unsubscribed</dt>
+                                <dt class="ui-muted">Lead</dt>
+                                <dd class="ui-strong">
+                                    @if ($number->is_whatsapp_lead)
+                                        <span class="ui-pill ui-pill-active">Yes</span>
+                                    @else
+                                        No
+                                    @endif
+                                </dd>
+                            </div>
+                            <div>
+                                <dt class="ui-muted">Consecutive failures</dt>
+                                <dd class="ui-strong">{{ $number->whatsAppProfile?->consecutive_failed_count ?? 0 }}</dd>
+                            </div>
+                            <div>
+                                <dt class="ui-muted">Last message status</dt>
+                                <dd class="ui-strong">{{ $number->whatsAppProfile?->last_message_status ?? '-' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="ui-muted">WhatsApp suppressed</dt>
                                 <dd class="ui-strong">
                                     @if ($number->suppressions->isNotEmpty())
-                                        {{ optional($number->suppressions->first()->suppressed_at)->format('Y-m-d H:i') }}
+                                        {{ ucfirst(str_replace('_', ' ', $number->suppressions->first()->reason)) }}
+                                        &mdash; {{ optional($number->suppressions->first()->suppressed_at)->format('Y-m-d H:i') }}
                                     @else
                                         No
                                     @endif

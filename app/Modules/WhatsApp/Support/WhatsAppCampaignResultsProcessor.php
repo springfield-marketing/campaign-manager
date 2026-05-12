@@ -21,6 +21,7 @@ class WhatsAppCampaignResultsProcessor
 
     public function __construct(
         private readonly PhoneNormalizer $phoneNormalizer,
+        private readonly WhatsAppNumberAnalyser $analyser,
     ) {}
 
     public function process(WhatsAppImport $import): void
@@ -139,6 +140,10 @@ class WhatsAppCampaignResultsProcessor
 
             foreach ($campaignsByName as $campaign) {
                 $this->refreshCampaignMetrics($campaign);
+            }
+
+            foreach (array_values($phoneIdCache) as $phoneNumberId) {
+                $this->analyser->analyse($phoneNumberId);
             }
 
             $import->update([
