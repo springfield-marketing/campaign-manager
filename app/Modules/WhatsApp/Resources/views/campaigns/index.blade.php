@@ -19,14 +19,16 @@
                             Upload the CSV export from your WhatsApp campaign platform. Expected columns:
                             <code class="text-xs">ScheduleAt, PhoneNumber, CampaignName, TemplateName, Status, Failure reason, Quick replies, Quick reply 1–3, Clicked, Retried</code>
                         </p>
-                        <form method="POST" action="{{ route('modules.whatsapp.imports.store') }}" enctype="multipart/form-data" class="mt-6 space-y-4">
+                        <form method="POST" action="{{ route('modules.whatsapp.imports.store') }}" enctype="multipart/form-data" class="mt-6">
                             @csrf
-                            <div>
-                                <x-input-label for="file" :value="__('Campaign CSV')" />
-                                <input id="file" name="file" type="file" class="ui-control mt-1 block w-full">
-                                <x-input-error :messages="$errors->get('file')" class="mt-2" />
+                            <div class="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+                                <div>
+                                    <x-input-label for="file" :value="__('Campaign CSV')" />
+                                    <input id="file" name="file" type="file" class="ui-control mt-1 block w-full">
+                                    <x-input-error :messages="$errors->get('file')" class="mt-2" />
+                                </div>
+                                <x-primary-button>Queue Import</x-primary-button>
                             </div>
-                            <x-primary-button>Queue Import</x-primary-button>
                         </form>
                     </article>
 

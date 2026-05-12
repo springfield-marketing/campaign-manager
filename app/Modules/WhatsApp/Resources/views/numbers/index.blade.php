@@ -8,8 +8,9 @@
     <div class="page-section">
         <div class="page-wrap">
             <div class="ui-card ui-card-pad">
-                <form method="GET" class="grid gap-3 md:grid-cols-[1fr_auto]">
+                <form method="GET" class="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
                     <input type="search" name="phone" value="{{ request('phone') }}" placeholder="Search phone number" class="ui-control">
+                    <input type="search" name="name" value="{{ request('name') }}" placeholder="Search client name" class="ui-control">
                     <button type="submit" class="ui-button">Filter</button>
                 </form>
             </div>

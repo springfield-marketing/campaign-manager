@@ -23,6 +23,10 @@ class WhatsAppNumberController extends Controller
             $query->where('client_phone_numbers.normalized_phone', 'like', '%'.$request->string('phone').'%');
         }
 
+        if ($request->filled('name')) {
+            $query->whereHas('client', fn ($q) => $q->where('full_name', 'like', '%'.$request->string('name').'%'));
+        }
+
         $numbers = $query->simplePaginate(50)->withQueryString();
 
         return view('whatsapp::numbers.index', [
