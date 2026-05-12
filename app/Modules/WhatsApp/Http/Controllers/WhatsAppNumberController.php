@@ -12,16 +12,18 @@ class WhatsAppNumberController extends Controller
     public function index(Request $request): View
     {
         $query = ClientPhoneNumber::query()
+            ->select('client_phone_numbers.*')
+            ->selectRaw('COUNT(whatsapp_messages.id) as whats_app_messages_count')
+            ->join('whatsapp_messages', 'whatsapp_messages.client_phone_number_id', '=', 'client_phone_numbers.id')
             ->with('client')
-            ->withCount('whatsAppMessages')
-            ->whereHas('whatsAppMessages')
-            ->latest();
+            ->groupBy('client_phone_numbers.id')
+            ->orderByDesc('client_phone_numbers.created_at');
 
         if ($request->filled('phone')) {
-            $query->where('normalized_phone', 'like', '%'.$request->string('phone').'%');
+            $query->where('client_phone_numbers.normalized_phone', 'like', '%'.$request->string('phone').'%');
         }
 
-        $numbers = $query->paginate(50);
+        $numbers = $query->simplePaginate(50)->withQueryString();
 
         return view('whatsapp::numbers.index', [
             'numbers' => $numbers,
