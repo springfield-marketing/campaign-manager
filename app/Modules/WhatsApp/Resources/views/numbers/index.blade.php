@@ -24,7 +24,7 @@
                                 <th>City</th>
                                 <th>Source</th>
                                 <th>Messages</th>
-                                <th>Unsubscribed</th>
+                                <th></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -34,8 +34,10 @@
                                     <td>{{ $number->client?->full_name ?: '-' }}</td>
                                     <td>{{ $number->client?->city ?: '-' }}</td>
                                     <td>{{ $number->last_source_name ?: '-' }}</td>
-                                    <td>{{ $number->whatsAppMessages()->count() }}</td>
-                                    <td>{{ $number->unsubscribed_at ? optional($number->unsubscribed_at)->format('Y-m-d') : '-' }}</td>
+                                    <td>{{ $number->whats_app_messages_count }}</td>
+                                    <td>
+                                        <a href="{{ route('modules.whatsapp.numbers.show', $number) }}" class="ui-link">View</a>
+                                    </td>
                                 </tr>
                             @empty
                                 <tr>

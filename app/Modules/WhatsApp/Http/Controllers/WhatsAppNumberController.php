@@ -13,6 +13,7 @@ class WhatsAppNumberController extends Controller
     {
         $query = ClientPhoneNumber::query()
             ->with('client')
+            ->withCount('whatsAppMessages')
             ->whereHas('whatsAppMessages')
             ->latest();
 
@@ -24,6 +25,26 @@ class WhatsAppNumberController extends Controller
 
         return view('whatsapp::numbers.index', [
             'numbers' => $numbers,
+        ]);
+    }
+
+    public function show(ClientPhoneNumber $number): View
+    {
+        abort_unless($number->whatsAppMessages()->exists(), 404);
+
+        $number->load([
+            'client',
+            'client.phoneNumbers' => fn ($q) => $q
+                ->withCount('whatsAppMessages')
+                ->orderByDesc('is_primary')
+                ->orderBy('normalized_phone'),
+            'sources' => fn ($q) => $q->where('channel', 'whatsapp')->latest(),
+            'whatsAppMessages' => fn ($q) => $q->with('campaign')->latest('scheduled_at'),
+            'suppressions' => fn ($q) => $q->where('channel', 'whatsapp')->whereNull('released_at')->latest('suppressed_at'),
+        ]);
+
+        return view('whatsapp::numbers.show', [
+            'number' => $number,
         ]);
     }
 }

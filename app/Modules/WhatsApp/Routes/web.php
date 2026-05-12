@@ -23,6 +23,7 @@ Route::middleware(['auth', 'verified'])
         Route::get('/campaigns/{campaign}', [WhatsAppCampaignController::class, 'show'])->name('campaigns.show');
 
         Route::get('/numbers', [WhatsAppNumberController::class, 'index'])->name('numbers.index');
+        Route::get('/numbers/{number}', [WhatsAppNumberController::class, 'show'])->name('numbers.show');
 
         Route::get('/unsubscribers', [WhatsAppUnsubscriberController::class, 'index'])->name('unsubscribers.index');
         Route::post('/unsubscribers', [WhatsAppUnsubscriberController::class, 'store'])->name('unsubscribers.store');
