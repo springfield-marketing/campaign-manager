@@ -5,6 +5,7 @@ namespace App\Modules\WhatsApp\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\WhatsApp\Enums\WhatsAppImportStatus;
 use App\Modules\WhatsApp\Enums\WhatsAppImportType;
+use App\Modules\WhatsApp\Jobs\ProcessWhatsAppCampaignResultsImport;
 use App\Modules\WhatsApp\Models\WhatsAppImport;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,14 +15,7 @@ class WhatsAppImportController extends Controller
 {
     public function index(): View
     {
-        $imports = WhatsAppImport::query()
-            ->where('type', WhatsAppImportType::CampaignResults->value)
-            ->latest()
-            ->paginate(15);
-
-        return view('whatsapp::imports.index', [
-            'imports' => $imports,
-        ]);
+        return view('whatsapp::imports.index');
     }
 
     public function store(Request $request): RedirectResponse
@@ -49,7 +43,7 @@ class WhatsAppImportController extends Controller
 
         $storedPath = $validated['file']->store('whatsapp/imports', 'local');
 
-        WhatsAppImport::create([
+        $import = WhatsAppImport::create([
             'type' => WhatsAppImportType::CampaignResults->value,
             'status' => WhatsAppImportStatus::Pending->value,
             'original_file_name' => $originalFileName,
@@ -58,8 +52,10 @@ class WhatsAppImportController extends Controller
             'uploaded_by' => $request->user()?->id,
         ]);
 
+        ProcessWhatsAppCampaignResultsImport::dispatch($import->id);
+
         return redirect()
-            ->route('modules.whatsapp.imports.index')
+            ->route('modules.whatsapp.campaigns.index')
             ->with('status', 'Campaign results import queued successfully.');
     }
 
@@ -76,7 +72,7 @@ class WhatsAppImportController extends Controller
         // TODO: implement revert job
 
         return redirect()
-            ->route('modules.whatsapp.imports.index')
+            ->route('modules.whatsapp.campaigns.index')
             ->with('status', "Import {$import->original_file_name} was reverted.");
     }
 }

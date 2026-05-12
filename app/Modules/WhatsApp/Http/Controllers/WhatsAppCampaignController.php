@@ -3,7 +3,9 @@
 namespace App\Modules\WhatsApp\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\WhatsApp\Enums\WhatsAppImportType;
 use App\Modules\WhatsApp\Models\WhatsAppCampaign;
+use App\Modules\WhatsApp\Models\WhatsAppImport;
 use App\Modules\WhatsApp\Models\WhatsAppMessage;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -42,7 +44,13 @@ class WhatsAppCampaignController extends Controller
             $query->whereDate('scheduled_at', $request->date('date'));
         }
 
+        $imports = WhatsAppImport::query()
+            ->where('type', WhatsAppImportType::CampaignResults->value)
+            ->latest()
+            ->paginate(15, ['*'], 'imports');
+
         return view('whatsapp::campaigns.index', [
+            'imports' => $imports,
             'campaigns' => $campaigns,
             'latestCampaign' => $latestCampaign,
             'messages' => $query->paginate(25, ['*'], 'messages'),
