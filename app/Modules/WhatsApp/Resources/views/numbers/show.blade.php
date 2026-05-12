@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">
         <div>
-            <h2 class="page-title">Number History</h2>
+            <h2 class="page-title">Client Details</h2>
         </div>
     </x-slot>
 
@@ -9,38 +9,125 @@
         <div class="page-wrap">
             <div class="grid gap-6 lg:grid-cols-[0.7fr_1.3fr]">
 
-                {{-- Left: number details --}}
-                <section class="ui-card ui-card-pad">
-                    <h3 class="ui-title">{{ $number->normalized_phone }}</h3>
-                    <dl class="mt-4 space-y-3 text-sm">
-                        <div>
-                            <dt class="ui-muted">Client</dt>
-                            <dd class="ui-strong">{{ $number->client?->full_name ?: '-' }}</dd>
-                        </div>
-                        <div>
-                            <dt class="ui-muted">City</dt>
-                            <dd class="ui-strong">{{ $number->client?->city ?: '-' }}</dd>
-                        </div>
-                        <div>
-                            <dt class="ui-muted">WhatsApp unsubscribed</dt>
-                            <dd class="ui-strong">
-                                @if ($number->suppressions->isNotEmpty())
-                                    {{ optional($number->suppressions->first()->suppressed_at)->format('Y-m-d H:i') }}
-                                @else
-                                    No
-                                @endif
-                            </dd>
-                        </div>
-                        <div>
-                            <dt class="ui-muted">Messages sent</dt>
-                            <dd class="ui-strong">{{ $number->whatsAppMessages->count() }}</dd>
-                        </div>
-                        <div>
-                            <dt class="ui-muted">Last messaged</dt>
-                            <dd class="ui-strong">{{ optional($number->whatsAppMessages->first()?->scheduled_at)->format('Y-m-d H:i') ?: '-' }}</dd>
-                        </div>
-                    </dl>
-                </section>
+                {{-- Left: client + number details --}}
+                <div class="space-y-6">
+                    <section class="ui-card ui-card-pad">
+                        <h3 class="ui-title">Client</h3>
+                        <dl class="mt-4 space-y-3 text-sm">
+                            <div>
+                                <dt class="ui-muted">Full name</dt>
+                                <dd class="ui-strong">{{ $number->client?->full_name ?: '-' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="ui-muted">Email</dt>
+                                <dd class="ui-strong">{{ $number->client?->email ?: '-' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="ui-muted">Gender</dt>
+                                <dd class="ui-strong">{{ $number->client?->gender ?: '-' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="ui-muted">City</dt>
+                                <dd class="ui-strong">{{ $number->client?->city ?: '-' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="ui-muted">Country</dt>
+                                <dd class="ui-strong">{{ $number->client?->country ?: '-' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="ui-muted">Nationality</dt>
+                                <dd class="ui-strong">{{ $number->client?->nationality ?: '-' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="ui-muted">Community</dt>
+                                <dd class="ui-strong">{{ $number->client?->community ?: '-' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="ui-muted">Resident</dt>
+                                <dd class="ui-strong">{{ $number->client?->resident ?: '-' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="ui-muted">Interest</dt>
+                                <dd class="ui-strong">{{ $number->client?->interest ?: '-' }}</dd>
+                            </div>
+                        </dl>
+                    </section>
+
+                    <section class="ui-card ui-card-pad">
+                        <h3 class="ui-title">Phone number</h3>
+                        <dl class="mt-4 space-y-3 text-sm">
+                            <div>
+                                <dt class="ui-muted">Normalized</dt>
+                                <dd class="ui-strong">{{ $number->normalized_phone }}</dd>
+                            </div>
+                            <div>
+                                <dt class="ui-muted">Raw</dt>
+                                <dd class="ui-strong">{{ $number->raw_phone ?: '-' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="ui-muted">Country code</dt>
+                                <dd class="ui-strong">{{ $number->country_code ?: '-' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="ui-muted">National number</dt>
+                                <dd class="ui-strong">{{ $number->national_number ?: '-' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="ui-muted">Detected country</dt>
+                                <dd class="ui-strong">{{ $number->detected_country ?: '-' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="ui-muted">Label</dt>
+                                <dd class="ui-strong">{{ $number->label ?: '-' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="ui-muted">Priority</dt>
+                                <dd class="ui-strong">{{ $number->priority }}</dd>
+                            </div>
+                            <div>
+                                <dt class="ui-muted">Verification</dt>
+                                <dd class="ui-strong">{{ ucfirst($number->verification_status) }}</dd>
+                            </div>
+                            <div>
+                                <dt class="ui-muted">Flags</dt>
+                                <dd class="flex flex-wrap gap-1 mt-0.5">
+                                    @if ($number->is_primary) <span class="ui-pill">Primary</span> @endif
+                                    @if ($number->is_whatsapp) <span class="ui-pill">WhatsApp</span> @endif
+                                    @if ($number->is_uae) <span class="ui-pill">UAE</span> @endif
+                                    @if (! $number->is_primary && ! $number->is_whatsapp && ! $number->is_uae)
+                                        <span class="ui-muted">None</span>
+                                    @endif
+                                </dd>
+                            </div>
+                            <div>
+                                <dt class="ui-muted">Last source</dt>
+                                <dd class="ui-strong">{{ $number->last_source_name ?: '-' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="ui-muted">Last imported</dt>
+                                <dd class="ui-strong">{{ optional($number->last_imported_at)->format('Y-m-d H:i') ?: '-' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="ui-muted">WhatsApp unsubscribed</dt>
+                                <dd class="ui-strong">
+                                    @if ($number->suppressions->isNotEmpty())
+                                        {{ optional($number->suppressions->first()->suppressed_at)->format('Y-m-d H:i') }}
+                                    @else
+                                        No
+                                    @endif
+                                </dd>
+                            </div>
+                            <div>
+                                <dt class="ui-muted">Messages sent</dt>
+                                <dd class="ui-strong">{{ $number->whatsAppMessages->count() }}</dd>
+                            </div>
+                            <div>
+                                <dt class="ui-muted">Last messaged</dt>
+                                <dd class="ui-strong">{{ optional($number->whatsAppMessages->first()?->scheduled_at)->format('Y-m-d H:i') ?: '-' }}</dd>
+                            </div>
+                        </dl>
+                    </section>
+                </div>
 
                 {{-- Right: tables --}}
                 <section class="space-y-6">
@@ -65,6 +152,7 @@
                                         <tr>
                                             <th>Phone</th>
                                             <th>Label</th>
+                                            <th>Priority</th>
                                             <th>Messages</th>
                                         </tr>
                                     </thead>
@@ -89,6 +177,7 @@
                                                     </div>
                                                 </td>
                                                 <td>{{ $clientNumber->label ?: '-' }}</td>
+                                                <td>{{ $clientNumber->priority }}</td>
                                                 <td>{{ $clientNumber->whats_app_messages_count }}</td>
                                             </tr>
                                         @endforeach
