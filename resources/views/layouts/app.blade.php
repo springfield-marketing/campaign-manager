@@ -67,6 +67,25 @@
                 {{ $slot }}
             </main>
 
+            <section class="border-t border-[var(--line)] bg-theme-subtle">
+                <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+                    <div class="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <p class="font-medium text-sm">Stay in the loop</p>
+                            <p class="text-sm ui-muted mt-0.5">Get updates on campaigns and platform news.</p>
+                        </div>
+                        <form class="flex w-full max-w-sm gap-2" onsubmit="return false;">
+                            <input
+                                type="email"
+                                placeholder="your@email.com"
+                                class="ui-control flex-1"
+                            >
+                            <button type="submit" class="ui-button whitespace-nowrap">Subscribe</button>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
             <footer class="app-footer">
                 <div class="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-4 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
                     <div class="flex flex-wrap items-center gap-4">
