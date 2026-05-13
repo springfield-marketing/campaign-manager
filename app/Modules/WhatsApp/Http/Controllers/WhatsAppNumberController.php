@@ -7,6 +7,7 @@ use App\Models\Client;
 use App\Models\ClientPhoneNumber;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class WhatsAppNumberController extends Controller
@@ -87,5 +88,37 @@ class WhatsAppNumberController extends Controller
 
         return redirect()->route('modules.whatsapp.numbers.index')
             ->with('status', 'Client deleted.');
+    }
+
+    public function updateNumber(Request $request, ClientPhoneNumber $number): RedirectResponse
+    {
+        $data = $request->validate([
+            'normalized_phone' => [
+                'required',
+                'string',
+                'max:30',
+                Rule::unique('client_phone_numbers', 'normalized_phone')->ignore($number->id),
+            ],
+            'raw_phone'          => ['nullable', 'string', 'max:30'],
+            'country_code'       => ['nullable', 'string', 'max:10'],
+            'national_number'    => ['nullable', 'string', 'max:20'],
+            'detected_country'   => ['nullable', 'string', 'max:10'],
+            'label'              => ['nullable', 'string', 'max:100'],
+            'priority'           => ['required', 'integer', 'min:0', 'max:9999'],
+            'verification_status'=> ['required', 'string', Rule::in(['unverified', 'verified', 'invalid'])],
+            'is_primary'         => ['boolean'],
+            'is_whatsapp'        => ['boolean'],
+            'is_uae'             => ['boolean'],
+        ]);
+
+        // Checkboxes are absent from request when unchecked — default to false
+        $data['is_primary']  = $request->boolean('is_primary');
+        $data['is_whatsapp'] = $request->boolean('is_whatsapp');
+        $data['is_uae']      = $request->boolean('is_uae');
+
+        $number->update($data);
+
+        return redirect()->route('modules.whatsapp.numbers.show', $number)
+            ->with('status', 'Phone number updated.');
     }
 }
