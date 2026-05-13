@@ -148,7 +148,7 @@
                             </p>
                         @endif
 
-                        <form method="GET" class="mt-4 grid gap-3 md:grid-cols-4">
+                        <form method="GET" class="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto]">
                             <select name="status" class="ui-control">
                                 <option value="">All statuses</option>
                                 @foreach (['DELIVERED', 'READ', 'SENT', 'FAILED'] as $status)
