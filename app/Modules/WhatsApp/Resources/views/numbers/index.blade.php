@@ -6,18 +6,127 @@
     </x-slot>
 
     <div class="page-section">
-        <div class="page-wrap">
+        <div class="page-wrap space-y-6">
+
+            {{-- Stats --}}
+            <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <article class="ui-card ui-card-pad">
+                    <p class="text-sm ui-muted">Total numbers</p>
+                    <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($stats['total']) }}</p>
+                </article>
+                <article class="ui-card ui-card-pad">
+                    <p class="text-sm ui-muted">Leads</p>
+                    <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($stats['leads']) }}</p>
+                </article>
+                <article class="ui-card ui-card-pad">
+                    <p class="text-sm ui-muted">Suppressed</p>
+                    <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($stats['suppressed']) }}</p>
+                </article>
+                <article class="ui-card ui-card-pad">
+                    <p class="text-sm ui-muted">Unique origins</p>
+                    <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($stats['origins']) }}</p>
+                </article>
+            </section>
+
+            {{-- Filters + Export --}}
             <div class="ui-card ui-card-pad">
-                <form method="GET" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]">
+                <form method="GET" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_auto_auto]" id="numbers-filter-form">
                     <input type="search" name="phone" value="{{ request('phone') }}" placeholder="Phone number" class="ui-control">
                     <input type="search" name="name" value="{{ request('name') }}" placeholder="Client name" class="ui-control">
-                    <input type="search" name="origin" value="{{ request('origin') }}" placeholder="Origin (e.g. AE, GB, US)" class="ui-control">
-                    <input type="search" name="city" value="{{ request('city') }}" placeholder="City" class="ui-control">
-                    <button type="submit" class="ui-button sm:col-span-2 lg:col-span-1">Filter</button>
+
+                    {{-- Origin combobox --}}
+                    <div
+                        class="relative"
+                        x-data="combobox({ options: @js($origins->values()->all()), name: 'origin', value: '{{ request('origin') }}' })"
+                    >
+                        <div class="relative flex items-center">
+                            <input
+                                type="text"
+                                class="ui-control w-full pr-7"
+                                placeholder="Origin (e.g. AE)"
+                                autocomplete="off"
+                                x-model="query"
+                                @focus="open = true"
+                                @blur="onBlur()"
+                                @keydown.escape="onBlur()"
+                            >
+                            <button
+                                type="button"
+                                class="absolute right-2 text-gray-400 hover:text-gray-600"
+                                x-show="selected"
+                                @mousedown.prevent="clear()"
+                                tabindex="-1"
+                            >&times;</button>
+                        </div>
+                        <input type="hidden" :name="name" :value="selected">
+                        <ul
+                            x-show="open && filtered.length > 0"
+                            x-cloak
+                            class="absolute z-20 mt-1 max-h-48 w-full overflow-y-auto rounded border border-[var(--line)] bg-theme-surface shadow-lg text-sm"
+                        >
+                            <template x-for="option in filtered" :key="option">
+                                <li
+                                    class="cursor-pointer px-3 py-2 hover:bg-theme-subtle"
+                                    :class="{ 'bg-theme-subtle font-medium': option === selected }"
+                                    @mousedown.prevent="select(option)"
+                                    x-text="option"
+                                ></li>
+                            </template>
+                        </ul>
+                    </div>
+
+                    {{-- City combobox --}}
+                    <div
+                        class="relative"
+                        x-data="combobox({ options: @js($cities->values()->all()), name: 'city', value: '{{ request('city') }}' })"
+                    >
+                        <div class="relative flex items-center">
+                            <input
+                                type="text"
+                                class="ui-control w-full pr-7"
+                                placeholder="City"
+                                autocomplete="off"
+                                x-model="query"
+                                @focus="open = true"
+                                @blur="onBlur()"
+                                @keydown.escape="onBlur()"
+                            >
+                            <button
+                                type="button"
+                                class="absolute right-2 text-gray-400 hover:text-gray-600"
+                                x-show="selected"
+                                @mousedown.prevent="clear()"
+                                tabindex="-1"
+                            >&times;</button>
+                        </div>
+                        <input type="hidden" :name="name" :value="selected">
+                        <ul
+                            x-show="open && filtered.length > 0"
+                            x-cloak
+                            class="absolute z-20 mt-1 max-h-48 w-full overflow-y-auto rounded border border-[var(--line)] bg-theme-surface shadow-lg text-sm"
+                        >
+                            <template x-for="option in filtered" :key="option">
+                                <li
+                                    class="cursor-pointer px-3 py-2 hover:bg-theme-subtle"
+                                    :class="{ 'bg-theme-subtle font-medium': option === selected }"
+                                    @mousedown.prevent="select(option)"
+                                    x-text="option"
+                                ></li>
+                            </template>
+                        </ul>
+                    </div>
+
+                    <button type="submit" class="ui-button">Filter</button>
+                    <button
+                        type="submit"
+                        formaction="{{ route('modules.whatsapp.numbers.export') }}"
+                        class="ui-button"
+                    >Export</button>
                 </form>
             </div>
 
-            <div class="ui-card mt-6 overflow-hidden">
+            {{-- Table --}}
+            <div class="ui-card overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="ui-table">
                         <thead>
@@ -28,6 +137,7 @@
                                 <th>Origin</th>
                                 <th>Source</th>
                                 <th>Messages</th>
+                                <th>Lead</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -41,12 +151,19 @@
                                     <td>{{ $number->last_source_name ?: '-' }}</td>
                                     <td>{{ $number->whats_app_messages_count }}</td>
                                     <td>
+                                        @if ($number->is_whatsapp_lead)
+                                            <span class="ui-pill ui-pill-active">Yes</span>
+                                        @else
+                                            <span class="ui-muted">No</span>
+                                        @endif
+                                    </td>
+                                    <td>
                                         <a href="{{ route('modules.whatsapp.numbers.show', $number) }}" class="ui-link">View</a>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="ui-empty">No numbers found.</td>
+                                    <td colspan="8" class="ui-empty">No numbers found.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -57,6 +174,7 @@
                     {{ $numbers->links() }}
                 </div>
             </div>
+
         </div>
     </div>
 </x-app-layout>

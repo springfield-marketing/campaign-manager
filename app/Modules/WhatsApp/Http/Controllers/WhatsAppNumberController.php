@@ -5,44 +5,58 @@ namespace App\Modules\WhatsApp\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\ClientPhoneNumber;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class WhatsAppNumberController extends Controller
 {
     public function index(Request $request): View
     {
-        $query = ClientPhoneNumber::query()
-            ->select('client_phone_numbers.*')
-            ->selectRaw('COUNT(whatsapp_messages.id) as whats_app_messages_count')
-            ->join('whatsapp_messages', 'whatsapp_messages.client_phone_number_id', '=', 'client_phone_numbers.id')
-            ->with('client')
-            ->groupBy('client_phone_numbers.id')
-            ->orderByDesc('client_phone_numbers.created_at');
-
-        if ($request->filled('phone')) {
-            $query->where('client_phone_numbers.normalized_phone', 'like', '%'.$request->string('phone').'%');
-        }
-
-        if ($request->filled('name')) {
-            $query->whereHas('client', fn ($q) => $q->where('full_name', 'like', '%'.$request->string('name').'%'));
-        }
-
-        if ($request->filled('origin')) {
-            $query->where('client_phone_numbers.detected_country', 'like', '%'.$request->string('origin').'%');
-        }
-
-        if ($request->filled('city')) {
-            $query->whereHas('client', fn ($q) => $q->where('city', 'like', '%'.$request->string('city').'%'));
-        }
-
-        $numbers = $query->simplePaginate(50)->withQueryString();
+        $numbers = $this->buildQuery($request)
+            ->simplePaginate(50)
+            ->withQueryString();
 
         return view('whatsapp::numbers.index', [
             'numbers' => $numbers,
+            'stats'   => $this->stats(),
+            'origins' => $this->distinctOrigins(),
+            'cities'  => $this->distinctCities(),
         ]);
+    }
+
+    public function export(Request $request): StreamedResponse
+    {
+        $numbers = $this->buildQuery($request)
+            ->with('client')
+            ->get();
+
+        $filename = 'whatsapp-numbers-' . now()->format('Y-m-d') . '.csv';
+
+        return response()->streamDownload(function () use ($numbers): void {
+            $handle = fopen('php://output', 'w');
+
+            fputcsv($handle, ['phone', 'name', 'city', 'origin', 'source', 'messages', 'lead', 'suppressed']);
+
+            foreach ($numbers as $number) {
+                fputcsv($handle, [
+                    $number->normalized_phone,
+                    $number->client?->full_name,
+                    $number->client?->city,
+                    $number->detected_country,
+                    $number->last_source_name,
+                    $number->whats_app_messages_count,
+                    $number->is_whatsapp_lead ? 'yes' : 'no',
+                    $number->suppressed ? 'yes' : 'no',
+                ]);
+            }
+
+            fclose($handle);
+        }, $filename, ['Content-Type' => 'text/csv']);
     }
 
     public function show(ClientPhoneNumber $number): View
@@ -55,7 +69,7 @@ class WhatsAppNumberController extends Controller
                 ->withCount('whatsAppMessages')
                 ->orderByDesc('is_primary')
                 ->orderBy('normalized_phone'),
-            'sources' => fn ($q) => $q->where('channel', 'whatsapp')->latest(),
+            'sources'      => fn ($q) => $q->where('channel', 'whatsapp')->latest(),
             'whatsAppMessages' => fn ($q) => $q->with('campaign')->latest('scheduled_at'),
             'suppressions' => fn ($q) => $q->where('channel', 'whatsapp')->whereNull('released_at')->latest('suppressed_at'),
             'whatsAppProfile',
@@ -101,25 +115,22 @@ class WhatsAppNumberController extends Controller
     public function updateNumber(Request $request, ClientPhoneNumber $number): RedirectResponse
     {
         $data = $request->validate([
-            'normalized_phone' => [
-                'required',
-                'string',
-                'max:30',
+            'normalized_phone'    => [
+                'required', 'string', 'max:30',
                 Rule::unique('client_phone_numbers', 'normalized_phone')->ignore($number->id),
             ],
-            'raw_phone'          => ['nullable', 'string', 'max:30'],
-            'country_code'       => ['nullable', 'string', 'max:10'],
-            'national_number'    => ['nullable', 'string', 'max:20'],
-            'detected_country'   => ['nullable', 'string', 'max:10'],
-            'label'              => ['nullable', 'string', 'max:100'],
-            'priority'           => ['required', 'integer', 'min:0', 'max:9999'],
-            'verification_status'=> ['required', 'string', Rule::in(['unverified', 'verified', 'invalid'])],
-            'is_primary'         => ['boolean'],
-            'is_whatsapp'        => ['boolean'],
-            'is_uae'             => ['boolean'],
+            'raw_phone'           => ['nullable', 'string', 'max:30'],
+            'country_code'        => ['nullable', 'string', 'max:10'],
+            'national_number'     => ['nullable', 'string', 'max:20'],
+            'detected_country'    => ['nullable', 'string', 'max:10'],
+            'label'               => ['nullable', 'string', 'max:100'],
+            'priority'            => ['required', 'integer', 'min:0', 'max:9999'],
+            'verification_status' => ['required', 'string', Rule::in(['unverified', 'verified', 'invalid'])],
+            'is_primary'          => ['boolean'],
+            'is_whatsapp'         => ['boolean'],
+            'is_uae'              => ['boolean'],
         ]);
 
-        // Checkboxes are absent from request when unchecked — default to false
         $data['is_primary']  = $request->boolean('is_primary');
         $data['is_whatsapp'] = $request->boolean('is_whatsapp');
         $data['is_uae']      = $request->boolean('is_uae');
@@ -128,5 +139,89 @@ class WhatsAppNumberController extends Controller
 
         return redirect()->route('modules.whatsapp.numbers.show', $number)
             ->with('status', 'Phone number updated.');
+    }
+
+    // -----------------------------------------------------------------------
+    // Internals
+    // -----------------------------------------------------------------------
+
+    private function buildQuery(Request $request): Builder
+    {
+        $query = ClientPhoneNumber::query()
+            ->select('client_phone_numbers.*')
+            ->selectRaw('COUNT(whatsapp_messages.id) as whats_app_messages_count')
+            ->selectRaw('EXISTS(SELECT 1 FROM contact_suppressions WHERE contact_suppressions.client_phone_number_id = client_phone_numbers.id AND contact_suppressions.channel = ? AND contact_suppressions.released_at IS NULL) as suppressed', ['whatsapp'])
+            ->join('whatsapp_messages', 'whatsapp_messages.client_phone_number_id', '=', 'client_phone_numbers.id')
+            ->with('client')
+            ->groupBy('client_phone_numbers.id')
+            ->orderByDesc('client_phone_numbers.created_at');
+
+        if ($request->filled('phone')) {
+            $query->where('client_phone_numbers.normalized_phone', 'like', '%' . $request->string('phone') . '%');
+        }
+
+        if ($request->filled('name')) {
+            $query->whereHas('client', fn ($q) => $q->where('full_name', 'like', '%' . $request->string('name') . '%'));
+        }
+
+        if ($request->filled('origin')) {
+            $query->where('client_phone_numbers.detected_country', $request->string('origin'));
+        }
+
+        if ($request->filled('city')) {
+            $query->whereHas('client', fn ($q) => $q->where('city', $request->string('city')));
+        }
+
+        return $query;
+    }
+
+    /** @return array<string, int> */
+    private function stats(): array
+    {
+        $base = ClientPhoneNumber::query()
+            ->join('whatsapp_messages', 'whatsapp_messages.client_phone_number_id', '=', 'client_phone_numbers.id')
+            ->groupBy('client_phone_numbers.id');
+
+        $total = (clone $base)->selectRaw('client_phone_numbers.id')->toBase()->get()->count();
+
+        $leads = ClientPhoneNumber::whereHas('whatsAppMessages')
+            ->where('is_whatsapp_lead', true)
+            ->count();
+
+        $suppressed = ClientPhoneNumber::whereHas('whatsAppMessages')
+            ->whereHas('suppressions', fn ($q) => $q->where('channel', 'whatsapp')->whereNull('released_at'))
+            ->count();
+
+        $origins = ClientPhoneNumber::whereHas('whatsAppMessages')
+            ->whereNotNull('detected_country')
+            ->distinct()
+            ->count('detected_country');
+
+        return compact('total', 'leads', 'suppressed', 'origins');
+    }
+
+    /** @return \Illuminate\Support\Collection<int, string> */
+    private function distinctOrigins()
+    {
+        return DB::table('client_phone_numbers')
+            ->join('whatsapp_messages', 'whatsapp_messages.client_phone_number_id', '=', 'client_phone_numbers.id')
+            ->whereNotNull('detected_country')
+            ->where('detected_country', '<>', '')
+            ->distinct()
+            ->orderBy('detected_country')
+            ->pluck('detected_country');
+    }
+
+    /** @return \Illuminate\Support\Collection<int, string> */
+    private function distinctCities()
+    {
+        return DB::table('clients')
+            ->join('client_phone_numbers', 'client_phone_numbers.client_id', '=', 'clients.id')
+            ->join('whatsapp_messages', 'whatsapp_messages.client_phone_number_id', '=', 'client_phone_numbers.id')
+            ->whereNotNull('clients.city')
+            ->where('clients.city', '<>', '')
+            ->distinct()
+            ->orderBy('clients.city')
+            ->pluck('clients.city');
     }
 }

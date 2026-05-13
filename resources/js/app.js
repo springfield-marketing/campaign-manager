@@ -134,4 +134,40 @@ Alpine.data('importProgress', ({ endpoint, imports, wsChannel = 'ivr.imports', w
     },
 }));
 
+Alpine.data('combobox', ({ options, name, value = '' }) => ({
+    options,
+    name,
+    query: value,
+    selected: value,
+    open: false,
+
+    get filtered() {
+        if (! this.query) return this.options;
+        const q = this.query.toLowerCase();
+        return this.options.filter((o) => o.toLowerCase().includes(q));
+    },
+
+    select(option) {
+        this.selected = option;
+        this.query = option;
+        this.open = false;
+    },
+
+    clear() {
+        this.selected = '';
+        this.query = '';
+        this.open = false;
+    },
+
+    onBlur() {
+        // Delay so a mousedown on an option fires before we revert
+        setTimeout(() => {
+            if (this.query !== this.selected) {
+                this.query = this.selected;
+            }
+            this.open = false;
+        }, 150);
+    },
+}));
+
 Alpine.start();
