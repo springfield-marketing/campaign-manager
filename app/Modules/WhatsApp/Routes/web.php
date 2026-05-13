@@ -16,7 +16,9 @@ Route::middleware(['auth', 'verified'])
         Route::get('/', WhatsAppController::class)->name('index');
 
         Route::get('/imports', [WhatsAppImportController::class, 'index'])->name('imports.index');
+        Route::get('/imports/status', [WhatsAppImportController::class, 'status'])->name('imports.status');
         Route::post('/imports', [WhatsAppImportController::class, 'store'])->name('imports.store');
+        Route::post('/imports/campaign-results', [WhatsAppImportController::class, 'storeCampaignResults'])->name('imports.campaign-results.store');
         Route::delete('/imports/{import}', [WhatsAppImportController::class, 'destroy'])->name('imports.destroy');
 
         Route::get('/campaigns', [WhatsAppCampaignController::class, 'index'])->name('campaigns.index');

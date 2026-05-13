@@ -18,6 +18,7 @@ class WhatsAppImport extends Model
         'original_file_name',
         'stored_file_name',
         'storage_path',
+        'source_name',
         'uploaded_by',
         'total_rows',
         'processed_rows',
@@ -51,6 +52,25 @@ class WhatsAppImport extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    public function broadcastProgress(): void
+    {
+        // HTTP polling is used instead of WebSocket for WhatsApp imports
+    }
+
+    public function deleteProgress(): array
+    {
+        return [
+            'stage' => null,
+            'stage_label' => null,
+            'processed' => 0,
+            'total' => 0,
+            'percent' => 0,
+            'source_rows_deleted' => 0,
+            'phone_numbers_deleted' => 0,
+            'clients_deleted' => 0,
+        ];
     }
 
     public function statusLabel(): string

@@ -4,9 +4,11 @@ import Alpine from 'alpinejs';
 
 window.Alpine = Alpine;
 
-Alpine.data('importProgress', ({ endpoint, imports }) => ({
+Alpine.data('importProgress', ({ endpoint, imports, wsChannel = 'ivr.imports', wsEvent = '.ivr.import.updated' }) => ({
     endpoint,
     imports,
+    wsChannel,
+    wsEvent,
     timer: null,
     inFlight: false,
     channel: null,
@@ -43,12 +45,12 @@ Alpine.data('importProgress', ({ endpoint, imports }) => ({
     },
 
     connectWebsocket() {
-        if (! window.Echo || this.channel) {
+        if (! window.Echo || this.channel || ! this.wsChannel) {
             return;
         }
 
-        this.channel = window.Echo.private('ivr.imports')
-            .listen('.ivr.import.updated', (event) => {
+        this.channel = window.Echo.private(this.wsChannel)
+            .listen(this.wsEvent, (event) => {
                 if (! event.import) {
                     return;
                 }

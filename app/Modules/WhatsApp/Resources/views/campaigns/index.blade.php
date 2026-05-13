@@ -11,7 +11,29 @@
                 <div class="ui-alert mb-6">{{ session('status') }}</div>
             @endif
 
-            <div class="grid gap-6">
+            <div
+                class="grid gap-6"
+                x-data="importProgress({
+                    endpoint: '{{ route('modules.whatsapp.imports.status') }}',
+                    wsChannel: '',
+                    imports: @js($imports->map(fn ($import) => [
+                        'id'                 => $import->id,
+                        'status'             => $import->status,
+                        'status_label'       => $import->statusLabel(),
+                        'status_message'     => $import->statusMessage(),
+                        'original_file_name' => $import->original_file_name,
+                        'total_rows'         => $import->total_rows,
+                        'processed_rows'     => $import->processed_rows,
+                        'successful_rows'    => $import->successful_rows,
+                        'failed_rows'        => $import->failed_rows,
+                        'duplicate_rows'     => $import->duplicate_rows,
+                        'progress'           => $import->total_rows > 0 ? min(100, round(($import->processed_rows / $import->total_rows) * 100)) : 0,
+                        'progress_label'     => $import->processed_rows.' / '.($import->total_rows ?: '-'),
+                        'detail_label'       => $import->successful_rows.' imported - '.$import->failed_rows.' failed - '.$import->duplicate_rows.' duplicates',
+                        'is_active'          => in_array($import->status, ['pending', 'processing'], true),
+                    ])->values())
+                })"
+            >
                 <section class="grid gap-6">
                     <article class="ui-card ui-card-pad">
                         <h3 class="ui-title">Import campaign results</h3>
@@ -19,7 +41,7 @@
                             Upload the CSV export from your WhatsApp campaign platform. Expected columns:
                             <code class="text-xs">ScheduleAt, PhoneNumber, CampaignName, TemplateName, Status, Failure reason, Quick replies, Quick reply 1–3, Clicked, Retried</code>
                         </p>
-                        <form method="POST" action="{{ route('modules.whatsapp.imports.store') }}" enctype="multipart/form-data" class="mt-6">
+                        <form method="POST" action="{{ route('modules.whatsapp.imports.campaign-results.store') }}" enctype="multipart/form-data" class="mt-6">
                             @csrf
                             <div class="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
                                 <div>
@@ -39,15 +61,22 @@
 
                         <div class="ui-divide max-h-[560px] overflow-y-auto">
                             @forelse ($imports as $import)
-                                <div class="px-5 py-4 text-sm">
+                                <div class="px-5 py-4 text-sm" x-data="{ item: get({{ $import->id }}) }">
                                     <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                                         <div class="min-w-0">
                                             <p class="break-all font-medium text-theme-primary">{{ $import->original_file_name }}</p>
-                                            <p class="capitalize ui-muted">{{ $import->statusLabel() }}</p>
-                                            <p class="mt-1 text-xs text-theme-secondary">{{ $import->statusMessage() }}</p>
+                                            <p class="ui-muted">
+                                                <span class="capitalize" x-text="item.status_label">{{ $import->statusLabel() }}</span>
+                                            </p>
+                                            <p class="mt-1 text-xs text-theme-secondary" x-text="item.status_message">{{ $import->statusMessage() }}</p>
                                         </div>
 
                                         <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+                                            <span class="ui-pill ui-pill-active" x-show="item.is_active" x-cloak>Live</span>
+                                            <span class="ui-pill" x-show="! item.is_active" x-cloak>
+                                                <span class="capitalize" x-text="item.status_label">{{ $import->statusLabel() }}</span>
+                                            </span>
+
                                             @if (! in_array($import->status, ['pending', 'processing', 'reverted'], true) && $import->reverted_at === null)
                                                 <form method="POST" action="{{ route('modules.whatsapp.imports.destroy', $import) }}" onsubmit="return confirm('Revert this import? This will remove its campaign messages.');">
                                                     @csrf
@@ -59,17 +88,18 @@
                                     </div>
 
                                     <div class="mt-3">
-                                        <div class="mb-1 flex items-center justify-between gap-3 text-xs ui-muted">
-                                            <span>{{ $import->processed_rows }} / {{ $import->total_rows ?: '-' }}</span>
-                                            <span>{{ $import->total_rows > 0 ? min(100, round(($import->processed_rows / $import->total_rows) * 100)) : 0 }}%</span>
+                                        <div class="mb-1 flex items-center justify-between gap-3 text-xs font-medium text-theme-secondary">
+                                            <span x-text="item.progress_label">{{ $import->processed_rows }} / {{ $import->total_rows ?: '-' }}</span>
+                                            <span x-text="`${item.progress}%`">{{ $import->total_rows > 0 ? min(100, round(($import->processed_rows / $import->total_rows) * 100)) : 0 }}%</span>
                                         </div>
                                         <div class="ui-progress">
                                             <div
                                                 class="ui-progress-bar"
                                                 style="width: {{ $import->total_rows > 0 ? min(100, round(($import->processed_rows / $import->total_rows) * 100)) : 0 }}%"
+                                                :style="`width: ${item.progress}%`"
                                             ></div>
                                         </div>
-                                        <p class="mt-2 text-xs ui-muted">
+                                        <p class="mt-2 text-xs ui-muted" x-text="item.detail_label">
                                             {{ $import->successful_rows }} imported &ndash; {{ $import->failed_rows }} failed &ndash; {{ $import->duplicate_rows }} duplicates
                                         </p>
                                     </div>
