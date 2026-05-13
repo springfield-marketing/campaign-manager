@@ -5,7 +5,6 @@ namespace App\Modules\WhatsApp\Support;
 use App\Models\Client;
 use App\Models\ClientPhoneNumber;
 use App\Models\ClientSource;
-use App\Modules\IVR\Support\PhoneNormalizer;
 use App\Modules\WhatsApp\Enums\WhatsAppImportStatus;
 use App\Modules\WhatsApp\Models\WhatsAppImport;
 use Illuminate\Support\Facades\Log;
@@ -16,7 +15,7 @@ class WhatsAppRawImportProcessor
 {
     public function __construct(
         private readonly WhatsAppRawImportColumnMapper $mapper,
-        private readonly PhoneNormalizer $phoneNormalizer,
+        private readonly WhatsAppPhoneNormalizer $phoneNormalizer,
     ) {}
 
     public function process(WhatsAppImport $import): void

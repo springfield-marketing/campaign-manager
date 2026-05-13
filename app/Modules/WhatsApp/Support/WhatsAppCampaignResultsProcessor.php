@@ -5,7 +5,6 @@ namespace App\Modules\WhatsApp\Support;
 use App\Models\Client;
 use App\Models\ClientPhoneNumber;
 use App\Models\ClientSource;
-use App\Modules\IVR\Support\PhoneNormalizer;
 use App\Modules\WhatsApp\Enums\WhatsAppImportStatus;
 use App\Modules\WhatsApp\Models\WhatsAppCampaign;
 use App\Modules\WhatsApp\Models\WhatsAppImport;
@@ -20,7 +19,7 @@ class WhatsAppCampaignResultsProcessor
     private const BATCH_SIZE = 500;
 
     public function __construct(
-        private readonly PhoneNormalizer $phoneNormalizer,
+        private readonly WhatsAppPhoneNormalizer $phoneNormalizer,
         private readonly WhatsAppNumberAnalyser $analyser,
     ) {}
 
