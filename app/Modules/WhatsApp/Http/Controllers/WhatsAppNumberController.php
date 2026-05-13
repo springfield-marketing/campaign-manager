@@ -40,7 +40,7 @@ class WhatsAppNumberController extends Controller
         return response()->streamDownload(function () use ($numbers): void {
             $handle = fopen('php://output', 'w');
 
-            fputcsv($handle, ['phone', 'name', 'city', 'origin', 'source', 'messages', 'lead', 'suppressed']);
+            fputcsv($handle, ['phone', 'name', 'city', 'origin', 'source', 'messages', 'suppressed']);
 
             foreach ($numbers as $number) {
                 fputcsv($handle, [
@@ -50,7 +50,6 @@ class WhatsAppNumberController extends Controller
                     $number->detected_country,
                     $number->last_source_name,
                     $number->whats_app_messages_count,
-                    $number->is_whatsapp_lead ? 'yes' : 'no',
                     $number->suppressed ? 'yes' : 'no',
                 ]);
             }
@@ -184,10 +183,6 @@ class WhatsAppNumberController extends Controller
 
         $total = (clone $base)->selectRaw('client_phone_numbers.id')->toBase()->get()->count();
 
-        $leads = ClientPhoneNumber::whereHas('whatsAppMessages')
-            ->where('is_whatsapp_lead', true)
-            ->count();
-
         $suppressed = ClientPhoneNumber::whereHas('whatsAppMessages')
             ->whereHas('suppressions', fn ($q) => $q->where('channel', 'whatsapp')->whereNull('released_at'))
             ->count();
@@ -197,7 +192,7 @@ class WhatsAppNumberController extends Controller
             ->distinct()
             ->count('detected_country');
 
-        return compact('total', 'leads', 'suppressed', 'origins');
+        return compact('total', 'suppressed', 'origins');
     }
 
     /** @return \Illuminate\Support\Collection<int, string> */

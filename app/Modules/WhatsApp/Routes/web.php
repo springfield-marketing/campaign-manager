@@ -3,7 +3,6 @@
 use App\Modules\WhatsApp\Http\Controllers\WhatsAppCampaignController;
 use App\Modules\WhatsApp\Http\Controllers\WhatsAppController;
 use App\Modules\WhatsApp\Http\Controllers\WhatsAppImportController;
-use App\Modules\WhatsApp\Http\Controllers\WhatsAppLeadController;
 use App\Modules\WhatsApp\Http\Controllers\WhatsAppNumberController;
 use App\Modules\WhatsApp\Http\Controllers\WhatsAppReportController;
 use App\Modules\WhatsApp\Http\Controllers\WhatsAppUnsubscriberController;
@@ -31,8 +30,6 @@ Route::middleware(['auth', 'verified'])
         Route::patch('/numbers/{number}/client', [WhatsAppNumberController::class, 'updateClient'])->name('numbers.client.update');
         Route::delete('/numbers/{number}/client', [WhatsAppNumberController::class, 'destroyClient'])->name('numbers.client.destroy');
         Route::patch('/numbers/{number}', [WhatsAppNumberController::class, 'updateNumber'])->name('numbers.update');
-
-        Route::get('/leads', [WhatsAppLeadController::class, 'index'])->name('leads.index');
 
         Route::get('/unsubscribers', [WhatsAppUnsubscriberController::class, 'index'])->name('unsubscribers.index');
         Route::post('/unsubscribers', [WhatsAppUnsubscriberController::class, 'store'])->name('unsubscribers.store');

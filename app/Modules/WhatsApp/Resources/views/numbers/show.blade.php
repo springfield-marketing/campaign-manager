@@ -261,16 +261,6 @@
                                     <dd class="ui-strong">{{ optional($number->last_imported_at)->format('Y-m-d H:i') ?: '-' }}</dd>
                                 </div>
                                 <div>
-                                    <dt class="ui-muted">Lead</dt>
-                                    <dd class="ui-strong">
-                                        @if ($number->is_whatsapp_lead)
-                                            <span class="ui-pill ui-pill-active">Yes</span>
-                                        @else
-                                            No
-                                        @endif
-                                    </dd>
-                                </div>
-                                <div>
                                     <dt class="ui-muted">Consecutive failures</dt>
                                     <dd class="ui-strong">{{ $number->whatsAppProfile?->consecutive_failed_count ?? 0 }}</dd>
                                 </div>

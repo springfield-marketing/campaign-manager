@@ -9,14 +9,10 @@
         <div class="page-wrap space-y-6">
 
             {{-- Stats --}}
-            <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <section class="grid gap-4 sm:grid-cols-3">
                 <article class="ui-card ui-card-pad">
                     <p class="text-sm ui-muted">Total numbers</p>
                     <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($stats['total']) }}</p>
-                </article>
-                <article class="ui-card ui-card-pad">
-                    <p class="text-sm ui-muted">Leads</p>
-                    <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($stats['leads']) }}</p>
                 </article>
                 <article class="ui-card ui-card-pad">
                     <p class="text-sm ui-muted">Suppressed</p>
@@ -137,7 +133,6 @@
                                 <th>Origin</th>
                                 <th>Source</th>
                                 <th>Messages</th>
-                                <th>Lead</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -151,19 +146,12 @@
                                     <td>{{ $number->last_source_name ?: '-' }}</td>
                                     <td>{{ $number->whats_app_messages_count }}</td>
                                     <td>
-                                        @if ($number->is_whatsapp_lead)
-                                            <span class="ui-pill ui-pill-active">Yes</span>
-                                        @else
-                                            <span class="ui-muted">No</span>
-                                        @endif
-                                    </td>
-                                    <td>
                                         <a href="{{ route('modules.whatsapp.numbers.show', $number) }}" class="ui-link">View</a>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8" class="ui-empty">No numbers found.</td>
+                                    <td colspan="7" class="ui-empty">No numbers found.</td>
                                 </tr>
                             @endforelse
                         </tbody>
