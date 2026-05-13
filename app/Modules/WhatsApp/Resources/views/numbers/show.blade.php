@@ -12,45 +12,114 @@
                 {{-- Left: client + number details --}}
                 <div class="space-y-6">
                     <section class="ui-card ui-card-pad">
-                        <h3 class="ui-title">Client</h3>
-                        <dl class="mt-4 space-y-3 text-sm">
-                            <div>
-                                <dt class="ui-muted">Full name</dt>
-                                <dd class="ui-strong">{{ $number->client?->full_name ?: '-' }}</dd>
-                            </div>
-                            <div>
-                                <dt class="ui-muted">Email</dt>
-                                <dd class="ui-strong">{{ $number->client?->email ?: '-' }}</dd>
-                            </div>
-                            <div>
-                                <dt class="ui-muted">Gender</dt>
-                                <dd class="ui-strong">{{ $number->client?->gender ?: '-' }}</dd>
-                            </div>
-                            <div>
-                                <dt class="ui-muted">City</dt>
-                                <dd class="ui-strong">{{ $number->client?->city ?: '-' }}</dd>
-                            </div>
-                            <div>
-                                <dt class="ui-muted">Country</dt>
-                                <dd class="ui-strong">{{ $number->client?->country ?: '-' }}</dd>
-                            </div>
-                            <div>
-                                <dt class="ui-muted">Nationality</dt>
-                                <dd class="ui-strong">{{ $number->client?->nationality ?: '-' }}</dd>
-                            </div>
-                            <div>
-                                <dt class="ui-muted">Community</dt>
-                                <dd class="ui-strong">{{ $number->client?->community ?: '-' }}</dd>
-                            </div>
-                            <div>
-                                <dt class="ui-muted">Resident</dt>
-                                <dd class="ui-strong">{{ $number->client?->resident ?: '-' }}</dd>
-                            </div>
-                            <div>
-                                <dt class="ui-muted">Interest</dt>
-                                <dd class="ui-strong">{{ $number->client?->interest ?: '-' }}</dd>
-                            </div>
-                        </dl>
+                        <div class="flex items-center justify-between gap-2">
+                            <h3 class="ui-title">Client</h3>
+                            @if ($number->client)
+                                <div class="flex items-center gap-2">
+                                    @if (request()->has('edit'))
+                                        <a href="{{ route('modules.whatsapp.numbers.show', $number) }}" class="ui-pill">Cancel</a>
+                                    @else
+                                        <a href="{{ route('modules.whatsapp.numbers.show', $number) }}?edit=1" class="ui-pill">Edit</a>
+                                    @endif
+                                    <form method="POST" action="{{ route('modules.whatsapp.numbers.client.destroy', $number) }}" onsubmit="return confirm('Delete this client? This cannot be undone.');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="ui-pill">Delete</button>
+                                    </form>
+                                </div>
+                            @endif
+                        </div>
+
+                        @if (session('status'))
+                            <div class="ui-alert mt-3">{{ session('status') }}</div>
+                        @endif
+
+                        @if ($number->client && request()->has('edit'))
+                            <form method="POST" action="{{ route('modules.whatsapp.numbers.client.update', $number) }}" class="mt-4 space-y-3 text-sm">
+                                @csrf
+                                @method('PATCH')
+                                <div>
+                                    <label class="ui-muted block mb-1">Full name</label>
+                                    <input type="text" name="full_name" value="{{ old('full_name', $number->client->full_name) }}" class="ui-control w-full">
+                                    @error('full_name') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                                </div>
+                                <div>
+                                    <label class="ui-muted block mb-1">Email</label>
+                                    <input type="email" name="email" value="{{ old('email', $number->client->email) }}" class="ui-control w-full">
+                                    @error('email') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                                </div>
+                                <div>
+                                    <label class="ui-muted block mb-1">Gender</label>
+                                    <input type="text" name="gender" value="{{ old('gender', $number->client->gender) }}" class="ui-control w-full">
+                                </div>
+                                <div>
+                                    <label class="ui-muted block mb-1">City</label>
+                                    <input type="text" name="city" value="{{ old('city', $number->client->city) }}" class="ui-control w-full">
+                                </div>
+                                <div>
+                                    <label class="ui-muted block mb-1">Country</label>
+                                    <input type="text" name="country" value="{{ old('country', $number->client->country) }}" class="ui-control w-full">
+                                </div>
+                                <div>
+                                    <label class="ui-muted block mb-1">Nationality</label>
+                                    <input type="text" name="nationality" value="{{ old('nationality', $number->client->nationality) }}" class="ui-control w-full">
+                                </div>
+                                <div>
+                                    <label class="ui-muted block mb-1">Community</label>
+                                    <input type="text" name="community" value="{{ old('community', $number->client->community) }}" class="ui-control w-full">
+                                </div>
+                                <div>
+                                    <label class="ui-muted block mb-1">Resident</label>
+                                    <input type="text" name="resident" value="{{ old('resident', $number->client->resident) }}" class="ui-control w-full">
+                                </div>
+                                <div>
+                                    <label class="ui-muted block mb-1">Interest</label>
+                                    <input type="text" name="interest" value="{{ old('interest', $number->client->interest) }}" class="ui-control w-full">
+                                </div>
+                                <div class="pt-1">
+                                    <button type="submit" class="ui-button">Save changes</button>
+                                </div>
+                            </form>
+                        @else
+                            <dl class="mt-4 space-y-3 text-sm">
+                                <div>
+                                    <dt class="ui-muted">Full name</dt>
+                                    <dd class="ui-strong">{{ $number->client?->full_name ?: '-' }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="ui-muted">Email</dt>
+                                    <dd class="ui-strong">{{ $number->client?->email ?: '-' }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="ui-muted">Gender</dt>
+                                    <dd class="ui-strong">{{ $number->client?->gender ?: '-' }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="ui-muted">City</dt>
+                                    <dd class="ui-strong">{{ $number->client?->city ?: '-' }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="ui-muted">Country</dt>
+                                    <dd class="ui-strong">{{ $number->client?->country ?: '-' }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="ui-muted">Nationality</dt>
+                                    <dd class="ui-strong">{{ $number->client?->nationality ?: '-' }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="ui-muted">Community</dt>
+                                    <dd class="ui-strong">{{ $number->client?->community ?: '-' }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="ui-muted">Resident</dt>
+                                    <dd class="ui-strong">{{ $number->client?->resident ?: '-' }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="ui-muted">Interest</dt>
+                                    <dd class="ui-strong">{{ $number->client?->interest ?: '-' }}</dd>
+                                </div>
+                            </dl>
+                        @endif
                     </section>
 
                     <section class="ui-card ui-card-pad">

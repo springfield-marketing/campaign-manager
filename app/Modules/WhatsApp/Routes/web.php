@@ -25,6 +25,8 @@ Route::middleware(['auth', 'verified'])
 
         Route::get('/numbers', [WhatsAppNumberController::class, 'index'])->name('numbers.index');
         Route::get('/numbers/{number}', [WhatsAppNumberController::class, 'show'])->name('numbers.show');
+        Route::patch('/numbers/{number}/client', [WhatsAppNumberController::class, 'updateClient'])->name('numbers.client.update');
+        Route::delete('/numbers/{number}/client', [WhatsAppNumberController::class, 'destroyClient'])->name('numbers.client.destroy');
 
         Route::get('/leads', [WhatsAppLeadController::class, 'index'])->name('leads.index');
 
