@@ -4,6 +4,7 @@ namespace App\Modules\IVR\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\ClientPhoneNumber;
+use App\Models\Region;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +16,7 @@ class IvrNumberController extends Controller
     public function index(Request $request): View
     {
         $numbers = $this->filteredQuery($request)
-            ->with(['client', 'ivrProfile', 'sources' => fn ($query) => $query->latest()->limit(5)])
+            ->with(['client.region', 'ivrProfile', 'sources' => fn ($query) => $query->latest()->limit(5)])
             ->paginate(25)
             ->withQueryString();
 
@@ -29,6 +30,7 @@ class IvrNumberController extends Controller
                 ->distinct()
                 ->orderBy('source_name')
                 ->pluck('source_name'),
+            'regions' => Region::orderBy('name')->get(),
         ]);
     }
 
@@ -39,7 +41,7 @@ class IvrNumberController extends Controller
         return view('ivr::numbers.show', [
             'number' => $number->load([
                 'ivrProfile',
-                'client',
+                'client.region',
                 'client.phoneNumbers' => fn ($query) => $query
                     ->withCount(['ivrCallRecords as ivr_use_count'])
                     ->with('ivrProfile')
@@ -165,8 +167,8 @@ class IvrNumberController extends Controller
                 ->whereIn('source_name', $excludeSources));
         }
 
-        if ($request->filled('city')) {
-            $query->whereHas('client', fn ($builder) => $builder->where('city', $request->string('city')));
+        if ($request->filled('region')) {
+            $query->whereHas('client', fn ($builder) => $builder->where('region_id', $request->integer('region')));
         }
 
         if ($applyStatusFilter && $request->filled('status')) {

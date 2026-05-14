@@ -71,46 +71,25 @@
                         </ul>
                     </div>
 
-                    {{-- City combobox --}}
-                    <div
-                        class="relative"
-                        x-data="combobox({ options: @js($cities->values()->all()), name: 'city', value: '{{ request('city') }}' })"
-                    >
-                        <div class="relative flex items-center">
-                            <input
-                                type="text"
-                                class="ui-control w-full pr-7"
-                                placeholder="City"
-                                autocomplete="off"
-                                x-model="query"
-                                @focus="open = true"
-                                @blur="onBlur()"
-                                @keydown.escape="onBlur()"
-                            >
-                            <button
-                                type="button"
-                                class="absolute right-2 text-gray-400 hover:text-gray-600"
-                                x-show="selected"
-                                @mousedown.prevent="clear()"
-                                tabindex="-1"
-                            >&times;</button>
-                        </div>
-                        <input type="hidden" :name="name" :value="selected">
-                        <ul
-                            x-show="open && filtered.length > 0"
-                            x-cloak
-                            class="absolute z-20 mt-1 max-h-48 w-full overflow-y-auto rounded border border-[var(--line)] bg-theme-surface shadow-lg text-sm"
-                        >
-                            <template x-for="option in filtered" :key="option">
-                                <li
-                                    class="cursor-pointer px-3 py-2 hover:bg-theme-subtle"
-                                    :class="{ 'bg-theme-subtle font-medium': option === selected }"
-                                    @mousedown.prevent="select(option)"
-                                    x-text="option"
-                                ></li>
-                            </template>
-                        </ul>
-                    </div>
+                    {{-- Emirate select --}}
+                    <select name="region" class="ui-control">
+                        <option value="">All emirates</option>
+                        @foreach ($regions as $region)
+                            <option value="{{ $region->id }}" @selected(request('region') == $region->id)>{{ $region->name }}</option>
+                        @endforeach
+                    </select>
+
+                    {{-- Community select --}}
+                    <select name="community" class="ui-control">
+                        <option value="">All communities</option>
+                        @foreach ($communities->groupBy(fn ($c) => $c->region?->name) as $emirate => $group)
+                            <optgroup label="{{ $emirate }}">
+                                @foreach ($group->sortBy('name') as $community)
+                                    <option value="{{ $community->id }}" @selected(request('community') == $community->id)>{{ $community->name }}</option>
+                                @endforeach
+                            </optgroup>
+                        @endforeach
+                    </select>
 
                     <button type="submit" class="ui-button">Filter</button>
                     <button
@@ -129,7 +108,7 @@
                             <tr>
                                 <th>Phone</th>
                                 <th>Name</th>
-                                <th>City</th>
+                                <th>Emirate</th>
                                 <th>Origin</th>
                                 <th>Source</th>
                                 <th>Messages</th>
@@ -141,7 +120,7 @@
                                 <tr>
                                     <td>{{ $number->normalized_phone }}</td>
                                     <td>{{ $number->client?->full_name ?: '-' }}</td>
-                                    <td>{{ $number->client?->city ?: '-' }}</td>
+                                    <td>{{ $number->client?->region?->name ?? ($number->client?->city ?: '-') }}</td>
                                     <td>{{ $number->detected_country ?: '-' }}</td>
                                     <td>{{ $number->last_source_name ?: '-' }}</td>
                                     <td>{{ $number->whats_app_messages_count }}</td>

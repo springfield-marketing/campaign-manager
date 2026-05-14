@@ -34,9 +34,12 @@ class Client extends Model
         ];
     }
 
-    public function country(): BelongsTo
+    // Named geoCountry/geoCommunity to avoid colliding with the legacy
+    // text columns (country, community) that still exist during Phase 3.
+    // Rename to country()/community() once those columns are dropped in Phase 4.
+    public function geoCountry(): BelongsTo
     {
-        return $this->belongsTo(Country::class);
+        return $this->belongsTo(Country::class, 'country_id');
     }
 
     public function region(): BelongsTo
@@ -44,9 +47,9 @@ class Client extends Model
         return $this->belongsTo(Region::class);
     }
 
-    public function community(): BelongsTo
+    public function geoCommunity(): BelongsTo
     {
-        return $this->belongsTo(Community::class);
+        return $this->belongsTo(Community::class, 'community_id');
     }
 
     public function phoneNumbers(): HasMany

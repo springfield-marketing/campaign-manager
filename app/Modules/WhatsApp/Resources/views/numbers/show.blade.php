@@ -53,8 +53,28 @@
                                     <input type="text" name="gender" value="{{ old('gender', $number->client->gender) }}" class="ui-control w-full">
                                 </div>
                                 <div>
-                                    <label class="ui-muted block mb-1">City</label>
-                                    <input type="text" name="city" value="{{ old('city', $number->client->city) }}" class="ui-control w-full">
+                                    <label class="ui-muted block mb-1">Emirate</label>
+                                    <select name="region_id" class="ui-control w-full">
+                                        <option value="">— none —</option>
+                                        @foreach ($regions as $region)
+                                            <option value="{{ $region->id }}" @selected(old('region_id', $number->client->region_id) == $region->id)>{{ $region->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('region_id') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                                </div>
+                                <div>
+                                    <label class="ui-muted block mb-1">Community</label>
+                                    <select name="community_id" class="ui-control w-full">
+                                        <option value="">— none —</option>
+                                        @foreach ($regions as $region)
+                                            <optgroup label="{{ $region->name }}">
+                                                @foreach ($region->communities->sortBy('name') as $community)
+                                                    <option value="{{ $community->id }}" @selected(old('community_id', $number->client->community_id) == $community->id)>{{ $community->name }}</option>
+                                                @endforeach
+                                            </optgroup>
+                                        @endforeach
+                                    </select>
+                                    @error('community_id') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
                                 </div>
                                 <div>
                                     <label class="ui-muted block mb-1">Country</label>
@@ -63,10 +83,6 @@
                                 <div>
                                     <label class="ui-muted block mb-1">Nationality</label>
                                     <input type="text" name="nationality" value="{{ old('nationality', $number->client->nationality) }}" class="ui-control w-full">
-                                </div>
-                                <div>
-                                    <label class="ui-muted block mb-1">Community</label>
-                                    <input type="text" name="community" value="{{ old('community', $number->client->community) }}" class="ui-control w-full">
                                 </div>
                                 <div>
                                     <label class="ui-muted block mb-1">Resident</label>
@@ -95,8 +111,12 @@
                                     <dd class="ui-strong">{{ $number->client?->gender ?: '-' }}</dd>
                                 </div>
                                 <div>
-                                    <dt class="ui-muted">City</dt>
-                                    <dd class="ui-strong">{{ $number->client?->city ?: '-' }}</dd>
+                                    <dt class="ui-muted">Emirate</dt>
+                                    <dd class="ui-strong">{{ $number->client?->region?->name ?? ($number->client?->city ?: '-') }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="ui-muted">Community</dt>
+                                    <dd class="ui-strong">{{ $number->client?->geoCommunity?->name ?? ($number->client?->community ?: '-') }}</dd>
                                 </div>
                                 <div>
                                     <dt class="ui-muted">Country</dt>
@@ -105,10 +125,6 @@
                                 <div>
                                     <dt class="ui-muted">Nationality</dt>
                                     <dd class="ui-strong">{{ $number->client?->nationality ?: '-' }}</dd>
-                                </div>
-                                <div>
-                                    <dt class="ui-muted">Community</dt>
-                                    <dd class="ui-strong">{{ $number->client?->community ?: '-' }}</dd>
                                 </div>
                                 <div>
                                     <dt class="ui-muted">Resident</dt>

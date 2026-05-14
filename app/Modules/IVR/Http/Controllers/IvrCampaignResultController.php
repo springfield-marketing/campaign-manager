@@ -249,7 +249,7 @@ class IvrCampaignResultController extends Controller
             ]);
 
             $campaign->callRecords()
-                ->with(['import', 'phoneNumber.client'])
+                ->with(['import', 'phoneNumber.client.geoCountry', 'phoneNumber.client.region', 'phoneNumber.client.geoCommunity'])
                 ->whereIn('dtmf_outcome', self::LEAD_OUTCOMES)
                 ->latest('call_time')
                 ->chunk(500, function ($leads) use ($handle, $campaign): void {
@@ -262,11 +262,11 @@ class IvrCampaignResultController extends Controller
                             $client?->full_name,
                             $lead->phoneNumber?->normalized_phone,
                             $client?->email,
-                            $client?->country,
+                            $client?->geoCountry?->name ?? $client?->country,
                             $client?->nationality,
-                            $client?->community,
+                            $client?->geoCommunity?->name ?? $client?->community,
                             $client?->resident,
-                            $client?->city,
+                            $client?->region?->name ?? $client?->city,
                             $client?->gender,
                             $client?->interest,
                             $lead->call_status,
@@ -330,7 +330,7 @@ class IvrCampaignResultController extends Controller
             ]);
 
             IvrCallRecord::query()
-                ->with(['campaign', 'import', 'phoneNumber.client'])
+                ->with(['campaign', 'import', 'phoneNumber.client.geoCountry', 'phoneNumber.client.region', 'phoneNumber.client.geoCommunity'])
                 ->whereBetween('call_time', [$from, $to])
                 ->orderBy('call_time')
                 ->orderBy('id')
@@ -348,11 +348,11 @@ class IvrCampaignResultController extends Controller
                             $client?->full_name,
                             $record->phoneNumber?->normalized_phone,
                             $client?->email,
-                            $client?->country,
+                            $client?->geoCountry?->name ?? $client?->country,
                             $client?->nationality,
-                            $client?->community,
+                            $client?->geoCommunity?->name ?? $client?->community,
                             $client?->resident,
-                            $client?->city,
+                            $client?->region?->name ?? $client?->city,
                             $client?->gender,
                             $client?->interest,
                             $record->call_direction,

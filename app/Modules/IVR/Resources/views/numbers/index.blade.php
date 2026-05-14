@@ -68,10 +68,10 @@
 
                     <div class="grid gap-3 md:grid-cols-7">
                     <input type="search" name="phone" value="{{ request('phone') }}" placeholder="Search number" class="ui-control">
-                    <select name="city" class="ui-control">
-                        <option value="">All cities</option>
-                        @foreach (['Dubai', 'Abu Dhabi'] as $city)
-                            <option value="{{ $city }}" @selected(request('city') == $city)>{{ $city }}</option>
+                    <select name="region" class="ui-control">
+                        <option value="">All emirates</option>
+                        @foreach ($regions as $region)
+                            <option value="{{ $region->id }}" @selected(request('region') == $region->id)>{{ $region->name }}</option>
                         @endforeach
                     </select>
                     <select name="status" class="ui-control">
@@ -98,7 +98,7 @@
                             <tr>
                                 <th>Name</th>
                                 <th>Phone</th>
-                                <th>City</th>
+                                <th>Emirate</th>
                                 <th>Source</th>
                                 <th>Uses</th>
                                 <th>Status</th>
@@ -111,7 +111,7 @@
                                 <tr>
                                     <td>{{ $number->client?->full_name ?: '-' }}</td>
                                     <td>{{ $number->normalized_phone }}</td>
-                                    <td>{{ $number->client?->city ?: '-' }}</td>
+                                    <td>{{ $number->client?->region?->name ?? ($number->client?->city ?: '-') }}</td>
                                     <td>{{ $number->last_source_name ?: '-' }}</td>
                                     <td>{{ $number->ivr_use_count }}</td>
                                     <td>{{ ucfirst($number->ivrProfile?->usage_status ?? 'active') }}</td>

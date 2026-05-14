@@ -7,16 +7,21 @@ use App\Models\ClientPhoneNumber;
 use App\Models\ClientSource;
 use App\Modules\WhatsApp\Enums\WhatsAppImportStatus;
 use App\Modules\WhatsApp\Models\WhatsAppImport;
+use App\Support\GeographyLookup;
 use Illuminate\Support\Facades\Log;
 use SplFileObject;
 use Throwable;
 
 class WhatsAppRawImportProcessor
 {
+    private GeographyLookup $geo;
+
     public function __construct(
         private readonly WhatsAppRawImportColumnMapper $mapper,
         private readonly WhatsAppPhoneNormalizer $phoneNormalizer,
-    ) {}
+    ) {
+        $this->geo = new GeographyLookup();
+    }
 
     public function process(WhatsAppImport $import): void
     {
@@ -184,17 +189,25 @@ class WhatsAppRawImportProcessor
         $phoneNumber = ClientPhoneNumber::query()->where('normalized_phone', $normalized['normalized'])->first();
         $duplicate   = $phoneNumber !== null;
 
+        $regionId    = $this->geo->regionId($payload['city'] ?? '');
+        $communityId = $this->geo->communityId($payload['community'] ?? '');
+        if (! $regionId && $communityId) {
+            $regionId = $this->geo->regionIdForCommunity($communityId);
+        }
+
         if (! $phoneNumber) {
             $client = Client::create([
-                'full_name'   => $payload['name'],
-                'email'       => $payload['email'] ?? null,
-                'country'     => $payload['country'] ?? null,
-                'nationality' => $payload['nationality'] ?? null,
-                'community'   => $payload['community'] ?? null,
-                'resident'    => $payload['resident'] ?? null,
-                'city'        => $payload['city'] ?? null,
-                'gender'      => $payload['gender'] ?? null,
-                'interest'    => $payload['interest'] ?? null,
+                'full_name'    => $payload['name'],
+                'email'        => $payload['email'] ?? null,
+                'country'      => $payload['country'] ?? null,
+                'nationality'  => $payload['nationality'] ?? null,
+                'community'    => $payload['community'] ?? null,
+                'resident'     => $payload['resident'] ?? null,
+                'city'         => $payload['city'] ?? null,
+                'gender'       => $payload['gender'] ?? null,
+                'interest'     => $payload['interest'] ?? null,
+                'region_id'    => $regionId,
+                'community_id' => $communityId,
             ]);
 
             $phoneNumber = ClientPhoneNumber::create([
@@ -214,15 +227,17 @@ class WhatsAppRawImportProcessor
             $client = $phoneNumber->client ?: Client::create(['full_name' => $payload['name']]);
 
             $client->fill(array_filter([
-                'full_name'   => $client->full_name   ?: $payload['name'],
-                'email'       => $client->email        ?: ($payload['email'] ?? null),
-                'country'     => $client->country      ?: ($payload['country'] ?? null),
-                'nationality' => $client->nationality  ?: ($payload['nationality'] ?? null),
-                'community'   => $client->community    ?: ($payload['community'] ?? null),
-                'resident'    => $client->resident     ?: ($payload['resident'] ?? null),
-                'city'        => $client->city         ?: ($payload['city'] ?? null),
-                'gender'      => $client->gender       ?: ($payload['gender'] ?? null),
-                'interest'    => $client->interest     ?: ($payload['interest'] ?? null),
+                'full_name'    => $client->full_name    ?: $payload['name'],
+                'email'        => $client->email         ?: ($payload['email'] ?? null),
+                'country'      => $client->country       ?: ($payload['country'] ?? null),
+                'nationality'  => $client->nationality   ?: ($payload['nationality'] ?? null),
+                'community'    => $client->community     ?: ($payload['community'] ?? null),
+                'resident'     => $client->resident      ?: ($payload['resident'] ?? null),
+                'city'         => $client->city          ?: ($payload['city'] ?? null),
+                'gender'       => $client->gender        ?: ($payload['gender'] ?? null),
+                'interest'     => $client->interest      ?: ($payload['interest'] ?? null),
+                'region_id'    => $client->region_id    ?: $regionId,
+                'community_id' => $client->community_id ?: $communityId,
             ], fn ($v) => $v !== null && $v !== ''))->save();
 
             $phoneNumber->forceFill([

@@ -5,6 +5,8 @@ namespace App\Modules\WhatsApp\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\ClientPhoneNumber;
+use App\Models\Community;
+use App\Models\Region;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,17 +24,18 @@ class WhatsAppNumberController extends Controller
             ->withQueryString();
 
         return view('whatsapp::numbers.index', [
-            'numbers' => $numbers,
-            'stats'   => $this->stats(),
-            'origins' => $this->distinctOrigins(),
-            'cities'  => $this->distinctCities(),
+            'numbers'     => $numbers,
+            'stats'       => $this->stats(),
+            'origins'     => $this->distinctOrigins(),
+            'regions'     => $this->availableRegions(),
+            'communities' => $this->availableCommunities(),
         ]);
     }
 
     public function export(Request $request): StreamedResponse
     {
         $numbers = $this->buildQuery($request)
-            ->with('client')
+            ->with('client.region')
             ->get();
 
         $filename = 'whatsapp-numbers-' . now()->format('Y-m-d') . '.csv';
@@ -40,13 +43,13 @@ class WhatsAppNumberController extends Controller
         return response()->streamDownload(function () use ($numbers): void {
             $handle = fopen('php://output', 'w');
 
-            fputcsv($handle, ['phone', 'name', 'city', 'origin', 'source', 'messages', 'suppressed']);
+            fputcsv($handle, ['phone', 'name', 'emirate', 'origin', 'source', 'messages', 'suppressed']);
 
             foreach ($numbers as $number) {
                 fputcsv($handle, [
                     $number->normalized_phone,
                     $number->client?->full_name,
-                    $number->client?->city,
+                    $number->client?->region?->name ?? $number->client?->city,
                     $number->detected_country,
                     $number->last_source_name,
                     $number->whats_app_messages_count,
@@ -63,19 +66,21 @@ class WhatsAppNumberController extends Controller
         abort_unless($number->whatsAppMessages()->exists(), 404);
 
         $number->load([
-            'client',
+            'client.region',
+            'client.geoCommunity',
             'client.phoneNumbers' => fn ($q) => $q
                 ->withCount('whatsAppMessages')
                 ->orderByDesc('is_primary')
                 ->orderBy('normalized_phone'),
-            'sources'      => fn ($q) => $q->where('channel', 'whatsapp')->latest(),
+            'sources'          => fn ($q) => $q->where('channel', 'whatsapp')->latest(),
             'whatsAppMessages' => fn ($q) => $q->with('campaign')->latest('scheduled_at'),
-            'suppressions' => fn ($q) => $q->where('channel', 'whatsapp')->whereNull('released_at')->latest('suppressed_at'),
+            'suppressions'     => fn ($q) => $q->where('channel', 'whatsapp')->whereNull('released_at')->latest('suppressed_at'),
             'whatsAppProfile',
         ]);
 
         return view('whatsapp::numbers.show', [
-            'number' => $number,
+            'number'  => $number,
+            'regions' => Region::with('communities')->orderBy('name')->get(),
         ]);
     }
 
@@ -84,15 +89,15 @@ class WhatsAppNumberController extends Controller
         abort_unless($number->client, 404);
 
         $data = $request->validate([
-            'full_name'   => ['nullable', 'string', 'max:255'],
-            'email'       => ['nullable', 'email', 'max:255'],
-            'gender'      => ['nullable', 'string', 'max:50'],
-            'city'        => ['nullable', 'string', 'max:100'],
-            'country'     => ['nullable', 'string', 'max:100'],
-            'nationality' => ['nullable', 'string', 'max:100'],
-            'community'   => ['nullable', 'string', 'max:100'],
-            'resident'    => ['nullable', 'string', 'max:100'],
-            'interest'    => ['nullable', 'string', 'max:255'],
+            'full_name'    => ['nullable', 'string', 'max:255'],
+            'email'        => ['nullable', 'email', 'max:255'],
+            'gender'       => ['nullable', 'string', 'max:50'],
+            'region_id'    => ['nullable', 'integer', 'exists:regions,id'],
+            'community_id' => ['nullable', 'integer', 'exists:communities,id'],
+            'country'      => ['nullable', 'string', 'max:100'],
+            'nationality'  => ['nullable', 'string', 'max:100'],
+            'resident'     => ['nullable', 'string', 'max:100'],
+            'interest'     => ['nullable', 'string', 'max:255'],
         ]);
 
         $number->client->update($data);
@@ -151,7 +156,7 @@ class WhatsAppNumberController extends Controller
             ->selectRaw('COUNT(whatsapp_messages.id) as whats_app_messages_count')
             ->selectRaw('EXISTS(SELECT 1 FROM contact_suppressions WHERE contact_suppressions.client_phone_number_id = client_phone_numbers.id AND contact_suppressions.channel = ? AND contact_suppressions.released_at IS NULL) as suppressed', ['whatsapp'])
             ->join('whatsapp_messages', 'whatsapp_messages.client_phone_number_id', '=', 'client_phone_numbers.id')
-            ->with('client')
+            ->with('client.region')
             ->groupBy('client_phone_numbers.id')
             ->orderByDesc('client_phone_numbers.created_at');
 
@@ -167,8 +172,12 @@ class WhatsAppNumberController extends Controller
             $query->where('client_phone_numbers.detected_country', $request->string('origin'));
         }
 
-        if ($request->filled('city')) {
-            $query->whereHas('client', fn ($q) => $q->where('city', $request->string('city')));
+        if ($request->filled('region')) {
+            $query->whereHas('client', fn ($q) => $q->where('region_id', $request->integer('region')));
+        }
+
+        if ($request->filled('community')) {
+            $query->whereHas('client', fn ($q) => $q->where('community_id', $request->integer('community')));
         }
 
         return $query;
@@ -207,16 +216,20 @@ class WhatsAppNumberController extends Controller
             ->pluck('detected_country');
     }
 
-    /** @return \Illuminate\Support\Collection<int, string> */
-    private function distinctCities()
+    /** @return \Illuminate\Database\Eloquent\Collection<int, Region> */
+    private function availableRegions()
     {
-        return DB::table('clients')
-            ->join('client_phone_numbers', 'client_phone_numbers.client_id', '=', 'clients.id')
-            ->join('whatsapp_messages', 'whatsapp_messages.client_phone_number_id', '=', 'client_phone_numbers.id')
-            ->whereNotNull('clients.city')
-            ->where('clients.city', '<>', '')
-            ->distinct()
-            ->orderBy('clients.city')
-            ->pluck('clients.city');
+        return Region::whereHas('clients', fn ($q) => $q->whereHas('phoneNumbers', fn ($q2) => $q2->whereHas('whatsAppMessages')))
+            ->orderBy('name')
+            ->get();
+    }
+
+    /** @return \Illuminate\Database\Eloquent\Collection<int, Community> */
+    private function availableCommunities()
+    {
+        return Community::whereHas('clients', fn ($q) => $q->whereHas('phoneNumbers', fn ($q2) => $q2->whereHas('whatsAppMessages')))
+            ->with('region')
+            ->orderBy('name')
+            ->get();
     }
 }

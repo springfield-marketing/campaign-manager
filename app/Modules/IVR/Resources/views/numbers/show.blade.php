@@ -16,8 +16,8 @@
                             <dd class="ui-strong">{{ $number->client?->full_name ?: '-' }}</dd>
                         </div>
                         <div>
-                            <dt class="ui-muted">City</dt>
-                            <dd class="ui-strong">{{ $number->client?->city ?: '-' }}</dd>
+                            <dt class="ui-muted">Emirate</dt>
+                            <dd class="ui-strong">{{ $number->client?->region?->name ?? ($number->client?->city ?: '-') }}</dd>
                         </div>
                         <div>
                             <dt class="ui-muted">Usage status</dt>
