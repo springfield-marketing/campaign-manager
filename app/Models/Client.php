@@ -14,11 +14,8 @@ class Client extends Model
     protected $fillable = [
         'full_name',
         'email',
-        'country',
         'nationality',
-        'community',
         'resident',
-        'city',
         'gender',
         'interest',
         'metadata',
@@ -34,10 +31,7 @@ class Client extends Model
         ];
     }
 
-    // Named geoCountry/geoCommunity to avoid colliding with the legacy
-    // text columns (country, community) that still exist during Phase 3.
-    // Rename to country()/community() once those columns are dropped in Phase 4.
-    public function geoCountry(): BelongsTo
+    public function country(): BelongsTo
     {
         return $this->belongsTo(Country::class, 'country_id');
     }
@@ -47,7 +41,7 @@ class Client extends Model
         return $this->belongsTo(Region::class);
     }
 
-    public function geoCommunity(): BelongsTo
+    public function community(): BelongsTo
     {
         return $this->belongsTo(Community::class, 'community_id');
     }

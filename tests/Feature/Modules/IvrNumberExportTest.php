@@ -19,7 +19,7 @@ class IvrNumberExportTest extends TestCase
     public function export_uses_one_best_eligible_number_per_client(): void
     {
         $user = User::factory()->create();
-        $client = Client::create(['full_name' => 'Aisha Client', 'city' => 'Dubai']);
+        $client = Client::create(['full_name' => 'Aisha Client']);
 
         $number1 = ClientPhoneNumber::create([
             'client_id' => $client->id,

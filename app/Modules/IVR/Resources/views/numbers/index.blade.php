@@ -147,7 +147,7 @@
                                 <tr>
                                     <td>{{ $number->client?->full_name ?: '-' }}</td>
                                     <td>{{ $number->normalized_phone }}</td>
-                                    <td>{{ $number->client?->region?->name ?? ($number->client?->city ?: '-') }}</td>
+                                    <td>{{ $number->client?->region?->name ?: '-' }}</td>
                                     <td>{{ $number->last_source_name ?: '-' }}</td>
                                     <td>{{ $number->ivr_use_count }}</td>
                                     <td>{{ ucfirst($number->ivrProfile?->usage_status ?? 'active') }}</td>

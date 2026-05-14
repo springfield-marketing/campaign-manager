@@ -160,7 +160,7 @@
                                 <tr>
                                     <td>{{ $number->normalized_phone }}</td>
                                     <td>{{ $number->client?->full_name ?: '-' }}</td>
-                                    <td>{{ $number->client?->region?->name ?? ($number->client?->city ?: '-') }}</td>
+                                    <td>{{ $number->client?->region?->name ?: '-' }}</td>
                                     <td>{{ $number->detected_country ?: '-' }}</td>
                                     <td>{{ $number->last_source_name ?: '-' }}</td>
                                     <td>{{ $number->whats_app_messages_count }}</td>

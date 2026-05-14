@@ -238,7 +238,7 @@ class IvrCampaignResultController extends Controller
                 'Nationality',
                 'Community',
                 'Resident',
-                'City',
+                'Emirate',
                 'Gender',
                 'Interest',
                 'Call Status',
@@ -249,7 +249,7 @@ class IvrCampaignResultController extends Controller
             ]);
 
             $campaign->callRecords()
-                ->with(['import', 'phoneNumber.client.geoCountry', 'phoneNumber.client.region', 'phoneNumber.client.geoCommunity'])
+                ->with(['import', 'phoneNumber.client.country', 'phoneNumber.client.region', 'phoneNumber.client.community'])
                 ->whereIn('dtmf_outcome', self::LEAD_OUTCOMES)
                 ->latest('call_time')
                 ->chunk(500, function ($leads) use ($handle, $campaign): void {
@@ -262,11 +262,11 @@ class IvrCampaignResultController extends Controller
                             $client?->full_name,
                             $lead->phoneNumber?->normalized_phone,
                             $client?->email,
-                            $client?->geoCountry?->name ?? $client?->country,
+                            $client?->country?->name,
                             $client?->nationality,
-                            $client?->geoCommunity?->name ?? $client?->community,
+                            $client?->community?->name,
                             $client?->resident,
-                            $client?->region?->name ?? $client?->city,
+                            $client?->region?->name,
                             $client?->gender,
                             $client?->interest,
                             $lead->call_status,
@@ -309,7 +309,7 @@ class IvrCampaignResultController extends Controller
                 'Nationality',
                 'Community',
                 'Resident',
-                'City',
+                'Emirate',
                 'Gender',
                 'Interest',
                 'Call Direction',
@@ -330,7 +330,7 @@ class IvrCampaignResultController extends Controller
             ]);
 
             IvrCallRecord::query()
-                ->with(['campaign', 'import', 'phoneNumber.client.geoCountry', 'phoneNumber.client.region', 'phoneNumber.client.geoCommunity'])
+                ->with(['campaign', 'import', 'phoneNumber.client.country', 'phoneNumber.client.region', 'phoneNumber.client.community'])
                 ->whereBetween('call_time', [$from, $to])
                 ->orderBy('call_time')
                 ->orderBy('id')
@@ -348,11 +348,11 @@ class IvrCampaignResultController extends Controller
                             $client?->full_name,
                             $record->phoneNumber?->normalized_phone,
                             $client?->email,
-                            $client?->geoCountry?->name ?? $client?->country,
+                            $client?->country?->name,
                             $client?->nationality,
-                            $client?->geoCommunity?->name ?? $client?->community,
+                            $client?->community?->name,
                             $client?->resident,
-                            $client?->region?->name ?? $client?->city,
+                            $client?->region?->name,
                             $client?->gender,
                             $client?->interest,
                             $record->call_direction,

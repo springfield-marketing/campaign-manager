@@ -50,7 +50,7 @@ class WhatsAppNumberController extends Controller
                 fputcsv($handle, [
                     $number->normalized_phone,
                     $number->client?->full_name,
-                    $number->client?->region?->name ?? $number->client?->city,
+                    $number->client?->region?->name,
                     $number->detected_country,
                     $number->last_source_name,
                     $number->whats_app_messages_count,
@@ -68,7 +68,7 @@ class WhatsAppNumberController extends Controller
 
         $number->load([
             'client.region',
-            'client.geoCommunity',
+            'client.community',
             'client.phoneNumbers' => fn ($q) => $q
                 ->withCount('whatsAppMessages')
                 ->orderByDesc('is_primary')
@@ -95,7 +95,6 @@ class WhatsAppNumberController extends Controller
             'gender'       => ['nullable', 'string', 'max:50'],
             'region_id'    => ['nullable', 'integer', 'exists:regions,id'],
             'community_id' => ['nullable', 'integer', 'exists:communities,id'],
-            'country'      => ['nullable', 'string', 'max:100'],
             'nationality'  => ['nullable', 'string', 'max:100'],
             'resident'     => ['nullable', 'string', 'max:100'],
             'interest'     => ['nullable', 'string', 'max:255'],

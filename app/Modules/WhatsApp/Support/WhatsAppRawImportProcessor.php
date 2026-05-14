@@ -199,11 +199,8 @@ class WhatsAppRawImportProcessor
             $client = Client::create([
                 'full_name'    => $payload['name'],
                 'email'        => $payload['email'] ?? null,
-                'country'      => $payload['country'] ?? null,
                 'nationality'  => $payload['nationality'] ?? null,
-                'community'    => $payload['community'] ?? null,
                 'resident'     => $payload['resident'] ?? null,
-                'city'         => $payload['city'] ?? null,
                 'gender'       => $payload['gender'] ?? null,
                 'interest'     => $payload['interest'] ?? null,
                 'region_id'    => $regionId,
@@ -229,11 +226,8 @@ class WhatsAppRawImportProcessor
             $client->fill(array_filter([
                 'full_name'    => $client->full_name    ?: $payload['name'],
                 'email'        => $client->email         ?: ($payload['email'] ?? null),
-                'country'      => $client->country       ?: ($payload['country'] ?? null),
                 'nationality'  => $client->nationality   ?: ($payload['nationality'] ?? null),
-                'community'    => $client->community     ?: ($payload['community'] ?? null),
                 'resident'     => $client->resident      ?: ($payload['resident'] ?? null),
-                'city'         => $client->city          ?: ($payload['city'] ?? null),
                 'gender'       => $client->gender        ?: ($payload['gender'] ?? null),
                 'interest'     => $client->interest      ?: ($payload['interest'] ?? null),
                 'region_id'    => $client->region_id    ?: $regionId,

@@ -77,10 +77,6 @@
                                     @error('community_id') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
                                 </div>
                                 <div>
-                                    <label class="ui-muted block mb-1">Country</label>
-                                    <input type="text" name="country" value="{{ old('country', $number->client->country) }}" class="ui-control w-full">
-                                </div>
-                                <div>
                                     <label class="ui-muted block mb-1">Nationality</label>
                                     <input type="text" name="nationality" value="{{ old('nationality', $number->client->nationality) }}" class="ui-control w-full">
                                 </div>
@@ -112,15 +108,15 @@
                                 </div>
                                 <div>
                                     <dt class="ui-muted">Emirate</dt>
-                                    <dd class="ui-strong">{{ $number->client?->region?->name ?? ($number->client?->city ?: '-') }}</dd>
+                                    <dd class="ui-strong">{{ $number->client?->region?->name ?: '-' }}</dd>
                                 </div>
                                 <div>
                                     <dt class="ui-muted">Community</dt>
-                                    <dd class="ui-strong">{{ $number->client?->geoCommunity?->name ?? ($number->client?->community ?: '-') }}</dd>
+                                    <dd class="ui-strong">{{ $number->client?->community?->name ?: '-' }}</dd>
                                 </div>
                                 <div>
                                     <dt class="ui-muted">Country</dt>
-                                    <dd class="ui-strong">{{ $number->client?->country ?: '-' }}</dd>
+                                    <dd class="ui-strong">{{ $number->client?->country?->name ?: '-' }}</dd>
                                 </div>
                                 <div>
                                     <dt class="ui-muted">Nationality</dt>

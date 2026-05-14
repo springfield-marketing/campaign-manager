@@ -117,7 +117,7 @@
                                 <th>Name</th>
                                 <th>Phone</th>
                                 <th>Email</th>
-                                <th>City</th>
+                                <th>Emirate</th>
                                 <th>Source</th>
                                 <th>Outcome</th>
                                 <th>Duration</th>
@@ -130,7 +130,7 @@
                                     <td>{{ $lead->phoneNumber?->client?->full_name ?: '-' }}</td>
                                     <td>{{ $lead->phoneNumber?->normalized_phone }}</td>
                                     <td>{{ $lead->phoneNumber?->client?->email ?: '-' }}</td>
-                                    <td>{{ $lead->phoneNumber?->client?->city ?: '-' }}</td>
+                                    <td>{{ $lead->phoneNumber?->client?->region?->name ?: '-' }}</td>
                                     <td>{{ $lead->phoneNumber?->last_source_name ?: '-' }}</td>
                                     <td>{{ ucfirst(str_replace('_', ' ', $lead->dtmf_outcome)) }}</td>
                                     <td>{{ gmdate('H:i:s', $lead->total_duration_seconds) }}</td>
