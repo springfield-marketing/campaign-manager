@@ -46,6 +46,46 @@
                         $excludedSources = collect(request()->input('source_exclude', []))->map(fn ($source) => (string) $source)->all();
                     @endphp
 
+                    {{-- Primary filters --}}
+                    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        <div>
+                            <label class="ui-label">Phone</label>
+                            <input type="search" name="phone" value="{{ request('phone') }}" placeholder="Search number" class="ui-control mt-1 w-full">
+                        </div>
+                        <div>
+                            <label class="ui-label">Emirate</label>
+                            <select name="region" class="ui-control mt-1 w-full">
+                                <option value="">All emirates</option>
+                                @foreach ($regions as $region)
+                                    <option value="{{ $region->id }}" @selected(request('region') == $region->id)>{{ $region->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="ui-label">Community</label>
+                            <select name="community" class="ui-control mt-1 w-full">
+                                <option value="">All communities</option>
+                                @foreach ($communities->groupBy(fn ($c) => $c->region?->name) as $emirate => $group)
+                                    <optgroup label="{{ $emirate }}">
+                                        @foreach ($group->sortBy('name') as $community)
+                                            <option value="{{ $community->id }}" @selected(request('community') == $community->id)>{{ $community->name }}</option>
+                                        @endforeach
+                                    </optgroup>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="ui-label">Status</label>
+                            <select name="status" class="ui-control mt-1 w-full">
+                                <option value="">All statuses</option>
+                                @foreach (['active', 'inactive', 'dead'] as $status)
+                                    <option value="{{ $status }}" @selected(request('status') == $status)>{{ ucfirst($status) }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+
+                    {{-- Source filters --}}
                     <div class="grid gap-3 md:grid-cols-2">
                         <div>
                             <label for="source_include" class="ui-label">Include sources</label>
@@ -55,7 +95,6 @@
                                 @endforeach
                             </select>
                         </div>
-
                         <div>
                             <label for="source_exclude" class="ui-label">Exclude sources</label>
                             <select id="source_exclude" name="source_exclude[]" multiple size="5" class="ui-control mt-1 w-full">
@@ -66,37 +105,24 @@
                         </div>
                     </div>
 
-                    <div class="grid gap-3 md:grid-cols-8">
-                    <input type="search" name="phone" value="{{ request('phone') }}" placeholder="Search number" class="ui-control">
-                    <select name="region" class="ui-control">
-                        <option value="">All emirates</option>
-                        @foreach ($regions as $region)
-                            <option value="{{ $region->id }}" @selected(request('region') == $region->id)>{{ $region->name }}</option>
-                        @endforeach
-                    </select>
-                    <select name="community" class="ui-control">
-                        <option value="">All communities</option>
-                        @foreach ($communities->groupBy(fn ($c) => $c->region?->name) as $emirate => $group)
-                            <optgroup label="{{ $emirate }}">
-                                @foreach ($group->sortBy('name') as $community)
-                                    <option value="{{ $community->id }}" @selected(request('community') == $community->id)>{{ $community->name }}</option>
-                                @endforeach
-                            </optgroup>
-                        @endforeach
-                    </select>
-                    <select name="status" class="ui-control">
-                        <option value="">All statuses</option>
-                        @foreach (['active', 'inactive', 'dead'] as $status)
-                            <option value="{{ $status }}" @selected(request('status') == $status)>{{ ucfirst($status) }}</option>
-                        @endforeach
-                    </select>
-                    <input type="number" name="uses_min" value="{{ request('uses_min') }}" placeholder="Min uses" class="ui-control">
-                    <input type="number" name="uses_max" value="{{ request('uses_max') }}" placeholder="Max uses" class="ui-control">
-                    <input type="number" name="export_limit" min="1" max="50000" value="{{ request('export_limit', 1000) }}" placeholder="Export rows" class="ui-control">
-                    <div class="flex gap-2">
-                        <button type="submit" class="ui-button">Filter</button>
-                        <button type="submit" formaction="{{ route('modules.ivr.numbers.export') }}" class="ui-button">Export</button>
-                    </div>
+                    {{-- Uses, export limit, actions --}}
+                    <div class="flex flex-wrap items-end gap-3">
+                        <div>
+                            <label class="ui-label">Min uses</label>
+                            <input type="number" name="uses_min" value="{{ request('uses_min') }}" placeholder="0" class="ui-control mt-1 w-28">
+                        </div>
+                        <div>
+                            <label class="ui-label">Max uses</label>
+                            <input type="number" name="uses_max" value="{{ request('uses_max') }}" placeholder="∞" class="ui-control mt-1 w-28">
+                        </div>
+                        <div>
+                            <label class="ui-label">Export limit</label>
+                            <input type="number" name="export_limit" min="1" max="50000" value="{{ request('export_limit', 1000) }}" class="ui-control mt-1 w-28">
+                        </div>
+                        <div class="flex gap-2">
+                            <button type="submit" class="ui-button">Filter</button>
+                            <button type="submit" formaction="{{ route('modules.ivr.numbers.export') }}" class="ui-button">Export</button>
+                        </div>
                     </div>
                 </form>
             </div>
