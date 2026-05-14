@@ -26,9 +26,49 @@
 
             {{-- Filters + Export --}}
             <div class="ui-card ui-card-pad">
-                <form method="GET" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_auto_auto]" id="numbers-filter-form">
+                <form method="GET" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_1fr_auto_auto]" id="numbers-filter-form">
                     <input type="search" name="phone" value="{{ request('phone') }}" placeholder="Phone number" class="ui-control">
-                    <input type="search" name="name" value="{{ request('name') }}" placeholder="Client name" class="ui-control">
+
+                    {{-- Name combobox --}}
+                    <div
+                        class="relative"
+                        x-data="combobox({ options: @js($names->values()->all()), name: 'name', value: '{{ request('name') }}' })"
+                    >
+                        <div class="relative flex items-center">
+                            <input
+                                type="text"
+                                class="ui-control w-full pr-7"
+                                placeholder="Client name"
+                                autocomplete="off"
+                                x-model="query"
+                                @focus="open = true"
+                                @blur="onBlur()"
+                                @keydown.escape="onBlur()"
+                            >
+                            <button
+                                type="button"
+                                class="absolute right-2 text-gray-400 hover:text-gray-600"
+                                x-show="selected"
+                                @mousedown.prevent="clear()"
+                                tabindex="-1"
+                            >&times;</button>
+                        </div>
+                        <input type="hidden" :name="name" :value="selected">
+                        <ul
+                            x-show="open && filtered.length > 0"
+                            x-cloak
+                            class="absolute z-20 mt-1 max-h-48 w-full overflow-y-auto rounded border border-[var(--line)] bg-theme-surface shadow-lg text-sm"
+                        >
+                            <template x-for="option in filtered" :key="option">
+                                <li
+                                    class="cursor-pointer px-3 py-2 hover:bg-theme-subtle"
+                                    :class="{ 'bg-theme-subtle font-medium': option === selected }"
+                                    @mousedown.prevent="select(option)"
+                                    x-text="option"
+                                ></li>
+                            </template>
+                        </ul>
+                    </div>
 
                     {{-- Origin combobox --}}
                     <div

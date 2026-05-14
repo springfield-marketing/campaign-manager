@@ -27,6 +27,7 @@ class WhatsAppNumberController extends Controller
             'numbers'     => $numbers,
             'stats'       => $this->stats(),
             'origins'     => $this->distinctOrigins(),
+            'names'       => $this->distinctNames(),
             'regions'     => $this->availableRegions(),
             'communities' => $this->availableCommunities(),
         ]);
@@ -214,6 +215,19 @@ class WhatsAppNumberController extends Controller
             ->distinct()
             ->orderBy('detected_country')
             ->pluck('detected_country');
+    }
+
+    /** @return \Illuminate\Support\Collection<int, string> */
+    private function distinctNames()
+    {
+        return DB::table('clients')
+            ->join('client_phone_numbers', 'client_phone_numbers.client_id', '=', 'clients.id')
+            ->join('whatsapp_messages', 'whatsapp_messages.client_phone_number_id', '=', 'client_phone_numbers.id')
+            ->whereNotNull('clients.full_name')
+            ->where('clients.full_name', '<>', '')
+            ->distinct()
+            ->orderBy('clients.full_name')
+            ->pluck('clients.full_name');
     }
 
     /** @return \Illuminate\Database\Eloquent\Collection<int, Region> */
