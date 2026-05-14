@@ -66,12 +66,22 @@
                         </div>
                     </div>
 
-                    <div class="grid gap-3 md:grid-cols-7">
+                    <div class="grid gap-3 md:grid-cols-8">
                     <input type="search" name="phone" value="{{ request('phone') }}" placeholder="Search number" class="ui-control">
                     <select name="region" class="ui-control">
                         <option value="">All emirates</option>
                         @foreach ($regions as $region)
                             <option value="{{ $region->id }}" @selected(request('region') == $region->id)>{{ $region->name }}</option>
+                        @endforeach
+                    </select>
+                    <select name="community" class="ui-control">
+                        <option value="">All communities</option>
+                        @foreach ($communities->groupBy(fn ($c) => $c->region?->name) as $emirate => $group)
+                            <optgroup label="{{ $emirate }}">
+                                @foreach ($group->sortBy('name') as $community)
+                                    <option value="{{ $community->id }}" @selected(request('community') == $community->id)>{{ $community->name }}</option>
+                                @endforeach
+                            </optgroup>
                         @endforeach
                     </select>
                     <select name="status" class="ui-control">

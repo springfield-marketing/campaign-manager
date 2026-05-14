@@ -4,6 +4,7 @@ namespace App\Modules\IVR\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\ClientPhoneNumber;
+use App\Models\Community;
 use App\Models\Region;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -30,7 +31,8 @@ class IvrNumberController extends Controller
                 ->distinct()
                 ->orderBy('source_name')
                 ->pluck('source_name'),
-            'regions' => Region::orderBy('name')->get(),
+            'regions'     => Region::orderBy('name')->get(),
+            'communities' => Community::with('region')->orderBy('name')->get(),
         ]);
     }
 
@@ -169,6 +171,10 @@ class IvrNumberController extends Controller
 
         if ($request->filled('region')) {
             $query->whereHas('client', fn ($builder) => $builder->where('region_id', $request->integer('region')));
+        }
+
+        if ($request->filled('community')) {
+            $query->whereHas('client', fn ($builder) => $builder->where('community_id', $request->integer('community')));
         }
 
         if ($applyStatusFilter && $request->filled('status')) {
