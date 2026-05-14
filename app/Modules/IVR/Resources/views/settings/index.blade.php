@@ -65,6 +65,40 @@
                     </div>
 
                     <div class="md:col-span-2">
+                        <hr class="border-[var(--line)]">
+                        <h4 class="ui-label mt-6">Cooldown periods</h4>
+                        <p class="mt-1 text-sm ui-muted">How long a number is held back from the next campaign after a call.</p>
+                    </div>
+
+                    <div>
+                        <label class="ui-label" for="cooldown_answered_days">Answered call cooldown — days</label>
+                        <input
+                            id="cooldown_answered_days"
+                            name="cooldown_answered_days"
+                            type="number"
+                            min="1"
+                            max="365"
+                            value="{{ old('cooldown_answered_days', $settings->cooldown_answered_days) }}"
+                            class="ui-control mt-1 block w-full"
+                        >
+                        <x-input-error :messages="$errors->get('cooldown_answered_days')" class="mt-2" />
+                    </div>
+
+                    <div>
+                        <label class="ui-label" for="cooldown_missed_days">Missed call cooldown — days</label>
+                        <input
+                            id="cooldown_missed_days"
+                            name="cooldown_missed_days"
+                            type="number"
+                            min="1"
+                            max="365"
+                            value="{{ old('cooldown_missed_days', $settings->cooldown_missed_days) }}"
+                            class="ui-control mt-1 block w-full"
+                        >
+                        <x-input-error :messages="$errors->get('cooldown_missed_days')" class="mt-2" />
+                    </div>
+
+                    <div class="md:col-span-2">
                         <button type="submit" class="ui-button">Save settings</button>
                     </div>
                 </form>

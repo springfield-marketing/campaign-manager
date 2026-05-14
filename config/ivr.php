@@ -3,7 +3,7 @@
 return [
     'cooldowns' => [
         'missed_days' => 1,
-        'answered_days' => 45,
+        'answered_days' => 14,
     ],
 
     'eligibility' => [

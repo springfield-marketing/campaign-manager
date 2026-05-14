@@ -4,10 +4,18 @@ namespace App\Modules\IVR\Support;
 
 use App\Models\ClientPhoneNumber;
 use App\Modules\IVR\Models\IvrPhoneProfile;
+use App\Modules\IVR\Models\IvrSettings;
 use Carbon\CarbonInterface;
 
 class NumberEligibilityService
 {
+    private IvrSettings $settings;
+
+    public function __construct()
+    {
+        $this->settings = IvrSettings::current();
+    }
+
     public function refresh(ClientPhoneNumber $phoneNumber): void
     {
         $lastCall = $phoneNumber->ivrCallRecords()->latest('call_time')->first();
@@ -17,8 +25,8 @@ class NumberEligibilityService
 
         if ($lastCall && $lastCall->call_time instanceof CarbonInterface) {
             $cooldownUntil = strcasecmp((string) $lastCall->call_status, 'Answered') === 0
-                ? $lastCall->call_time->copy()->addDays((int) config('ivr.cooldowns.answered_days', 45))
-                : $lastCall->call_time->copy()->addDays((int) config('ivr.cooldowns.missed_days', 1));
+                ? $lastCall->call_time->copy()->addDays($this->settings->cooldown_answered_days)
+                : $lastCall->call_time->copy()->addDays($this->settings->cooldown_missed_days);
         }
 
         $isSuppressed = $phoneNumber->unsubscribed_at !== null;

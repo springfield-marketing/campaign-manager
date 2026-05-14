@@ -29,9 +29,11 @@ class IvrSettingsController extends Controller
     public function update(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'monthly_minutes_quota' => ['required', 'integer', 'min:1', 'max:10000000'],
+            'monthly_minutes_quota'  => ['required', 'integer', 'min:1', 'max:10000000'],
             'price_per_minute_under' => ['required', 'numeric', 'min:0', 'max:100'],
-            'price_per_minute_over' => ['required', 'numeric', 'min:0', 'max:100'],
+            'price_per_minute_over'  => ['required', 'numeric', 'min:0', 'max:100'],
+            'cooldown_answered_days' => ['required', 'integer', 'min:1', 'max:365'],
+            'cooldown_missed_days'   => ['required', 'integer', 'min:1', 'max:365'],
         ]);
 
         IvrSettings::current()->update($validated);
