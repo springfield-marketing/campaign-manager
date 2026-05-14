@@ -145,6 +145,7 @@
         border-color: var(--accent);
         border-radius: var(--radius);
         color: var(--accent-ink);
+        min-height: 2.625rem;
     }
 
     .ui-button-subtle {
@@ -153,6 +154,7 @@
         border-color: var(--line);
         border-radius: var(--radius);
         color: var(--ink-soft);
+        min-height: 2.625rem;
     }
 
     .ui-button-subtle:hover,
