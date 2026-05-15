@@ -272,14 +272,39 @@
                                     <dt class="ui-muted">Last imported</dt>
                                     <dd class="ui-strong">{{ optional($number->last_imported_at)->format('Y-m-d H:i') ?: '-' }}</dd>
                                 </div>
+                                @php
+                                    $wpProfile   = $number->whatsAppProfile;
+                                    $wpStatus    = $wpProfile?->usage_status ?? 'active';
+                                    $statusColor = match ($wpStatus) {
+                                        'dead'     => 'text-red-600',
+                                        'cooldown' => 'text-amber-600',
+                                        default    => 'text-green-600',
+                                    };
+                                @endphp
                                 <div>
-                                    <dt class="ui-muted">Consecutive failures</dt>
-                                    <dd class="ui-strong">{{ $number->whatsAppProfile?->consecutive_failed_count ?? 0 }}</dd>
+                                    <dt class="ui-muted">WhatsApp status</dt>
+                                    <dd class="font-medium {{ $statusColor }}">{{ ucfirst($wpStatus) }}</dd>
+                                </div>
+                                @if ($wpStatus === 'cooldown' && $wpProfile?->cooldown_until)
+                                <div>
+                                    <dt class="ui-muted">Cooldown until</dt>
+                                    <dd class="ui-strong">{{ $wpProfile->cooldown_until->format('Y-m-d H:i') }}</dd>
+                                </div>
+                                @endif
+                                <div>
+                                    <dt class="ui-muted">Consecutive hard fails</dt>
+                                    <dd class="ui-strong">{{ $wpProfile?->consecutive_hard_fail_count ?? 0 }}</dd>
                                 </div>
                                 <div>
                                     <dt class="ui-muted">Last message status</dt>
-                                    <dd class="ui-strong">{{ $number->whatsAppProfile?->last_message_status ?? '-' }}</dd>
+                                    <dd class="ui-strong">{{ $wpProfile?->last_message_status ?? '-' }}</dd>
                                 </div>
+                                @if ($wpProfile?->last_failure_reason)
+                                <div>
+                                    <dt class="ui-muted">Last failure reason</dt>
+                                    <dd class="ui-strong text-xs leading-relaxed">{{ $wpProfile->last_failure_reason }}</dd>
+                                </div>
+                                @endif
                                 <div>
                                     <dt class="ui-muted">WhatsApp suppressed</dt>
                                     <dd class="ui-strong">

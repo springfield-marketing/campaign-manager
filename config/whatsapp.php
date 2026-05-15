@@ -2,10 +2,25 @@
 
 return [
     /*
-     * Number of consecutive FAILED messages required before a phone number
-     * is automatically suppressed on the WhatsApp channel.
+     * Number of consecutive hard-fail messages (genuinely undeliverable, not
+     * system errors or temporary holds) before a number is marked dead.
      */
-    'failure_threshold' => (int) env('WHATSAPP_FAILURE_THRESHOLD', 3),
+    'hard_fail_threshold' => (int) env('WHATSAPP_HARD_FAIL_THRESHOLD', 3),
+
+    /*
+     * If a number has been messaged this many times or more and every non-system
+     * message is a hard fail, it is marked dead regardless of consecutiveness.
+     */
+    'bulk_dead_threshold' => (int) env('WHATSAPP_BULK_DEAD_THRESHOLD', 10),
+
+    /*
+     * Cooldown periods (days) applied per failure-reason category.
+     */
+    'cooldown_days' => [
+        'quality_hold' => (int) env('WHATSAPP_COOLDOWN_QUALITY_HOLD', 3),
+        'experiment'   => (int) env('WHATSAPP_COOLDOWN_EXPERIMENT', 7),
+        'regional'     => (int) env('WHATSAPP_COOLDOWN_REGIONAL', 30),
+    ],
 
     'raw_import' => [
         'required' => ['name', 'phone'],

@@ -30,12 +30,22 @@ class WhatsAppNumberController extends Controller
             'names'       => $this->distinctNames(),
             'regions'     => $this->availableRegions(),
             'communities' => $this->availableCommunities(),
+            'statuses'    => ['active', 'cooldown', 'dead'],
         ]);
     }
 
     public function export(Request $request): StreamedResponse
     {
         $numbers = $this->buildQuery($request)
+            ->where(function (Builder $q): void {
+                // Exclude dead numbers and numbers still in active cooldown
+                $q->whereNull('whatsapp_phone_profiles.usage_status')
+                  ->orWhere('whatsapp_phone_profiles.usage_status', 'active')
+                  ->orWhere(function (Builder $q2): void {
+                      $q2->where('whatsapp_phone_profiles.usage_status', 'cooldown')
+                         ->where('whatsapp_phone_profiles.cooldown_until', '<=', now());
+                  });
+            })
             ->with('client.region')
             ->get();
 
@@ -155,9 +165,12 @@ class WhatsAppNumberController extends Controller
             ->select('client_phone_numbers.*')
             ->selectRaw('COUNT(whatsapp_messages.id) as whats_app_messages_count')
             ->selectRaw('EXISTS(SELECT 1 FROM contact_suppressions WHERE contact_suppressions.client_phone_number_id = client_phone_numbers.id AND contact_suppressions.channel = ? AND contact_suppressions.released_at IS NULL) as suppressed', ['whatsapp'])
+            ->selectRaw("COALESCE(whatsapp_phone_profiles.usage_status, 'active') as wp_usage_status")
+            ->selectRaw('whatsapp_phone_profiles.cooldown_until as wp_cooldown_until')
             ->join('whatsapp_messages', 'whatsapp_messages.client_phone_number_id', '=', 'client_phone_numbers.id')
+            ->leftJoin('whatsapp_phone_profiles', 'whatsapp_phone_profiles.client_phone_number_id', '=', 'client_phone_numbers.id')
             ->with('client.region')
-            ->groupBy('client_phone_numbers.id')
+            ->groupBy('client_phone_numbers.id', 'whatsapp_phone_profiles.usage_status', 'whatsapp_phone_profiles.cooldown_until')
             ->orderByDesc('client_phone_numbers.created_at');
 
         if ($request->filled('phone')) {
@@ -180,20 +193,43 @@ class WhatsAppNumberController extends Controller
             $query->whereHas('client', fn ($q) => $q->where('community_id', $request->integer('community')));
         }
 
+        if ($request->filled('status')) {
+            $status = $request->string('status')->toString();
+            if ($status === 'dead') {
+                $query->where('whatsapp_phone_profiles.usage_status', 'dead');
+            } elseif ($status === 'cooldown') {
+                $query->where('whatsapp_phone_profiles.usage_status', 'cooldown')
+                      ->where('whatsapp_phone_profiles.cooldown_until', '>', now());
+            } elseif ($status === 'active') {
+                $query->where(function (Builder $q): void {
+                    $q->whereNull('whatsapp_phone_profiles.usage_status')
+                      ->orWhere('whatsapp_phone_profiles.usage_status', 'active');
+                });
+            }
+        }
+
         return $query;
     }
 
     /** @return array<string, int> */
     private function stats(): array
     {
-        $base = ClientPhoneNumber::query()
-            ->join('whatsapp_messages', 'whatsapp_messages.client_phone_number_id', '=', 'client_phone_numbers.id')
-            ->groupBy('client_phone_numbers.id');
-
-        $total = (clone $base)->selectRaw('client_phone_numbers.id')->toBase()->get()->count();
+        $total = DB::table('whatsapp_messages')
+            ->whereNotNull('client_phone_number_id')
+            ->distinct('client_phone_number_id')
+            ->count('client_phone_number_id');
 
         $suppressed = ClientPhoneNumber::whereHas('whatsAppMessages')
             ->whereHas('suppressions', fn ($q) => $q->where('channel', 'whatsapp')->whereNull('released_at'))
+            ->count();
+
+        $dead = DB::table('whatsapp_phone_profiles')
+            ->whereIn('client_phone_number_id', function ($q): void {
+                $q->select('client_phone_number_id')
+                  ->from('whatsapp_messages')
+                  ->whereNotNull('client_phone_number_id');
+            })
+            ->where('usage_status', 'dead')
             ->count();
 
         $origins = ClientPhoneNumber::whereHas('whatsAppMessages')
@@ -201,7 +237,7 @@ class WhatsAppNumberController extends Controller
             ->distinct()
             ->count('detected_country');
 
-        return compact('total', 'suppressed', 'origins');
+        return compact('total', 'suppressed', 'dead', 'origins');
     }
 
     /** @return \Illuminate\Support\Collection<int, string> */

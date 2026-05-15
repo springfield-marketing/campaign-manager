@@ -9,10 +9,14 @@
         <div class="page-wrap space-y-6">
 
             {{-- Stats --}}
-            <section class="grid gap-4 sm:grid-cols-3">
+            <section class="grid gap-4 sm:grid-cols-4">
                 <article class="ui-card ui-card-pad">
                     <p class="text-sm ui-muted">Total numbers</p>
                     <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($stats['total']) }}</p>
+                </article>
+                <article class="ui-card ui-card-pad">
+                    <p class="text-sm ui-muted">Dead</p>
+                    <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($stats['dead']) }}</p>
                 </article>
                 <article class="ui-card ui-card-pad">
                     <p class="text-sm ui-muted">Suppressed</p>
@@ -26,7 +30,7 @@
 
             {{-- Filters + Export --}}
             <div class="ui-card ui-card-pad">
-                <form method="GET" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_1fr_auto_auto]" id="numbers-filter-form">
+                <form method="GET" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr_auto_auto]" id="numbers-filter-form">
                     <input type="search" name="phone" value="{{ request('phone') }}" placeholder="Phone number" class="ui-control">
 
                     {{-- Name combobox --}}
@@ -131,6 +135,14 @@
                         @endforeach
                     </select>
 
+                    {{-- Status select --}}
+                    <select name="status" class="ui-control">
+                        <option value="">All statuses</option>
+                        @foreach ($statuses as $status)
+                            <option value="{{ $status }}" @selected(request('status') === $status)>{{ ucfirst($status) }}</option>
+                        @endforeach
+                    </select>
+
                     <button type="submit" class="ui-button">Filter</button>
                     <button
                         type="submit"
@@ -152,11 +164,20 @@
                                 <th>Origin</th>
                                 <th>Source</th>
                                 <th>Messages</th>
+                                <th>Status</th>
                                 <th></th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse ($numbers as $number)
+                                @php
+                                    $wpStatus = $number->wp_usage_status ?? 'active';
+                                    $statusColour = match ($wpStatus) {
+                                        'dead'     => 'text-red-600',
+                                        'cooldown' => 'text-amber-600',
+                                        default    => 'text-green-600',
+                                    };
+                                @endphp
                                 <tr>
                                     <td>{{ $number->normalized_phone }}</td>
                                     <td>{{ $number->client?->full_name ?: '-' }}</td>
@@ -164,13 +185,14 @@
                                     <td>{{ $number->detected_country ?: '-' }}</td>
                                     <td>{{ $number->last_source_name ?: '-' }}</td>
                                     <td>{{ $number->whats_app_messages_count }}</td>
+                                    <td class="font-medium {{ $statusColour }}">{{ ucfirst($wpStatus) }}</td>
                                     <td>
                                         <a href="{{ route('modules.whatsapp.numbers.show', $number) }}" class="ui-link">View</a>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="ui-empty">No numbers found.</td>
+                                    <td colspan="8" class="ui-empty">No numbers found.</td>
                                 </tr>
                             @endforelse
                         </tbody>
