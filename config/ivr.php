@@ -17,7 +17,6 @@ return [
             'name' => ['name'],
             'phone' => ['phone', 'mobile', 'phone number', 'contact number'],
             'email' => ['email', 'email address'],
-            'country' => ['country'],
             'nationality' => ['nationality'],
             'community' => ['community'],
             'resident' => ['resident', 'residency', 'resident status'],

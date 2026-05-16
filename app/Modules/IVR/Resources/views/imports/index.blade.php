@@ -59,7 +59,8 @@
                         <div>
                             <p class="font-medium text-theme-primary">Optional columns</p>
                             <p class="mt-1 ui-muted">
-                                You may also include email, country, nationality, community, resident, city, gender, interest, and source.
+                                You may also include email, nationality, community, resident, city, gender, interest, and source.
+                                <em>city</em> is used to set the emirate and <em>community</em> sets the community.
                                 Phone numbers can be UAE local or international format, such as 0501234567 or +971501234567.
                             </p>
                         </div>
