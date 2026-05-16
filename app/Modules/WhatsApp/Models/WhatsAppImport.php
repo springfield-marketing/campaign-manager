@@ -49,6 +49,11 @@ class WhatsAppImport extends Model
         return $this->hasMany(WhatsAppMessage::class, 'whatsapp_import_id');
     }
 
+    public function errors(): HasMany
+    {
+        return $this->hasMany(WhatsAppImportError::class, 'whatsapp_import_id');
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by');

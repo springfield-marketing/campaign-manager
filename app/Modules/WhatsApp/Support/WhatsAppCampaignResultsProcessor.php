@@ -113,6 +113,13 @@ class WhatsAppCampaignResultsProcessor
                 } catch (Throwable $throwable) {
                     $failed++;
 
+                    $import->errors()->create([
+                        'row_number'    => $rowNumber,
+                        'error_type'    => 'row_validation',
+                        'error_message' => $throwable->getMessage(),
+                        'row_payload'   => $row ?? null,
+                    ]);
+
                     Log::channel('whatsapp')->warning('Campaign results row failed.', [
                         'import_id' => $import->id,
                         'row_number' => $rowNumber,

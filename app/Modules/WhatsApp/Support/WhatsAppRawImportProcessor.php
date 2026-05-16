@@ -77,6 +77,14 @@ class WhatsAppRawImportProcessor
                     $duplicates += $duplicate ? 1 : 0;
                 } catch (Throwable $e) {
                     $failed++;
+
+                    $import->errors()->create([
+                        'row_number'    => $rowNumber,
+                        'error_type'    => 'row_validation',
+                        'error_message' => $e->getMessage(),
+                        'row_payload'   => $row ?? null,
+                    ]);
+
                     Log::channel('whatsapp')->warning('WhatsApp raw import row failed.', [
                         'import_id'  => $import->id,
                         'row_number' => $rowNumber,

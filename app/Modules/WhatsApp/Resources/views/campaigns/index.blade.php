@@ -77,6 +77,10 @@
                                                 <span class="capitalize" x-text="item.status_label">{{ $import->statusLabel() }}</span>
                                             </span>
 
+                                            @if ($import->failed_rows > 0)
+                                                <a href="{{ route('modules.whatsapp.imports.show', $import) }}" class="ui-pill text-red-600">View errors</a>
+                                            @endif
+
                                             @if (! in_array($import->status, ['pending', 'processing', 'reverted'], true) && $import->reverted_at === null)
                                                 <form method="POST" action="{{ route('modules.whatsapp.imports.destroy', $import) }}" onsubmit="return confirm('Revert this import? This will remove its campaign messages.');">
                                                     @csrf

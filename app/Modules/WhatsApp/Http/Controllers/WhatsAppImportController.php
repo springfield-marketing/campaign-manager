@@ -26,6 +26,13 @@ class WhatsAppImportController extends Controller
         ]);
     }
 
+    public function show(WhatsAppImport $import): View
+    {
+        $import->load(['errors' => fn ($q) => $q->orderBy('row_number')->limit(500)]);
+
+        return view('whatsapp::imports.show', compact('import'));
+    }
+
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
