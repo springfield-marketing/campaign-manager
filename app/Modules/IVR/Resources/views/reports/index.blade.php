@@ -99,8 +99,9 @@
                                 <th>Total Calls</th>
                                 <th>Leads (1+2)</th>
                                 <th>Minutes Used</th>
-                                <th>Cost (Gross)</th>
+                                <th>Cost (Overall)</th>
                                 <th>Cost (Answered)</th>
+                                <th>CPL</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -114,6 +115,8 @@
                                     $costAnswered = $answeredCalls > 0
                                         ? $costGross * max(0, $answeredCalls - $unsubscribedCalls) / $answeredCalls
                                         : 0;
+                                    $totalLeads = (int) $campaign->leads_count_filtered + (int) $campaign->more_info_count_filtered;
+                                    $cpl = $totalLeads > 0 ? $costAnswered / $totalLeads : null;
                                 @endphp
                                 <tr>
                                     <td>
@@ -140,10 +143,11 @@
                                     <td>{{ number_format($campaign->minutes_used) }}</td>
                                     <td>{{ number_format($costGross, 2) }} AED</td>
                                     <td>{{ number_format($costAnswered, 2) }} AED</td>
+                                    <td>{{ $cpl !== null ? number_format($cpl, 2).' AED' : '—' }}</td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8" class="ui-empty">No campaign data available.</td>
+                                    <td colspan="9" class="ui-empty">No campaign data available.</td>
                                 </tr>
                             @endforelse
                         </tbody>
