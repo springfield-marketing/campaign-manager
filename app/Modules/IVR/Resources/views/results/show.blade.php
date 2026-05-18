@@ -128,7 +128,13 @@
                                 <tr>
                                     <td>{{ optional($lead->call_time)->format('Y-m-d H:i') }}</td>
                                     <td>{{ $lead->phoneNumber?->client?->full_name ?: '-' }}</td>
-                                    <td>{{ $lead->phoneNumber?->normalized_phone }}</td>
+                                    <td>
+                                        @if ($lead->phoneNumber)
+                                            <a href="{{ route('modules.ivr.numbers.show', $lead->phoneNumber) }}" class="ui-link">{{ $lead->phoneNumber->normalized_phone }}</a>
+                                        @else
+                                            -
+                                        @endif
+                                    </td>
                                     <td>{{ $lead->phoneNumber?->client?->email ?: '-' }}</td>
                                     <td>{{ $lead->phoneNumber?->client?->region?->name ?: '-' }}</td>
                                     <td>{{ $lead->phoneNumber?->last_source_name ?: '-' }}</td>
