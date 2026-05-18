@@ -45,7 +45,7 @@
                         </div>
                     </dl>
 
-                    <div class="mt-6 border-t border-[var(--line)] pt-6">
+                    <div style="margin-top: 24px; border-top: 1px solid var(--line); padding-top: 24px;">
                         @if ($isUnsubscribed)
                             <form method="POST" action="{{ route('modules.ivr.numbers.unsuppress', $number) }}"
                                   onsubmit="return confirm('Remove unsubscribe for this number?');">
@@ -57,7 +57,7 @@
                             <form method="POST" action="{{ route('modules.ivr.numbers.suppress', $number) }}"
                                   onsubmit="return confirm('Mark this number as unsubscribed? It will be excluded from future campaigns.');">
                                 @csrf
-                                <button type="submit" class="ui-button-subtle text-sm text-red-600 hover:text-red-700 mt-5">Mark as unsubscribed</button>
+                                <button type="submit" class="ui-button-subtle text-sm text-red-600 hover:text-red-700" style="margin-top: 20px;">Mark as unsubscribed</button>
                             </form>
                         @endif
                     </div>
