@@ -5,8 +5,11 @@ namespace App\Modules\IVR\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\ClientPhoneNumber;
 use App\Models\Community;
+use App\Models\ContactSuppression;
 use App\Models\Region;
+use App\Modules\IVR\Support\NumberEligibilityService;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -55,6 +58,60 @@ class IvrNumberController extends Controller
                 'suppressions' => fn ($query) => $query->latest('suppressed_at'),
             ]),
         ]);
+    }
+
+    public function suppress(ClientPhoneNumber $number, NumberEligibilityService $eligibilityService): RedirectResponse
+    {
+        abort_unless($number->is_uae, 404);
+
+        DB::transaction(function () use ($number, $eligibilityService): void {
+            ContactSuppression::firstOrCreate(
+                [
+                    'client_phone_number_id' => $number->id,
+                    'channel'               => 'ivr',
+                    'reason'                => 'customer_unsubscribed',
+                ],
+                [
+                    'context'       => ['source' => 'manual'],
+                    'suppressed_at' => now(),
+                ],
+            );
+
+            $number->forceFill(['unsubscribed_at' => $number->unsubscribed_at ?? now()])->save();
+
+            $eligibilityService->refresh($number->refresh());
+        });
+
+        return back()->with('status', 'Number marked as unsubscribed.');
+    }
+
+    public function unsuppress(ClientPhoneNumber $number, NumberEligibilityService $eligibilityService): RedirectResponse
+    {
+        abort_unless($number->is_uae, 404);
+
+        DB::transaction(function () use ($number, $eligibilityService): void {
+            ContactSuppression::query()
+                ->where('client_phone_number_id', $number->id)
+                ->where('channel', 'ivr')
+                ->where('reason', 'customer_unsubscribed')
+                ->whereNull('released_at')
+                ->update(['released_at' => now()]);
+
+            $hasOtherActiveSuppression = $number->suppressions()
+                ->whereNull('released_at')
+                ->where(function (Builder $query): void {
+                    $query->whereNull('channel')->orWhere('channel', 'ivr');
+                })
+                ->exists();
+
+            if (! $hasOtherActiveSuppression) {
+                $number->forceFill(['unsubscribed_at' => null])->save();
+            }
+
+            $eligibilityService->refresh($number->refresh());
+        });
+
+        return back()->with('status', 'Unsubscribe removed.');
     }
 
     public function export(Request $request): StreamedResponse

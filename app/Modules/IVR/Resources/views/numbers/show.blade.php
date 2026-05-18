@@ -7,6 +7,18 @@
 
     <div class="page-section">
         <div class="page-wrap">
+            @if (session('status'))
+                <div class="ui-alert mb-6">{{ session('status') }}</div>
+            @endif
+
+            @php
+                $isUnsubscribed = $number->suppressions->contains(
+                    fn ($s) => $s->channel === 'ivr'
+                        && $s->reason === 'customer_unsubscribed'
+                        && $s->released_at === null
+                );
+            @endphp
+
             <div class="grid gap-6 lg:grid-cols-[0.7fr_1.3fr]">
                 <section class="ui-card ui-card-pad">
                     <h3 class="ui-title">{{ $number->normalized_phone }}</h3>
@@ -32,6 +44,23 @@
                             <dd class="ui-strong">{{ optional($number->unsubscribed_at)->format('Y-m-d H:i') ?: 'No' }}</dd>
                         </div>
                     </dl>
+
+                    <div class="mt-6 border-t border-[var(--line)] pt-5">
+                        @if ($isUnsubscribed)
+                            <form method="POST" action="{{ route('modules.ivr.numbers.unsuppress', $number) }}"
+                                  onsubmit="return confirm('Remove unsubscribe for this number?');">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="ui-button-subtle text-sm">Remove unsubscribe</button>
+                            </form>
+                        @else
+                            <form method="POST" action="{{ route('modules.ivr.numbers.suppress', $number) }}"
+                                  onsubmit="return confirm('Mark this number as unsubscribed? It will be excluded from future campaigns.');">
+                                @csrf
+                                <button type="submit" class="ui-button-subtle text-sm text-red-600 hover:text-red-700">Mark as unsubscribed</button>
+                            </form>
+                        @endif
+                    </div>
                 </section>
 
                 <section class="space-y-6">
