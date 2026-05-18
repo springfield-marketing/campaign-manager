@@ -45,7 +45,7 @@
                         </div>
                     </dl>
 
-                    <div class="mt-6 border-t border-[var(--line)] pt-5">
+                    <div class="mt-6 border-t border-[var(--line)] pt-6">
                         @if ($isUnsubscribed)
                             <form method="POST" action="{{ route('modules.ivr.numbers.unsuppress', $number) }}"
                                   onsubmit="return confirm('Remove unsubscribe for this number?');">
