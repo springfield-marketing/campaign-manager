@@ -269,9 +269,6 @@
         border-radius: var(--radius);
     }
 
-    .ui-divide > :not([hidden]) ~ :not([hidden]) {
-        border-top: 1px solid var(--line);
-    }
 }
 
 @layer utilities {
