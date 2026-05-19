@@ -145,7 +145,11 @@ class RawImportProcessor
             $header = $file->fgetcsv();
 
             if (is_array($header) && ! $this->rowIsEmpty($header)) {
-                return array_map(fn ($value) => (string) $value, $header);
+                $header = array_map(fn ($value) => (string) $value, $header);
+                // Strip UTF-8 BOM that Excel adds to the first cell
+                $header[0] = ltrim($header[0], "\xEF\xBB\xBF");
+
+                return $header;
             }
         }
 

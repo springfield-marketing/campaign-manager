@@ -140,7 +140,10 @@ class WhatsAppRawImportProcessor
         while (! $file->eof()) {
             $header = $file->fgetcsv();
             if (is_array($header) && ! $this->rowIsEmpty($header)) {
-                return array_map(fn ($v) => (string) $v, $header);
+                $header = array_map(fn ($v) => (string) $v, $header);
+                $header[0] = ltrim($header[0], "\xEF\xBB\xBF");
+
+                return $header;
             }
         }
         throw new \RuntimeException('Import file is empty.');
