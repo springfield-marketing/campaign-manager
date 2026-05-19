@@ -12,11 +12,16 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class IvrScriptController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
-        return view('ivr::scripts.index', [
-            'scripts' => IvrScript::latest()->get(),
-        ]);
+        $scripts = IvrScript::query()
+            ->when($request->filled('name'), fn ($q) => $q->where('name', 'ilike', '%'.$request->string('name').'%'))
+            ->when($request->filled('date'), fn ($q) => $q->whereDate('created_at', $request->date('date')))
+            ->latest()
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('ivr::scripts.index', compact('scripts'));
     }
 
     public function store(Request $request): RedirectResponse
