@@ -12,6 +12,7 @@ use App\Modules\IVR\Jobs\ProcessIvrCampaignResultsImport;
 use App\Modules\IVR\Models\IvrCallRecord;
 use App\Modules\IVR\Models\IvrCampaign;
 use App\Modules\IVR\Models\IvrImport;
+use App\Modules\IVR\Models\IvrScript;
 use App\Modules\IVR\Support\BillableDuration;
 use App\Modules\IVR\Support\IvrImportStatusPayload;
 use App\Modules\IVR\Support\NumberEligibilityService;
@@ -87,10 +88,11 @@ class IvrCampaignResultController extends Controller
         }
 
         return view('ivr::results.index', [
-            'imports' => $resultImports,
+            'imports'         => $resultImports,
             'importCampaigns' => $importCampaigns,
-            'latestCampaign' => $latestCampaign,
-            'results' => $query->paginate(25, ['*'], 'results'),
+            'latestCampaign'  => $latestCampaign,
+            'results'         => $query->paginate(25, ['*'], 'results'),
+            'scripts'         => IvrScript::orderBy('name')->get(),
         ]);
     }
 
@@ -98,14 +100,12 @@ class IvrCampaignResultController extends Controller
     {
         $validated = $request->validate(
             [
-                'file' => ['required', 'file', 'mimes:csv,txt', 'max:51200'],
-                'audio_file' => ['nullable', 'file', 'mimes:mp3,wav,ogg,m4a,aac', 'max:102400'],
-                'audio_script' => ['nullable', 'string', 'max:10000'],
+                'file'          => ['required', 'file', 'mimes:csv,txt', 'max:51200'],
+                'ivr_script_id' => ['nullable', 'integer', 'exists:ivr_scripts,id'],
             ],
             [
                 'file.uploaded' => 'The file could not be uploaded because it is larger than the current PHP upload limit. Increase upload_max_filesize and post_max_size, then try again.',
-                'file.max' => 'The file must be 50 MB or smaller.',
-                'audio_file.max' => 'The audio file must be 100 MB or smaller.',
+                'file.max'      => 'The file must be 50 MB or smaller.',
             ],
         );
 
@@ -125,23 +125,14 @@ class IvrCampaignResultController extends Controller
 
         $storedPath = $validated['file']->store('ivr/imports/results', 'local');
 
-        $audioPath = null;
-        $audioOriginalName = null;
-        if ($request->hasFile('audio_file') && $request->file('audio_file')->isValid()) {
-            $audioPath = $validated['audio_file']->store('ivr/campaigns/audio', 'local');
-            $audioOriginalName = $validated['audio_file']->getClientOriginalName();
-        }
-
         $import = IvrImport::create([
-            'type' => IvrImportType::CampaignResults,
-            'status' => IvrImportStatus::Pending,
+            'type'               => IvrImportType::CampaignResults,
+            'status'             => IvrImportStatus::Pending,
             'original_file_name' => $originalFileName,
-            'stored_file_name' => basename($storedPath),
-            'storage_path' => $storedPath,
-            'audio_file_path' => $audioPath,
-            'audio_original_name' => $audioOriginalName,
-            'audio_script' => $validated['audio_script'] ?? null,
-            'uploaded_by' => $request->user()?->id,
+            'stored_file_name'   => basename($storedPath),
+            'storage_path'       => $storedPath,
+            'ivr_script_id'      => $validated['ivr_script_id'] ?? null,
+            'uploaded_by'        => $request->user()?->id,
         ]);
 
         $import->broadcastProgress();
@@ -155,35 +146,26 @@ class IvrCampaignResultController extends Controller
 
     public function audio(IvrCampaign $campaign): \Symfony\Component\HttpFoundation\BinaryFileResponse
     {
-        abort_unless($campaign->audio_file_path, 404);
-        $path = storage_path('app/private/'.$campaign->audio_file_path);
-        abort_unless(file_exists($path), 404);
+        $campaign->loadMissing('script');
+
+        $path = $campaign->script?->audio_file_path
+            ? storage_path('app/private/'.$campaign->script->audio_file_path)
+            : ($campaign->audio_file_path ? storage_path('app/private/'.$campaign->audio_file_path) : null);
+
+        abort_unless($path && file_exists($path), 404);
 
         return response()->file($path);
     }
 
-    public function updateAudio(Request $request, IvrCampaign $campaign): RedirectResponse
+    public function assignScript(Request $request, IvrCampaign $campaign): RedirectResponse
     {
         $validated = $request->validate([
-            'audio_file' => ['nullable', 'file', 'mimes:mp3,wav,ogg,m4a,aac', 'max:102400'],
-            'audio_script' => ['nullable', 'string', 'max:10000'],
-        ], [
-            'audio_file.max' => 'The audio file must be 100 MB or smaller.',
+            'ivr_script_id' => ['nullable', 'integer', 'exists:ivr_scripts,id'],
         ]);
 
-        $updates = ['audio_script' => $validated['audio_script'] ?? null];
+        $campaign->update(['ivr_script_id' => $validated['ivr_script_id'] ?? null]);
 
-        if ($request->hasFile('audio_file') && $request->file('audio_file')->isValid()) {
-            if ($campaign->audio_file_path) {
-                Storage::disk('local')->delete($campaign->audio_file_path);
-            }
-            $updates['audio_file_path'] = $validated['audio_file']->store('ivr/campaigns/audio', 'local');
-            $updates['audio_original_name'] = $validated['audio_file']->getClientOriginalName();
-        }
-
-        $campaign->update($updates);
-
-        return back()->with('status', 'Audio updated successfully.');
+        return back()->with('status', 'Script assigned.');
     }
 
     public function status(Request $request): JsonResponse
@@ -215,9 +197,10 @@ class IvrCampaignResultController extends Controller
             ->paginate(25);
 
         return view('ivr::results.show', [
-            'campaign' => $campaign,
-            'stats' => $stats,
-            'leads' => $leads,
+            'campaign' => $campaign->load('script'),
+            'stats'    => $stats,
+            'leads'    => $leads,
+            'scripts'  => IvrScript::orderBy('name')->get(),
         ]);
     }
 

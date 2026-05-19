@@ -29,6 +29,7 @@ class IvrImport extends Model
         'audio_file_path',
         'audio_original_name',
         'audio_script',
+        'ivr_script_id',
         'error_message',
         'summary',
         'started_at',

@@ -130,11 +130,13 @@ class CampaignResultsProcessor
             if ($campaign) {
                 $this->refreshCampaignMetrics($campaign);
 
-                if ($import->audio_file_path || $import->audio_script) {
+                if ($import->ivr_script_id) {
+                    $campaign->update(['ivr_script_id' => $import->ivr_script_id]);
+                } elseif ($import->audio_file_path || $import->audio_script) {
                     $campaign->update([
-                        'audio_file_path' => $import->audio_file_path,
+                        'audio_file_path'    => $import->audio_file_path,
                         'audio_original_name' => $import->audio_original_name,
-                        'audio_script' => $import->audio_script,
+                        'audio_script'       => $import->audio_script,
                     ]);
                 }
 

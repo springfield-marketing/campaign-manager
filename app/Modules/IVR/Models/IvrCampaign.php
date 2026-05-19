@@ -3,6 +3,7 @@
 namespace App\Modules\IVR\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class IvrCampaign extends Model
@@ -25,6 +26,7 @@ class IvrCampaign extends Model
         'audio_file_path',
         'audio_original_name',
         'audio_script',
+        'ivr_script_id',
     ];
 
     protected function casts(): array
@@ -35,6 +37,11 @@ class IvrCampaign extends Model
             'completed_at' => 'datetime',
             'summary' => 'array',
         ];
+    }
+
+    public function script(): BelongsTo
+    {
+        return $this->belongsTo(IvrScript::class, 'ivr_script_id');
     }
 
     public function callRecords(): HasMany

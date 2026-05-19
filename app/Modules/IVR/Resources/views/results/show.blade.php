@@ -58,43 +58,67 @@
             </section>
 
             <section class="ui-card ui-card-pad mt-6">
-                <h3 class="ui-title">IVR Audio</h3>
+                <h3 class="ui-title">IVR Script</h3>
 
-                @if ($campaign->audio_file_path)
+                @if (session('status'))
+                    <div class="ui-alert mt-4">{{ session('status') }}</div>
+                @endif
+
+                @php
+                    $activeScript = $campaign->script;
+                    $hasLegacyAudio = ! $activeScript && ($campaign->audio_file_path || $campaign->audio_script);
+                @endphp
+
+                @if ($activeScript)
                     <div class="mt-4">
-                        <audio controls class="w-full" src="{{ route('modules.ivr.results.audio', $campaign) }}">
-                            Your browser does not support audio playback.
-                        </audio>
-                        <p class="mt-1 text-xs ui-muted">{{ $campaign->audio_original_name }}</p>
+                        <p class="text-sm font-medium text-theme-primary">{{ $activeScript->name }}</p>
+
+                        @if ($activeScript->audio_file_path)
+                            <audio controls class="mt-3 w-full" src="{{ route('modules.ivr.results.audio', $campaign) }}">
+                                Your browser does not support audio playback.
+                            </audio>
+                            <p class="mt-1 text-xs ui-muted">{{ $activeScript->audio_original_name }}</p>
+                        @endif
+
+                        @if ($activeScript->audio_script)
+                            <p class="mt-4 whitespace-pre-wrap text-sm ui-muted">{{ $activeScript->audio_script }}</p>
+                        @endif
                     </div>
+                @elseif ($hasLegacyAudio)
+                    <div class="mt-4">
+                        <p class="text-xs ui-muted">Legacy audio — not linked to a script in the library.</p>
+
+                        @if ($campaign->audio_file_path)
+                            <audio controls class="mt-3 w-full" src="{{ route('modules.ivr.results.audio', $campaign) }}">
+                                Your browser does not support audio playback.
+                            </audio>
+                            <p class="mt-1 text-xs ui-muted">{{ $campaign->audio_original_name }}</p>
+                        @endif
+
+                        @if ($campaign->audio_script)
+                            <p class="mt-4 whitespace-pre-wrap text-sm ui-muted">{{ $campaign->audio_script }}</p>
+                        @endif
+                    </div>
+                @else
+                    <p class="mt-4 text-sm ui-muted">No script assigned.</p>
                 @endif
 
-                @if ($campaign->audio_script)
-                    <div class="mt-4 {{ $campaign->audio_file_path ? 'border-t pt-4' : '' }}">
-                        <p class="text-sm font-medium">Script</p>
-                        <p class="mt-2 text-sm whitespace-pre-wrap ui-muted">{{ $campaign->audio_script }}</p>
-                    </div>
-                @endif
-
-                <form method="POST" action="{{ route('modules.ivr.results.audio.update', $campaign) }}" enctype="multipart/form-data" class="mt-6 space-y-4 border-t pt-4">
+                <form method="POST" action="{{ route('modules.ivr.results.script.assign', $campaign) }}" class="mt-6 border-t pt-4">
                     @csrf
-                    <p class="text-sm font-medium">{{ $campaign->audio_file_path ? 'Replace audio' : 'Upload audio' }}</p>
-
-                    @if (session('status'))
-                        <div class="ui-alert">{{ session('status') }}</div>
+                    @method('PATCH')
+                    <x-input-label for="ivr_script_id" :value="__('Assign script')" />
+                    <div class="mt-1 flex gap-3">
+                        <select id="ivr_script_id" name="ivr_script_id" class="ui-control flex-1">
+                            <option value="">— No script —</option>
+                            @foreach ($scripts as $script)
+                                <option value="{{ $script->id }}" @selected($campaign->ivr_script_id == $script->id)>{{ $script->name }}</option>
+                            @endforeach
+                        </select>
+                        <x-primary-button>Save</x-primary-button>
+                    </div>
+                    @if ($scripts->isEmpty())
+                        <p class="mt-1 text-xs ui-muted">No scripts yet. <a href="{{ route('modules.ivr.scripts.index') }}" class="ui-link">Upload one in Scripts.</a></p>
                     @endif
-
-                    <div>
-                        <x-input-label for="audio_file" :value="__('Audio file')" />
-                        <input id="audio_file" name="audio_file" type="file" accept="audio/*" class="ui-control mt-1 block w-full">
-                        <x-input-error :messages="$errors->get('audio_file')" class="mt-2" />
-                    </div>
-                    <div>
-                        <x-input-label for="audio_script" :value="__('Script')" />
-                        <textarea id="audio_script" name="audio_script" rows="5" class="ui-control mt-1 block w-full" placeholder="Paste the IVR script here…">{{ old('audio_script', $campaign->audio_script) }}</textarea>
-                        <x-input-error :messages="$errors->get('audio_script')" class="mt-2" />
-                    </div>
-                    <x-primary-button>Save</x-primary-button>
                 </form>
             </section>
 

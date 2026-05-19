@@ -42,14 +42,17 @@
                                 <x-input-error :messages="$errors->get('file')" class="mt-2" />
                             </div>
                             <div>
-                                <x-input-label for="audio_file" :value="__('IVR Audio File (optional)')" />
-                                <input id="audio_file" name="audio_file" type="file" accept="audio/*" class="ui-control mt-1 block w-full">
-                                <x-input-error :messages="$errors->get('audio_file')" class="mt-2" />
-                            </div>
-                            <div>
-                                <x-input-label for="audio_script" :value="__('Audio Script (optional)')" />
-                                <textarea id="audio_script" name="audio_script" rows="4" class="ui-control mt-1 block w-full" placeholder="Paste the script for the IVR audio here…">{{ old('audio_script') }}</textarea>
-                                <x-input-error :messages="$errors->get('audio_script')" class="mt-2" />
+                                <x-input-label for="ivr_script_id" :value="__('Script (optional)')" />
+                                <select id="ivr_script_id" name="ivr_script_id" class="ui-control mt-1 block w-full">
+                                    <option value="">— No script —</option>
+                                    @foreach ($scripts as $script)
+                                        <option value="{{ $script->id }}" @selected(old('ivr_script_id') == $script->id)>{{ $script->name }}</option>
+                                    @endforeach
+                                </select>
+                                <x-input-error :messages="$errors->get('ivr_script_id')" class="mt-2" />
+                                @if ($scripts->isEmpty())
+                                    <p class="mt-1 text-xs ui-muted">No scripts yet. <a href="{{ route('modules.ivr.scripts.index') }}" class="ui-link">Upload one in Scripts.</a></p>
+                                @endif
                             </div>
                             <x-primary-button>Queue Results Import</x-primary-button>
                         </form>
