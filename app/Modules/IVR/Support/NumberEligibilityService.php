@@ -33,9 +33,23 @@ class NumberEligibilityService
         $inactiveAfterUses = (int) config('ivr.eligibility.inactive_after_uses', 3);
         $deadAfterUses = (int) config('ivr.eligibility.dead_after_uses', 5);
 
+        $recentStatuses = $phoneNumber->ivrCallRecords()
+            ->latest('call_time')
+            ->limit($deadAfterUses)
+            ->pluck('call_status');
+
+        $consecutiveMisses = 0;
+        foreach ($recentStatuses as $callStatus) {
+            if (strcasecmp((string) $callStatus, 'Answered') !== 0) {
+                $consecutiveMisses++;
+            } else {
+                break;
+            }
+        }
+
         $status = 'active';
 
-        if ($isSuppressed || $useCount >= $deadAfterUses) {
+        if ($isSuppressed || $consecutiveMisses >= $deadAfterUses) {
             $status = 'dead';
         } elseif (($cooldownUntil && now()->lt($cooldownUntil)) || $useCount >= $inactiveAfterUses) {
             $status = 'inactive';

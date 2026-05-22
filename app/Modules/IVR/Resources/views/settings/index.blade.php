@@ -168,6 +168,44 @@
                     </table>
                 </div>
             </section>
+            <section class="ui-card ui-card-pad mt-6">
+                <h3 class="ui-title">How number eligibility works</h3>
+                <p class="mt-2 text-sm ui-muted">
+                    This explains how the system decides whether a number can be dialled in a campaign. Every number has one of four statuses.
+                </p>
+
+                <div class="mt-6 space-y-6 text-sm">
+                    <div>
+                        <p class="font-semibold ui-strong">Active</p>
+                        <p class="mt-1 ui-muted">The number is eligible to be dialled. It has fewer than {{ config('ivr.eligibility.inactive_after_uses', 3) }} total calls, is not in cooldown, and is not suppressed or dead.</p>
+                    </div>
+
+                    <div>
+                        <p class="font-semibold ui-strong">Inactive (cooldown)</p>
+                        <p class="mt-1 ui-muted">The number is temporarily held back. This happens when:</p>
+                        <ul class="mt-2 list-disc pl-5 ui-muted space-y-1">
+                            <li>It has been called {{ config('ivr.eligibility.inactive_after_uses', 3) }} or more times in total, <strong>or</strong></li>
+                            <li>It is within its cooldown window — {{ $settings->cooldown_answered_days }} days after an answered call, or {{ $settings->cooldown_missed_days }} {{ $settings->cooldown_missed_days === 1 ? 'day' : 'days' }} after a missed/unanswered call.</li>
+                        </ul>
+                        <p class="mt-2 ui-muted">Once the cooldown window passes, the number becomes active again (if it hasn't reached the dead threshold).</p>
+                    </div>
+
+                    <div>
+                        <p class="font-semibold ui-strong">Dead</p>
+                        <p class="mt-1 ui-muted">The number is permanently removed from campaign eligibility. This happens when the last {{ config('ivr.eligibility.dead_after_uses', 5) }} consecutive calls were all missed or unanswered (i.e. no answered call in the most recent {{ config('ivr.eligibility.dead_after_uses', 5) }} attempts). A single answered call resets the consecutive miss counter.</p>
+                    </div>
+
+                    <div>
+                        <p class="font-semibold ui-strong">Unsubscribed</p>
+                        <p class="mt-1 ui-muted">The number was explicitly marked as unsubscribed — either via an unsubscriber import or manually from the number history page. Unsubscribed numbers are always dead regardless of call history. The suppression can be removed from the number history page to restore eligibility.</p>
+                    </div>
+
+                    <div class="border-t border-[var(--line)] pt-4">
+                        <p class="font-semibold ui-strong">When eligibility is recalculated</p>
+                        <p class="mt-1 ui-muted">Status is recalculated automatically after each campaign result import, after a manual suppress/unsuppress action, and when the <code class="bg-[var(--surface-alt)] px-1 rounded text-xs">ivr:reanalyse-numbers</code> command is run. Changing cooldown settings here does <em>not</em> retroactively update existing numbers — run the reanalyse command after saving to apply new values to historical data.</p>
+                    </div>
+                </div>
+            </section>
         </div>
     </div>
 </x-app-layout>
