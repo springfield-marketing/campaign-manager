@@ -175,6 +175,54 @@
                             @endforelse
                         </div>
                     </div>
+
+                    <div class="ui-card overflow-hidden">
+                        <div class="ui-section-head">
+                            <h3 class="ui-title">Suppression history</h3>
+                        </div>
+                        @forelse ($number->suppressions as $suppression)
+                            @php
+                                $ctx = $suppression->context ?? [];
+                                $isActive = $suppression->released_at === null;
+                            @endphp
+                            <div class="border-b border-[var(--line)] px-5 py-4 text-sm">
+                                <div class="flex items-start justify-between gap-4">
+                                    <div>
+                                        <p class="font-medium ui-strong capitalize">{{ str_replace('_', ' ', $suppression->reason) }}</p>
+                                        <p class="mt-1 ui-muted">
+                                            {{ ucfirst($suppression->channel ?? 'all channels') }}
+                                            &mdash; {{ \Illuminate\Support\Carbon::parse($suppression->suppressed_at)->format('Y-m-d H:i') }}
+                                        </p>
+
+                                        @if ($ctx['source_file'] ?? null)
+                                            <p class="mt-1 text-xs ui-muted">File: {{ $ctx['source_file'] }}</p>
+                                        @endif
+                                        @if ($ctx['campaign_id'] ?? null)
+                                            <p class="mt-1 text-xs ui-muted">Campaign: {{ $ctx['campaign_id'] }}</p>
+                                        @endif
+                                        @if (($ctx['source'] ?? null) === 'manual')
+                                            <p class="mt-1 text-xs ui-muted">Added manually</p>
+                                        @endif
+                                        @if ($ctx['row_number'] ?? null)
+                                            <p class="mt-1 text-xs ui-muted">Row {{ $ctx['row_number'] }} in import file</p>
+                                        @endif
+                                        @if ($ctx['name'] ?? null)
+                                            <p class="mt-1 text-xs ui-muted">Name in file: {{ $ctx['name'] }}</p>
+                                        @endif
+
+                                        @if ($suppression->released_at)
+                                            <p class="mt-1 text-xs text-green-600">Released {{ \Illuminate\Support\Carbon::parse($suppression->released_at)->format('Y-m-d H:i') }}</p>
+                                        @endif
+                                    </div>
+                                    @if ($isActive)
+                                        <span class="ui-pill shrink-0">Active</span>
+                                    @endif
+                                </div>
+                            </div>
+                        @empty
+                            <div class="ui-empty">No suppression history.</div>
+                        @endforelse
+                    </div>
                 </section>
             </div>
         </div>
