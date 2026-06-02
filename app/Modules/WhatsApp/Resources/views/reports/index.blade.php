@@ -101,7 +101,7 @@
                                         </a>
                                     </td>
                                     <td>{{ optional($campaign->started_at)->format('Y-m-d') ?: '-' }}</td>
-                                    <td>{{ number_format($campaign->messages_count) }}</td>
+                                    <td>{{ number_format($campaign->total_messages) }}</td>
                                     <td>{{ number_format($campaign->sent_count) }}</td>
                                     <td>{{ number_format($campaign->delivered_count) }}</td>
                                     <td>{{ number_format($campaign->read_count) }}</td>

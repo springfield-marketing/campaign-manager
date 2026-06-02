@@ -3,15 +3,19 @@
 namespace App\Modules\WhatsApp\Support;
 
 use App\Modules\WhatsApp\Models\WhatsAppMessage;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class WhatsAppSummaryService
 {
     public function recompute(int $year, ?int $month): void
     {
+        $range = $month
+            ? [Carbon::create($year, $month, 1)->startOfDay(), Carbon::create($year, $month, 1)->endOfMonth()->endOfDay()]
+            : [Carbon::create($year, 1, 1)->startOfDay(), Carbon::create($year, 12, 31)->endOfDay()];
+
         $aggregate = WhatsAppMessage::query()
-            ->whereYear('scheduled_at', $year)
-            ->when($month, fn ($q) => $q->whereMonth('scheduled_at', $month))
+            ->whereBetween('scheduled_at', $range)
             ->selectRaw('count(*) as total_messages')
             ->selectRaw("sum(case when delivery_status = 'SENT'      then 1 else 0 end) as sent_count")
             ->selectRaw("sum(case when delivery_status = 'DELIVERED' then 1 else 0 end) as delivered_count")
@@ -41,6 +45,7 @@ class WhatsAppSummaryService
 
     public function recomputeAllMonths(): void
     {
+        // Use EXTRACT only here — this runs as a one-time admin command, not on page load.
         $months = WhatsAppMessage::query()
             ->selectRaw('EXTRACT(YEAR FROM scheduled_at)::int as year, EXTRACT(MONTH FROM scheduled_at)::int as month')
             ->whereNotNull('scheduled_at')
