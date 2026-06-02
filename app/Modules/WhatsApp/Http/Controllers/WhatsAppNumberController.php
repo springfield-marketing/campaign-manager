@@ -10,6 +10,7 @@ use App\Models\Region;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -27,7 +28,6 @@ class WhatsAppNumberController extends Controller
             'numbers'     => $numbers,
             'stats'       => $this->stats(),
             'origins'     => $this->distinctOrigins(),
-            'names'       => $this->distinctNames(),
             'regions'     => $this->availableRegions(),
             'communities' => $this->availableCommunities(),
             'statuses'    => ['active', 'cooldown', 'dead'],
@@ -214,30 +214,30 @@ class WhatsAppNumberController extends Controller
     /** @return array<string, int> */
     private function stats(): array
     {
-        $total = DB::table('whatsapp_messages')
-            ->whereNotNull('client_phone_number_id')
-            ->distinct('client_phone_number_id')
-            ->count('client_phone_number_id');
+        return Cache::remember('whatsapp.number_stats', 300, function (): array {
+            $row = DB::selectOne("
+                SELECT
+                    COUNT(DISTINCT wm.client_phone_number_id)                                    AS total,
+                    SUM(CASE WHEN wpp.usage_status = 'dead'  THEN 1 ELSE 0 END)                  AS dead,
+                    COUNT(DISTINCT CASE WHEN cs.id IS NOT NULL THEN wm.client_phone_number_id END) AS suppressed,
+                    COUNT(DISTINCT cpn.detected_country)                                          AS origins
+                FROM whatsapp_messages wm
+                INNER JOIN client_phone_numbers cpn ON cpn.id = wm.client_phone_number_id
+                LEFT  JOIN whatsapp_phone_profiles wpp ON wpp.client_phone_number_id = cpn.id
+                LEFT  JOIN contact_suppressions cs
+                    ON cs.client_phone_number_id = cpn.id
+                    AND cs.channel = 'whatsapp'
+                    AND cs.released_at IS NULL
+                WHERE wm.client_phone_number_id IS NOT NULL
+            ");
 
-        $suppressed = ClientPhoneNumber::whereHas('whatsAppMessages')
-            ->whereHas('suppressions', fn ($q) => $q->where('channel', 'whatsapp')->whereNull('released_at'))
-            ->count();
-
-        $dead = DB::table('whatsapp_phone_profiles')
-            ->whereIn('client_phone_number_id', function ($q): void {
-                $q->select('client_phone_number_id')
-                  ->from('whatsapp_messages')
-                  ->whereNotNull('client_phone_number_id');
-            })
-            ->where('usage_status', 'dead')
-            ->count();
-
-        $origins = ClientPhoneNumber::whereHas('whatsAppMessages')
-            ->whereNotNull('detected_country')
-            ->distinct()
-            ->count('detected_country');
-
-        return compact('total', 'suppressed', 'dead', 'origins');
+            return [
+                'total'      => (int) ($row->total ?? 0),
+                'dead'       => (int) ($row->dead ?? 0),
+                'suppressed' => (int) ($row->suppressed ?? 0),
+                'origins'    => (int) ($row->origins ?? 0),
+            ];
+        });
     }
 
     /** @return \Illuminate\Support\Collection<int, string> */
@@ -252,33 +252,29 @@ class WhatsAppNumberController extends Controller
             ->pluck('detected_country');
     }
 
-    /** @return \Illuminate\Support\Collection<int, string> */
-    private function distinctNames()
-    {
-        return DB::table('clients')
-            ->join('client_phone_numbers', 'client_phone_numbers.client_id', '=', 'clients.id')
-            ->join('whatsapp_messages', 'whatsapp_messages.client_phone_number_id', '=', 'client_phone_numbers.id')
-            ->whereNotNull('clients.full_name')
-            ->where('clients.full_name', '<>', '')
-            ->distinct()
-            ->orderBy('clients.full_name')
-            ->pluck('clients.full_name');
-    }
-
     /** @return \Illuminate\Database\Eloquent\Collection<int, Region> */
     private function availableRegions()
     {
-        return Region::whereHas('clients', fn ($q) => $q->whereHas('phoneNumbers', fn ($q2) => $q2->whereHas('whatsAppMessages')))
-            ->orderBy('name')
-            ->get();
+        $ids = DB::table('clients')
+            ->join('client_phone_numbers', 'client_phone_numbers.client_id', '=', 'clients.id')
+            ->join('whatsapp_messages', 'whatsapp_messages.client_phone_number_id', '=', 'client_phone_numbers.id')
+            ->whereNotNull('clients.region_id')
+            ->distinct()
+            ->pluck('clients.region_id');
+
+        return Region::whereIn('id', $ids)->orderBy('name')->get();
     }
 
     /** @return \Illuminate\Database\Eloquent\Collection<int, Community> */
     private function availableCommunities()
     {
-        return Community::whereHas('clients', fn ($q) => $q->whereHas('phoneNumbers', fn ($q2) => $q2->whereHas('whatsAppMessages')))
-            ->with('region')
-            ->orderBy('name')
-            ->get();
+        $ids = DB::table('clients')
+            ->join('client_phone_numbers', 'client_phone_numbers.client_id', '=', 'clients.id')
+            ->join('whatsapp_messages', 'whatsapp_messages.client_phone_number_id', '=', 'client_phone_numbers.id')
+            ->whereNotNull('clients.community_id')
+            ->distinct()
+            ->pluck('clients.community_id');
+
+        return Community::whereIn('id', $ids)->with('region')->orderBy('name')->get();
     }
 }

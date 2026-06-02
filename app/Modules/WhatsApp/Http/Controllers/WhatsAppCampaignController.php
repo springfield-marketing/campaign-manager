@@ -16,9 +16,10 @@ class WhatsAppCampaignController extends Controller
             ->latest('started_at')
             ->paginate(20);
 
-        $latestCampaign = WhatsAppCampaign::query()
-            ->latest('started_at')
-            ->first();
+        // On page 1 the first campaign IS the latest — no extra query needed.
+        $latestCampaign = request()->integer('page', 1) === 1
+            ? $campaigns->first()
+            : WhatsAppCampaign::latest('started_at')->first();
 
         $query = WhatsAppMessage::query()
             ->with(['campaign', 'phoneNumber.client'])
