@@ -16,6 +16,15 @@
             @endphp
 
             <div class="ui-card ui-card-pad">
+                {{-- Quick presets --}}
+                <div class="mb-3 flex flex-wrap gap-2 text-sm">
+                    <a href="{{ route('modules.whatsapp.reports.index') }}?year={{ now()->year }}&month={{ now()->month }}" class="ui-pill @if((int)$year === now()->year && (int)$month === now()->month) ui-pill-active @endif">This month</a>
+                    @php $threeMonthsAgo = now()->subMonths(2); @endphp
+                    <a href="{{ route('modules.whatsapp.reports.index') }}?year={{ $threeMonthsAgo->year }}&month={{ $threeMonthsAgo->month }}" class="ui-pill">3 months ago</a>
+                    <a href="{{ route('modules.whatsapp.reports.index') }}?year={{ now()->year }}" class="ui-pill @if((int)$year === now()->year && !$month) ui-pill-active @endif">{{ now()->year }} (full year)</a>
+                    <a href="{{ route('modules.whatsapp.reports.index') }}?year={{ now()->year - 1 }}" class="ui-pill @if((int)$year === now()->year - 1 && !$month) ui-pill-active @endif">{{ now()->year - 1 }} (full year)</a>
+                </div>
+
                 <form method="GET" class="grid gap-3 md:grid-cols-3">
                     <input type="number" name="year" value="{{ $year }}" class="ui-control">
                     <select name="month" class="ui-control">
@@ -55,21 +64,26 @@
                 </article>
             </div>
 
+            @php
+                $deliveryBase = max($summary['total'], 1);
+                $readBase     = max($summary['delivered'] + $summary['read'] + $summary['replied'], 1);
+                $replyBase    = max($summary['total'], 1);
+            @endphp
             <div class="mt-4 grid gap-4 sm:grid-cols-3">
                 <article class="ui-card ui-card-pad">
                     <p class="text-sm ui-muted">Delivery rate</p>
                     <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($rates['delivery_rate'], 1) }}%</p>
-                    <p class="mt-1 text-xs ui-muted">Delivered + Read + Replied / Total</p>
+                    <p class="mt-1 text-xs ui-muted">{{ number_format($summary['delivered'] + $summary['read'] + $summary['replied']) }} of {{ number_format($summary['total']) }} &middot; Delivered + Read + Replied / Total</p>
                 </article>
                 <article class="ui-card ui-card-pad">
                     <p class="text-sm ui-muted">Read rate</p>
                     <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($rates['read_rate'], 1) }}%</p>
-                    <p class="mt-1 text-xs ui-muted">Read + Replied / Delivered</p>
+                    <p class="mt-1 text-xs ui-muted">{{ number_format($summary['read'] + $summary['replied']) }} of {{ number_format($summary['delivered'] + $summary['read'] + $summary['replied']) }} &middot; Read + Replied / Delivered</p>
                 </article>
                 <article class="ui-card ui-card-pad">
                     <p class="text-sm ui-muted">Reply rate</p>
                     <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($rates['reply_rate'], 1) }}%</p>
-                    <p class="mt-1 text-xs ui-muted">Replied / Total</p>
+                    <p class="mt-1 text-xs ui-muted">{{ number_format($summary['replied']) }} of {{ number_format($summary['total']) }} &middot; Replied / Total</p>
                 </article>
             </div>
 
