@@ -16,7 +16,7 @@
             <section class="ui-card ui-card-pad mt-6">
                 <h3 class="ui-title">Monthly quota & pricing</h3>
                 <p class="mt-2 text-sm ui-muted">
-                    These settings are used to calculate costs on the reports page.
+                    These values are used to calculate costs on the Reports page. Check your contract or invoices for the correct rates.
                 </p>
 
                 <form method="POST" action="{{ route('modules.ivr.settings.update') }}" class="mt-6 grid gap-6 md:grid-cols-2">
@@ -47,6 +47,7 @@
                             value="{{ old('price_per_minute_under', number_format((float) $settings->price_per_minute_under, 4, '.', '')) }}"
                             class="ui-control mt-1 block w-full"
                         >
+                        <p class="mt-1 text-xs ui-muted">Applied to minutes within the monthly quota.</p>
                         <x-input-error :messages="$errors->get('price_per_minute_under')" class="mt-2" />
                     </div>
 
@@ -61,6 +62,7 @@
                             value="{{ old('price_per_minute_over', number_format((float) $settings->price_per_minute_over, 4, '.', '')) }}"
                             class="ui-control mt-1 block w-full"
                         >
+                        <p class="mt-1 text-xs ui-muted">Applied to minutes beyond the quota — usually higher.</p>
                         <x-input-error :messages="$errors->get('price_per_minute_over')" class="mt-2" />
                     </div>
 
@@ -96,6 +98,12 @@
                             class="ui-control mt-1 block w-full"
                         >
                         <x-input-error :messages="$errors->get('cooldown_missed_days')" class="mt-2" />
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <div class="rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                            After changing cooldown values, run <code class="rounded bg-amber-100 px-1 text-xs">ivr:reanalyse-numbers</code> to apply the new values to historical data. Saving alone does not retroactively update number statuses.
+                        </div>
                     </div>
 
                     <div class="md:col-span-2">
@@ -169,7 +177,10 @@
                 </div>
             </section>
             <section class="ui-card ui-card-pad mt-6">
-                <h3 class="ui-title">How number eligibility works</h3>
+                <details>
+                <summary class="cursor-pointer">
+                    <h3 class="ui-title inline">How number eligibility works</h3>
+                </summary>
                 <p class="mt-2 text-sm ui-muted">
                     This explains how the system decides whether a number can be dialled in a campaign. Every number has one of four statuses.
                 </p>
@@ -205,6 +216,7 @@
                         <p class="mt-1 ui-muted">Status is recalculated automatically after each campaign result import, after a manual suppress/unsuppress action, and when the <code class="bg-[var(--surface-alt)] px-1 rounded text-xs">ivr:reanalyse-numbers</code> command is run. Changing cooldown settings here does <em>not</em> retroactively update existing numbers — run the reanalyse command after saving to apply new values to historical data.</p>
                     </div>
                 </div>
+                </details>
             </section>
         </div>
     </div>
