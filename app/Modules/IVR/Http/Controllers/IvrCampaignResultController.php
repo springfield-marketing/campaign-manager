@@ -185,20 +185,23 @@ class IvrCampaignResultController extends Controller
         return response()->json(['imports' => $imports]);
     }
 
-    public function show(IvrCampaign $campaign): View
+    public function show(Request $request, IvrCampaign $campaign): View
     {
         $stats = $this->campaignStats($campaign);
 
-        $leads = $campaign->callRecords()
+        $leadsQuery = $campaign->callRecords()
             ->with('phoneNumber.client')
             ->whereIn('dtmf_outcome', self::LEAD_OUTCOMES)
-            ->latest('call_time')
-            ->paginate(25);
+            ->latest('call_time');
+
+        if ($request->filled('phone')) {
+            $leadsQuery->whereHas('phoneNumber', fn ($q) => $q->where('normalized_phone', 'like', '%'.$request->string('phone').'%'));
+        }
 
         return view('ivr::results.show', [
             'campaign' => $campaign->load('script'),
             'stats'    => $stats,
-            'leads'    => $leads,
+            'leads'    => $leadsQuery->paginate(25)->withQueryString(),
             'scripts'  => IvrScript::orderBy('name')->get(),
         ]);
     }

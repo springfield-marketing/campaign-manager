@@ -22,7 +22,13 @@
                     </div>
                 </div>
 
-                <div class="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                @php
+                    $answerRate = $stats['total_calls'] > 0
+                        ? round($stats['answered_calls'] / $stats['total_calls'] * 100, 1)
+                        : 0;
+                @endphp
+
+                <div class="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
                     <div class="ui-stat">
                         <p class="ui-stat-label">Total calls</p>
                         <p class="ui-stat-value text-2xl">{{ number_format($stats['total_calls']) }}</p>
@@ -32,6 +38,10 @@
                         <p class="ui-stat-value text-2xl">{{ number_format($stats['answered_calls']) }}</p>
                     </div>
                     <div class="ui-stat">
+                        <p class="ui-stat-label">Answer rate</p>
+                        <p class="ui-stat-value text-2xl">{{ $answerRate }}%</p>
+                    </div>
+                    <div class="ui-stat">
                         <p class="ui-stat-label">Missed</p>
                         <p class="ui-stat-value text-2xl">{{ number_format($stats['missed_calls']) }}</p>
                     </div>
@@ -39,35 +49,37 @@
                         <p class="ui-stat-label">Time consumed</p>
                         <p class="ui-stat-value text-2xl">{{ number_format($stats['time_consumed_minutes']) }} min</p>
                     </div>
-                </div>
-
-                <div class="mt-3 grid gap-3 sm:grid-cols-3">
                     <div class="ui-stat">
-                        <p class="ui-stat-label">Leads</p>
-                        <p class="ui-stat-value text-xl">{{ number_format($stats['leads_count']) }}</p>
+                        <p class="ui-stat-label">Leads (interested)</p>
+                        <p class="ui-stat-value text-2xl">{{ number_format($stats['leads_count']) }}</p>
                     </div>
                     <div class="ui-stat">
                         <p class="ui-stat-label">More info</p>
-                        <p class="ui-stat-value text-xl">{{ number_format($stats['more_info_count']) }}</p>
+                        <p class="ui-stat-value text-2xl">{{ number_format($stats['more_info_count']) }}</p>
                     </div>
                     <div class="ui-stat">
                         <p class="ui-stat-label">Unsubscribed</p>
-                        <p class="ui-stat-value text-xl">{{ number_format($stats['unsubscribed_count']) }}</p>
+                        <p class="ui-stat-value text-2xl">{{ number_format($stats['unsubscribed_count']) }}</p>
                     </div>
                 </div>
             </section>
 
             <section class="ui-card ui-card-pad mt-6">
-                <h3 class="ui-title">IVR Script</h3>
-
-                @if (session('status'))
-                    <div class="ui-alert mt-4">{{ session('status') }}</div>
-                @endif
-
                 @php
                     $activeScript = $campaign->script;
                     $hasLegacyAudio = ! $activeScript && ($campaign->audio_file_path || $campaign->audio_script);
                 @endphp
+
+                <div class="flex items-start justify-between gap-3">
+                    <h3 class="ui-title">IVR Script</h3>
+                    @if (! $activeScript && ! $hasLegacyAudio)
+                        <span class="text-sm ui-muted">No script assigned</span>
+                    @endif
+                </div>
+
+                @if (session('status'))
+                    <div class="ui-alert mt-4">{{ session('status') }}</div>
+                @endif
 
                 @if ($activeScript)
                     <div class="mt-4">
@@ -81,7 +93,10 @@
                         @endif
 
                         @if ($activeScript->audio_script)
-                            <p class="mt-4 whitespace-pre-wrap text-sm ui-muted">{{ $activeScript->audio_script }}</p>
+                            <details class="mt-4">
+                                <summary class="cursor-pointer text-sm ui-muted hover:underline">Show script text</summary>
+                                <p class="mt-2 whitespace-pre-wrap text-sm ui-muted">{{ $activeScript->audio_script }}</p>
+                            </details>
                         @endif
                     </div>
                 @elseif ($hasLegacyAudio)
@@ -96,41 +111,54 @@
                         @endif
 
                         @if ($campaign->audio_script)
-                            <p class="mt-4 whitespace-pre-wrap text-sm ui-muted">{{ $campaign->audio_script }}</p>
+                            <details class="mt-4">
+                                <summary class="cursor-pointer text-sm ui-muted hover:underline">Show script text</summary>
+                                <p class="mt-2 whitespace-pre-wrap text-sm ui-muted">{{ $campaign->audio_script }}</p>
+                            </details>
                         @endif
                     </div>
-                @else
-                    <p class="mt-4 text-sm ui-muted">No script assigned.</p>
                 @endif
 
-                <form method="POST" action="{{ route('modules.ivr.results.script.assign', $campaign) }}" class="mt-6 border-t pt-4">
-                    @csrf
-                    @method('PATCH')
-                    <x-input-label for="ivr_script_id" :value="__('Assign script')" />
-                    <div class="mt-1 flex gap-3">
-                        <select id="ivr_script_id" name="ivr_script_id" class="ui-control flex-1">
-                            <option value="">— No script —</option>
-                            @foreach ($scripts as $script)
-                                <option value="{{ $script->id }}" @selected($campaign->ivr_script_id == $script->id)>{{ $script->name }}</option>
-                            @endforeach
-                        </select>
-                        <x-primary-button>Save</x-primary-button>
-                    </div>
-                    @if ($scripts->isEmpty())
-                        <p class="mt-1 text-xs ui-muted">No scripts yet. <a href="{{ route('modules.ivr.scripts.index') }}" class="ui-link">Upload one in Scripts.</a></p>
-                    @endif
-                </form>
+                <details class="mt-6 border-t pt-4">
+                    <summary class="cursor-pointer text-sm ui-muted hover:underline">Change assigned script</summary>
+                    <form method="POST" action="{{ route('modules.ivr.results.script.assign', $campaign) }}" class="mt-3">
+                        @csrf
+                        @method('PATCH')
+                        <div class="flex gap-3">
+                            <select id="ivr_script_id" name="ivr_script_id" class="ui-control flex-1">
+                                <option value="">— No script —</option>
+                                @foreach ($scripts as $script)
+                                    <option value="{{ $script->id }}" @selected($campaign->ivr_script_id == $script->id)>{{ $script->name }}</option>
+                                @endforeach
+                            </select>
+                            <x-primary-button>Save</x-primary-button>
+                        </div>
+                        @if ($scripts->isEmpty())
+                            <p class="mt-1 text-xs ui-muted">No scripts yet. <a href="{{ route('modules.ivr.scripts.index') }}" class="ui-link">Upload one in Scripts.</a></p>
+                        @endif
+                    </form>
+                </details>
             </section>
 
             <section class="ui-card mt-6 overflow-hidden">
-                <div class="ui-section-head flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div class="ui-section-head flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                         <h3 class="ui-title">Leads</h3>
-                        <p class="mt-1 text-sm ui-muted">People who pressed 1 and are marked as interested.</p>
+                        <p class="mt-1 text-sm ui-muted">Callers who responded as Interested or requested More info.</p>
                     </div>
-                    <a href="{{ route('modules.ivr.results.leads.export', $campaign) }}" class="ui-button">
+                    <a href="{{ route('modules.ivr.results.leads.export', $campaign) }}" class="ui-button shrink-0">
                         Export leads
                     </a>
+                </div>
+
+                <div class="px-5 py-3 border-b border-[var(--line)]">
+                    <form method="GET" class="flex flex-wrap gap-2">
+                        <input type="search" name="phone" value="{{ request('phone') }}" placeholder="Search phone" class="ui-control">
+                        <button type="submit" class="ui-button">Filter</button>
+                        @if (request('phone'))
+                            <a href="{{ route('modules.ivr.results.show', $campaign) }}" class="ui-button text-center">Clear</a>
+                        @endif
+                    </form>
                 </div>
 
                 <div class="overflow-x-auto">
