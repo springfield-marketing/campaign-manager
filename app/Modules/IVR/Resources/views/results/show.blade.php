@@ -28,7 +28,7 @@
                         : 0;
                 @endphp
 
-                <div class="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+                <div class="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     <div class="ui-stat">
                         <p class="ui-stat-label">Total calls</p>
                         <p class="ui-stat-value text-2xl">{{ number_format($stats['total_calls']) }}</p>
