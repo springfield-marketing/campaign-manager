@@ -40,6 +40,7 @@ Route::middleware(['auth', 'verified'])
 
         Route::get('/unsubscribers', [WhatsAppUnsubscriberController::class, 'index'])->name('unsubscribers.index');
         Route::post('/unsubscribers', [WhatsAppUnsubscriberController::class, 'store'])->name('unsubscribers.store');
+        Route::post('/unsubscribers/add', [WhatsAppUnsubscriberController::class, 'addSingle'])->name('unsubscribers.add');
         Route::delete('/unsubscribers/{suppression}', [WhatsAppUnsubscriberController::class, 'destroy'])->name('unsubscribers.destroy');
 
         Route::get('/reports', [WhatsAppReportController::class, 'index'])->name('reports.index');

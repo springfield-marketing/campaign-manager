@@ -3,10 +3,12 @@
 namespace App\Modules\WhatsApp\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\ClientPhoneNumber;
 use App\Models\ContactSuppression;
 use App\Modules\WhatsApp\Enums\WhatsAppImportStatus;
 use App\Modules\WhatsApp\Enums\WhatsAppImportType;
 use App\Modules\WhatsApp\Models\WhatsAppImport;
+use App\Modules\WhatsApp\Support\WhatsAppPhoneNormalizer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -61,6 +63,45 @@ class WhatsAppUnsubscriberController extends Controller
         return redirect()
             ->route('modules.whatsapp.unsubscribers.index')
             ->with('status', 'Unsubscriber import queued.');
+    }
+
+    public function addSingle(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'phone' => ['required', 'string', 'max:30'],
+        ]);
+
+        try {
+            $normalizer = app(WhatsAppPhoneNormalizer::class);
+            $normalized = $normalizer->normalize($validated['phone'])['normalized'];
+        } catch (\InvalidArgumentException $e) {
+            return back()->withErrors(['phone' => 'Could not parse this phone number: ' . $e->getMessage()]);
+        }
+
+        $number = ClientPhoneNumber::where('normalized_phone', $normalized)->first();
+
+        if (! $number) {
+            return back()->withErrors(['phone' => "Number {$normalized} is not in the database. Only numbers that have been imported can be manually suppressed."]);
+        }
+
+        $existing = ContactSuppression::where('client_phone_number_id', $number->id)
+            ->where('channel', 'whatsapp')
+            ->whereNull('released_at')
+            ->exists();
+
+        if ($existing) {
+            return back()->withErrors(['phone' => "Number {$normalized} is already suppressed."]);
+        }
+
+        ContactSuppression::create([
+            'client_phone_number_id' => $number->id,
+            'channel'                => 'whatsapp',
+            'reason'                 => 'opted_out',
+            'suppressed_at'          => now(),
+            'context'                => ['source' => 'manual', 'added_by' => $request->user()?->id],
+        ]);
+
+        return back()->with('status', "Number {$normalized} added to WhatsApp unsubscribers.");
     }
 
     public function destroy(ContactSuppression $suppression): RedirectResponse
