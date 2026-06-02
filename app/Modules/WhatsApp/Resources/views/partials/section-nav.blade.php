@@ -1,10 +1,10 @@
 @php
     $items = [
-        ['label' => 'Import', 'route' => 'modules.whatsapp.imports.index', 'active' => request()->routeIs('modules.whatsapp.imports.*')],
-        ['label' => 'Campaign Results', 'route' => 'modules.whatsapp.campaigns.index', 'active' => request()->routeIs('modules.whatsapp.campaigns.*')],
-        ['label' => 'Numbers', 'route' => 'modules.whatsapp.numbers.index', 'active' => request()->routeIs('modules.whatsapp.numbers.*')],
+        ['label' => 'Imports',       'route' => 'modules.whatsapp.imports.index',       'active' => request()->routeIs('modules.whatsapp.imports.*')],
+        ['label' => 'Campaigns',     'route' => 'modules.whatsapp.campaigns.index',     'active' => request()->routeIs('modules.whatsapp.campaigns.*')],
+        ['label' => 'Numbers',       'route' => 'modules.whatsapp.numbers.index',       'active' => request()->routeIs('modules.whatsapp.numbers.*')],
         ['label' => 'Unsubscribers', 'route' => 'modules.whatsapp.unsubscribers.index', 'active' => request()->routeIs('modules.whatsapp.unsubscribers.*')],
-        ['label' => 'Reports', 'route' => 'modules.whatsapp.reports.index', 'active' => request()->routeIs('modules.whatsapp.index', 'modules.whatsapp.reports.*')],
+        ['label' => 'Reports',       'route' => 'modules.whatsapp.reports.index',       'active' => request()->routeIs('modules.whatsapp.index', 'modules.whatsapp.reports.*')],
     ];
 @endphp
 
