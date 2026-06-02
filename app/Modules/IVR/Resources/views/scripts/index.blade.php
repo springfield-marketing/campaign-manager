@@ -40,10 +40,11 @@
                 <div class="ui-section-head">
                     <h3 class="ui-title">Script library</h3>
 
-                    <form method="GET" class="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto]">
+                    <form method="GET" class="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto_auto]">
                         <input type="text" name="name" value="{{ request('name') }}" placeholder="Search by name…" class="ui-control">
                         <input type="date" name="date" value="{{ request('date') }}" class="ui-control">
                         <button type="submit" class="ui-button">Filter</button>
+                        <a href="{{ route('modules.ivr.scripts.index') }}" class="ui-button text-center">Clear</a>
                     </form>
                 </div>
 
@@ -60,10 +61,6 @@
                             </div>
 
                             <div class="flex flex-wrap items-center gap-2 sm:justify-end">
-                                @if ($script->audio_file_path)
-                                    <a href="{{ route('modules.ivr.scripts.audio', $script) }}" class="ui-pill" target="_blank">Play audio</a>
-                                @endif
-
                                 <form method="POST" action="{{ route('modules.ivr.scripts.destroy', $script) }}"
                                       onsubmit="return confirm('Delete this script? Campaigns using it will lose the reference.');">
                                     @csrf
@@ -80,7 +77,10 @@
                         @endif
 
                         @if ($script->audio_script)
-                            <p class="mt-3 whitespace-pre-wrap text-sm ui-muted">{{ $script->audio_script }}</p>
+                            <details class="mt-3">
+                                <summary class="cursor-pointer text-sm ui-muted hover:underline">Show script text</summary>
+                                <p class="mt-2 whitespace-pre-wrap text-sm ui-muted">{{ $script->audio_script }}</p>
+                            </details>
                         @endif
                     </div>
                 @empty
