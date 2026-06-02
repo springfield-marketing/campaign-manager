@@ -30,7 +30,7 @@
 
             {{-- Filters + Export --}}
             <div class="ui-card ui-card-pad">
-                <form method="GET" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr_auto_auto]" id="numbers-filter-form">
+                <form method="GET" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr_auto_auto_auto]" id="numbers-filter-form">
                     <input type="search" name="phone" value="{{ request('phone') }}" placeholder="Phone number" class="ui-control">
 
                     {{-- Name combobox --}}
@@ -83,7 +83,7 @@
                             <input
                                 type="text"
                                 class="ui-control w-full pr-7"
-                                placeholder="Origin (e.g. AE)"
+                                placeholder="Country of origin (e.g. AE)"
                                 autocomplete="off"
                                 x-model="query"
                                 @focus="open = true"
@@ -149,7 +149,23 @@
                         formaction="{{ route('modules.whatsapp.numbers.export') }}"
                         class="ui-button"
                     >Export</button>
+                    <a href="{{ route('modules.whatsapp.numbers.index') }}" class="ui-button text-center">Clear</a>
                 </form>
+
+                <p class="mt-3 text-xs ui-muted">
+                    Status: <strong>Active</strong> = receiving messages normally &nbsp;&middot;&nbsp;
+                    <strong>Cooldown</strong> = temporarily paused after delivery failures &nbsp;&middot;&nbsp;
+                    <strong>Dead</strong> = permanently marked invalid
+                </p>
+            </div>
+
+            {{-- Results count --}}
+            <div class="flex items-center justify-between text-sm ui-muted -mt-2">
+                @if ($numbers->total() > 0)
+                    <span>Showing {{ number_format($numbers->firstItem()) }}–{{ number_format($numbers->lastItem()) }} of {{ number_format($numbers->total()) }} numbers</span>
+                @else
+                    <span>No numbers found matching your filters.</span>
+                @endif
             </div>
 
             {{-- Table --}}
@@ -165,7 +181,6 @@
                                 <th>Source</th>
                                 <th>Messages</th>
                                 <th>Status</th>
-                                <th></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -178,7 +193,10 @@
                                         default    => 'text-green-600',
                                     };
                                 @endphp
-                                <tr>
+                                <tr
+                                    class="cursor-pointer hover:bg-theme-subtle transition-colors"
+                                    onclick="window.location.href='{{ route('modules.whatsapp.numbers.show', $number) }}'"
+                                >
                                     <td>{{ $number->normalized_phone }}</td>
                                     <td>{{ $number->client?->full_name ?: '-' }}</td>
                                     <td>{{ $number->client?->region?->name ?: '-' }}</td>
@@ -186,13 +204,10 @@
                                     <td>{{ $number->last_source_name ?: '-' }}</td>
                                     <td>{{ $number->whats_app_messages_count }}</td>
                                     <td class="font-medium {{ $statusColour }}">{{ ucfirst($wpStatus) }}</td>
-                                    <td>
-                                        <a href="{{ route('modules.whatsapp.numbers.show', $number) }}" class="ui-link">View</a>
-                                    </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8" class="ui-empty">No numbers found.</td>
+                                    <td colspan="7" class="ui-empty">No numbers found.</td>
                                 </tr>
                             @endforelse
                         </tbody>

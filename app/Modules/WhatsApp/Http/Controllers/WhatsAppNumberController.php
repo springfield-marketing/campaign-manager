@@ -20,7 +20,7 @@ class WhatsAppNumberController extends Controller
     public function index(Request $request): View
     {
         $numbers = $this->buildQuery($request)
-            ->simplePaginate(50)
+            ->paginate(50)
             ->withQueryString();
 
         return view('whatsapp::numbers.index', [

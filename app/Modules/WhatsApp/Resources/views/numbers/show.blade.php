@@ -7,6 +7,10 @@
 
     <div class="page-section">
         <div class="page-wrap">
+            <div class="mb-4">
+                <a href="javascript:history.back()" class="text-sm ui-muted hover:underline">&larr; Back to numbers</a>
+            </div>
+
             <div class="grid gap-6 lg:grid-cols-[0.7fr_1.3fr]">
 
                 {{-- Left: client + number details --}}
