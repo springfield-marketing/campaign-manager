@@ -73,10 +73,19 @@ class WhatsAppCampaignController extends Controller
             'failed_count'    => (int) ($row->failed_count ?? 0),
         ];
 
-        $messages = $campaign->messages()
+        $messagesQuery = $campaign->messages()
             ->with('phoneNumber.client')
-            ->latest('scheduled_at')
-            ->paginate(25);
+            ->latest('scheduled_at');
+
+        if (request()->filled('phone')) {
+            $messagesQuery->whereHas('phoneNumber', fn ($q) => $q->where('normalized_phone', 'like', '%'.request('phone').'%'));
+        }
+
+        if (request()->filled('status')) {
+            $messagesQuery->where('delivery_status', request('status'));
+        }
+
+        $messages = $messagesQuery->paginate(25);
 
         return view('whatsapp::campaigns.show', [
             'campaign' => $campaign,
