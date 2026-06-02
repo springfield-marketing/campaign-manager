@@ -33,7 +33,7 @@
                 <p class="mt-3 text-sm ui-muted leading-relaxed">
                     The main jobs the system handles are:
                 </p>
-                <ul class="mt-3 list-disc pl-5 space-y-2 text-sm ui-muted">
+                <ul class="mt-3 list-disc" style="padding-left: 1.5rem space-y-2 text-sm ui-muted">
                     <li><strong class="ui-strong">Import contacts</strong> — upload a CSV file of names and phone numbers to add them to the database.</li>
                     <li><strong class="ui-strong">Upload campaign results</strong> — after a campaign is run externally (by a call centre or messaging platform), upload the results file here so the system can record who was reached, who missed the call, who replied, etc.</li>
                     <li><strong class="ui-strong">Track eligibility</strong> — based on the campaign history, the system automatically marks numbers as Active, Inactive, or Dead so you know who can be contacted in the next campaign.</li>
@@ -55,7 +55,7 @@
                 </p>
 
                 <h4 class="mt-5 font-semibold text-sm ui-strong">What information is stored per number</h4>
-                <ul class="mt-2 list-disc pl-5 space-y-1 text-sm ui-muted">
+                <ul class="mt-2 list-disc" style="padding-left: 1.5rem space-y-1 text-sm ui-muted">
                     <li>The raw and normalised phone number (e.g. 0526000403 → +971526000403)</li>
                     <li>Whether it is a UAE number</li>
                     <li>Which client it belongs to, and their region/community</li>
@@ -220,7 +220,7 @@
                 </p>
 
                 <h4 class="mt-5 font-semibold text-sm ui-strong">How suppressions are created</h4>
-                <ul class="mt-2 list-disc pl-5 space-y-2 text-sm ui-muted">
+                <ul class="mt-2 list-disc" style="padding-left: 1.5rem space-y-2 text-sm ui-muted">
                     <li><strong class="ui-strong">Unsubscriber import</strong> — upload a CSV of numbers that have opted out via the Unsubscribers page. Each number in the file gets a suppression record.</li>
                     <li><strong class="ui-strong">During campaign result upload</strong> — if the results file contains an unsubscribe outcome (e.g. the recipient pressed the unsubscribe key), the system automatically creates a suppression.</li>
                     <li><strong class="ui-strong">Manual</strong> — from the number history page, use the "Mark as unsubscribed" button to suppress a number individually.</li>
@@ -245,7 +245,7 @@
                 </p>
 
                 <h4 class="mt-5 font-semibold text-sm ui-strong">IVR Reports</h4>
-                <ul class="mt-2 list-disc pl-5 space-y-1 text-sm ui-muted">
+                <ul class="mt-2 list-disc" style="padding-left: 1.5rem space-y-1 text-sm ui-muted">
                     <li>Total calls made, answered, missed, and unanswered per month</li>
                     <li>Lead count (numbers that pressed a response key)</li>
                     <li>Total call duration in minutes</li>
@@ -254,7 +254,7 @@
                 </ul>
 
                 <h4 class="mt-5 font-semibold text-sm ui-strong">WhatsApp Reports</h4>
-                <ul class="mt-2 list-disc pl-5 space-y-1 text-sm ui-muted">
+                <ul class="mt-2 list-disc" style="padding-left: 1.5rem space-y-1 text-sm ui-muted">
                     <li>Total messages sent, delivered, read, and replied per campaign</li>
                     <li>Lead count per campaign</li>
                     <li>Monthly overview</li>

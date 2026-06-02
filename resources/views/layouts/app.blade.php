@@ -74,6 +74,7 @@
                         <a href="{{ route('modules.ivr.index') }}" class="ui-link">IVR</a>
                         <a href="{{ route('modules.whatsapp.index') }}" class="ui-link">WhatsApp</a>
                         <a href="{{ route('modules.emails.index') }}" class="ui-link">Emails</a>
+                        <a href="{{ request()->routeIs('modules.whatsapp.*') ? route('modules.whatsapp.guide') : route('modules.ivr.guide') }}" class="ui-link">Guide</a>
                     </div>
 
                     <p>
