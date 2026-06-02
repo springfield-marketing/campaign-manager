@@ -14,7 +14,7 @@
                 </article>
 
                 <article class="ui-card ui-card-pad">
-                    <p class="text-sm ui-muted">Active status</p>
+                    <p class="text-sm ui-muted">Active</p>
                     <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($stats['active']) }}</p>
                 </article>
 
@@ -86,48 +86,64 @@
                     </div>
 
                     {{-- Source filters --}}
-                    <div class="grid gap-3 md:grid-cols-2">
-                        <div>
-                            <label for="source_include" class="ui-label">Include sources</label>
-                            <select id="source_include" name="source_include[]" multiple size="5" class="ui-control mt-1 w-full">
-                                @foreach ($availableSources as $source)
-                                    <option value="{{ $source }}" @selected(in_array((string) $source, $includedSources, true))>{{ $source }}</option>
-                                @endforeach
-                            </select>
+                    @if ($availableSources->isNotEmpty())
+                        <div class="grid gap-3 md:grid-cols-2">
+                            <div>
+                                <label class="ui-label">Include sources <span class="font-normal ui-muted">(show only numbers from these sources)</span></label>
+                                <div class="mt-2 max-h-40 overflow-y-auto space-y-1">
+                                    @foreach ($availableSources as $source)
+                                        <label class="flex items-center gap-2 text-sm">
+                                            <input type="checkbox" name="source_include[]" value="{{ $source }}" @checked(in_array((string) $source, $includedSources, true)) class="rounded">
+                                            {{ $source }}
+                                        </label>
+                                    @endforeach
+                                </div>
+                            </div>
+                            <div>
+                                <label class="ui-label">Exclude sources <span class="font-normal ui-muted">(hide numbers from these sources)</span></label>
+                                <div class="mt-2 max-h-40 overflow-y-auto space-y-1">
+                                    @foreach ($availableSources as $source)
+                                        <label class="flex items-center gap-2 text-sm">
+                                            <input type="checkbox" name="source_exclude[]" value="{{ $source }}" @checked(in_array((string) $source, $excludedSources, true)) class="rounded">
+                                            {{ $source }}
+                                        </label>
+                                    @endforeach
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <label for="source_exclude" class="ui-label">Exclude sources</label>
-                            <select id="source_exclude" name="source_exclude[]" multiple size="5" class="ui-control mt-1 w-full">
-                                @foreach ($availableSources as $source)
-                                    <option value="{{ $source }}" @selected(in_array((string) $source, $excludedSources, true))>{{ $source }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
+                    @endif
 
                     {{-- Uses, export limit, actions --}}
                     <div class="flex flex-wrap items-end gap-3">
                         <div>
-                            <label class="ui-label">Min uses</label>
+                            <label class="ui-label">Min uses <span class="font-normal ui-muted">(times called)</span></label>
                             <input type="number" name="uses_min" value="{{ request('uses_min') }}" placeholder="0" class="ui-control mt-1 w-28">
                         </div>
                         <div>
                             <label class="ui-label">Max uses</label>
                             <input type="number" name="uses_max" value="{{ request('uses_max') }}" placeholder="∞" class="ui-control mt-1 w-28">
                         </div>
-                        <div>
-                            <label class="ui-label">Export limit</label>
-                            <input type="number" name="export_limit" min="1" max="50000" value="{{ request('export_limit', 1000) }}" class="ui-control mt-1 w-28">
-                        </div>
-                        <div class="flex gap-2">
+                        <div class="flex gap-2 pt-5">
                             <button type="submit" class="ui-button">Filter</button>
-                            <button type="submit" formaction="{{ route('modules.ivr.numbers.export') }}" class="ui-button">Export</button>
+                            <a href="{{ route('modules.ivr.numbers.index') }}" class="ui-button text-center">Clear</a>
+                        </div>
+                        <div class="ml-auto">
+                            <label class="ui-label">Export limit <span class="font-normal ui-muted">(max rows)</span></label>
+                            <div class="mt-1 flex gap-2">
+                                <input type="number" name="export_limit" min="1" max="50000" value="{{ request('export_limit', 1000) }}" class="ui-control w-28">
+                                <button type="submit" formaction="{{ route('modules.ivr.numbers.export') }}" class="ui-button">Export</button>
+                            </div>
                         </div>
                     </div>
                 </form>
             </div>
 
             <div class="ui-card mt-6 overflow-hidden">
+                @if ($numbers->total() > 0)
+                    <p class="px-5 pt-4 text-sm ui-muted">
+                        Showing {{ number_format($numbers->firstItem()) }}–{{ number_format($numbers->lastItem()) }} of {{ number_format($numbers->total()) }} numbers
+                    </p>
+                @endif
                 <div class="overflow-x-auto">
                     <table class="ui-table">
                         <thead>
@@ -144,7 +160,7 @@
                         </thead>
                         <tbody>
                             @forelse ($numbers as $number)
-                                <tr>
+                                <tr class="cursor-pointer hover:bg-theme-subtle" onclick="window.location.href='{{ route('modules.ivr.numbers.show', $number) }}'">
                                     <td>{{ $number->client?->full_name ?: '-' }}</td>
                                     <td>{{ $number->normalized_phone }}</td>
                                     <td>{{ $number->client?->region?->name ?: '-' }}</td>
@@ -153,7 +169,7 @@
                                     <td>{{ ucfirst($number->ivrProfile?->usage_status ?? 'active') }}</td>
                                     <td>{{ optional($number->ivrProfile?->cooldown_until)->format('Y-m-d H:i') ?: '-' }}</td>
                                     <td>
-                                        <a href="{{ route('modules.ivr.numbers.show', $number) }}" class="ui-link">History</a>
+                                        <a href="{{ route('modules.ivr.numbers.show', $number) }}" class="ui-link" onclick="event.stopPropagation()">View</a>
                                     </td>
                                 </tr>
                             @empty

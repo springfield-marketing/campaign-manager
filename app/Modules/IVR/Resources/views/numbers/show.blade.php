@@ -7,6 +7,10 @@
 
     <div class="page-section">
         <div class="page-wrap">
+            <div class="mb-4">
+                <a href="javascript:history.back()" class="text-sm ui-muted hover:underline">&larr; Back to numbers</a>
+            </div>
+
             @if (session('status'))
                 <div class="ui-alert mb-6">{{ session('status') }}</div>
             @endif
@@ -21,7 +25,23 @@
 
             <div class="grid gap-6 lg:grid-cols-[0.7fr_1.3fr]">
                 <section class="ui-card ui-card-pad">
-                    <h3 class="ui-title">{{ $number->normalized_phone }}</h3>
+                    <div class="flex items-start justify-between gap-3">
+                        <h3 class="ui-title">{{ $number->normalized_phone }}</h3>
+                        @if ($isUnsubscribed)
+                            <form method="POST" action="{{ route('modules.ivr.numbers.unsuppress', $number) }}"
+                                  onsubmit="return confirm('Remove unsubscribe for this number?');">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="ui-pill text-sm">Remove unsubscribe</button>
+                            </form>
+                        @else
+                            <form method="POST" action="{{ route('modules.ivr.numbers.suppress', $number) }}"
+                                  onsubmit="return confirm('Mark this number as unsubscribed? It will be excluded from future campaigns.');">
+                                @csrf
+                                <button type="submit" class="ui-pill text-sm text-red-600 hover:text-red-700">Mark unsubscribed</button>
+                            </form>
+                        @endif
+                    </div>
                     <dl class="mt-4 space-y-3 text-sm">
                         <div>
                             <dt class="ui-muted">Client</dt>
@@ -32,7 +52,7 @@
                             <dd class="ui-strong">{{ $number->client?->region?->name ?: '-' }}</dd>
                         </div>
                         <div>
-                            <dt class="ui-muted">Usage status</dt>
+                            <dt class="ui-muted">Status</dt>
                             <dd class="ui-strong">{{ ucfirst($number->ivrProfile?->usage_status ?? 'active') }}</dd>
                         </div>
                         <div>
@@ -44,23 +64,6 @@
                             <dd class="ui-strong">{{ optional($number->unsubscribed_at)->format('Y-m-d H:i') ?: 'No' }}</dd>
                         </div>
                     </dl>
-
-                    <div style="margin-top: 24px; border-top: 1px solid var(--line); padding-top: 24px;">
-                        @if ($isUnsubscribed)
-                            <form method="POST" action="{{ route('modules.ivr.numbers.unsuppress', $number) }}"
-                                  onsubmit="return confirm('Remove unsubscribe for this number?');">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="ui-button-subtle text-sm">Remove unsubscribe</button>
-                            </form>
-                        @else
-                            <form method="POST" action="{{ route('modules.ivr.numbers.suppress', $number) }}"
-                                  onsubmit="return confirm('Mark this number as unsubscribed? It will be excluded from future campaigns.');">
-                                @csrf
-                                <button type="submit" class="ui-button-subtle text-sm text-red-600 hover:text-red-700" style="margin-top: 20px;">Mark as unsubscribed</button>
-                            </form>
-                        @endif
-                    </div>
                 </section>
 
                 <section class="space-y-6">
@@ -88,7 +91,7 @@
                                             <th>Phone</th>
                                             <th>Label</th>
                                             <th>Priority</th>
-                                            <th>Status</th>
+                                            <th>IVR status</th>
                                             <th>Uses</th>
                                             <th>Last called</th>
                                         </tr>
@@ -137,7 +140,7 @@
                                         <th>Time</th>
                                         <th>Campaign</th>
                                         <th>Status</th>
-                                        <th>Outcome</th>
+                                        <th>Response</th>
                                         <th>Duration</th>
                                     </tr>
                                 </thead>
@@ -145,10 +148,23 @@
                                     @forelse ($number->ivrCallRecords as $call)
                                         <tr>
                                             <td>{{ optional($call->call_time)->format('Y-m-d H:i') }}</td>
-                                            <td>{{ $call->campaign?->external_campaign_id }}</td>
+                                            <td>
+                                                @if ($call->campaign)
+                                                    <a href="{{ route('modules.ivr.results.show', $call->campaign) }}" class="ui-link">
+                                                        {{ $call->campaign->external_campaign_id }}
+                                                    </a>
+                                                @else
+                                                    -
+                                                @endif
+                                            </td>
                                             <td>{{ $call->call_status }}</td>
-                                            <td>{{ $call->dtmf_outcome ?: '-' }}</td>
-                                            <td>{{ $call->total_duration_seconds }}s</td>
+                                            <td>{{ $call->dtmf_outcome ? ucfirst(str_replace('_', ' ', $call->dtmf_outcome)) : '-' }}</td>
+                                            <td>
+                                                @php
+                                                    $s = (int) $call->total_duration_seconds;
+                                                    echo $s > 0 ? floor($s / 60).':'.str_pad($s % 60, 2, '0', STR_PAD_LEFT) : '-';
+                                                @endphp
+                                            </td>
                                         </tr>
                                     @empty
                                         <tr>
