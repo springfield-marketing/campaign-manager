@@ -33,7 +33,23 @@
                 <div class="ui-alert mb-4 text-red-600">{{ $errors->first('mapping') }}</div>
             @endif
 
-            <form method="POST" action="{{ route('modules.whatsapp.imports.map.store', $import) }}">
+            <form
+                method="POST"
+                action="{{ route('modules.whatsapp.imports.map.store', $import) }}"
+                x-data="{ validate() {
+                    const required = @js($required);
+                    const selects = this.$el.querySelectorAll('select[name^=mapping]');
+                    const chosen = {};
+                    selects.forEach(s => { if (s.value) chosen[s.value] = true; });
+                    const missing = required.filter(f => !chosen[f]);
+                    if (missing.length) {
+                        alert('Please map the required field(s): ' + missing.join(', '));
+                        return false;
+                    }
+                    return true;
+                }}"
+                @submit.prevent="validate() && $el.submit()"
+            >
                 @csrf
 
                 <section class="ui-card overflow-hidden">
@@ -53,18 +69,25 @@
                                 <tr>
                                     <th class="w-1/4">CSV column</th>
                                     <th class="w-2/5">Sample values</th>
-                                    <th class="w-1/3">Maps to</th>
+                                    <th class="w-1/3">Maps to <span class="text-red-500 font-normal">* required</span></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach ($columns as $col)
-                                    <tr>
+                                    @php $isRequired = in_array($col['mapped_to'], $required); @endphp
+                                    <tr @class(['bg-theme-subtle/40' => $isRequired])>
                                         <td class="font-medium text-theme-primary">
                                             {{ $col['header'] ?: '(empty header)' }}
+                                            @if ($isRequired)
+                                                <span class="ml-1 text-xs text-red-500">*</span>
+                                            @endif
                                         </td>
                                         <td class="text-xs ui-muted">
                                             @forelse (array_filter($col['samples'], fn ($v) => trim($v) !== '') as $sample)
-                                                <span class="block truncate max-w-xs">{{ $sample }}</span>
+                                                <span
+                                                    class="block truncate max-w-xs"
+                                                    title="{{ $sample }}"
+                                                >{{ $sample }}</span>
                                             @empty
                                                 <span class="italic">no data</span>
                                             @endforelse
@@ -72,7 +95,7 @@
                                         <td>
                                             <select
                                                 name="mapping[{{ $col['index'] }}]"
-                                                class="ui-control w-full @if(in_array($col['mapped_to'], $required)) border-theme-accent @endif"
+                                                class="ui-control w-full @if($isRequired) border-theme-accent @endif"
                                             >
                                                 <option value="">— Skip this column —</option>
                                                 @foreach ($systemFields as $field => $label)
@@ -93,7 +116,7 @@
                     </div>
 
                     <div class="px-5 py-4 text-xs ui-muted">
-                        * Required field
+                        * Required field — the import will be rejected if these are not mapped.
                     </div>
                 </section>
 

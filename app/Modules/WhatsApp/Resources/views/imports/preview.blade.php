@@ -33,6 +33,7 @@
                 <div class="ui-card ui-card-pad">
                     <p class="text-sm ui-muted">Total rows to import</p>
                     <p class="mt-1 text-3xl font-semibold text-theme-primary">{{ number_format($totalRows) }}</p>
+                    <p class="mt-1 text-xs ui-muted">Empty and blank-only rows are excluded automatically.</p>
                 </div>
             </div>
 
@@ -60,9 +61,14 @@
                             Showing first {{ count($mappedRows) }} of {{ number_format($totalRows) }} rows.
                         </p>
                     </div>
-                    <a href="{{ route('modules.whatsapp.imports.map', $import) }}" class="text-sm ui-muted hover:underline">
-                        &larr; Back to mapping
-                    </a>
+                    <div class="flex items-center gap-3">
+                        <a href="{{ route('modules.whatsapp.imports.preview.download', $import) }}" class="text-sm ui-muted hover:underline">
+                            Download preview as CSV
+                        </a>
+                        <a href="{{ route('modules.whatsapp.imports.map', $import) }}" class="text-sm ui-muted hover:underline">
+                            &larr; Back to mapping
+                        </a>
+                    </div>
                 </div>
 
                 <div class="overflow-x-auto">
