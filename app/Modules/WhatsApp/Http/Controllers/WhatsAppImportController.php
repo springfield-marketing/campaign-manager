@@ -18,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use SplFileObject;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class WhatsAppImportController extends Controller
 {
@@ -25,13 +26,20 @@ class WhatsAppImportController extends Controller
     // History list
     // -----------------------------------------------------------------------
 
-    public function index(): View
+    public function index(Request $request): View
     {
+        $tab = $request->string('tab')->toString() ?: 'contacts';
+
         return view('whatsapp::imports.index', [
+            'tab' => $tab,
             'imports' => WhatsAppImport::query()
                 ->where('type', WhatsAppImportType::RawContacts)
                 ->latest()
                 ->paginate(15),
+            'campaignImports' => WhatsAppImport::query()
+                ->where('type', WhatsAppImportType::CampaignResults)
+                ->latest()
+                ->paginate(15, ['*'], 'campaign_page'),
         ]);
     }
 
@@ -214,6 +222,44 @@ class WhatsAppImportController extends Controller
             'systemFields' => $systemFields,
             'required'     => config('whatsapp.raw_import.required', ['name', 'phone']),
         ]);
+    }
+
+    // -----------------------------------------------------------------------
+    // Wizard — Step 3b: download preview as CSV
+    // -----------------------------------------------------------------------
+
+    public function previewDownload(WhatsAppImport $import): StreamedResponse
+    {
+        $this->requireDraft($import);
+
+        $file   = $this->openCsv($import->storage_path);
+        $file->fgetcsv(); // skip header row
+
+        $mapping      = $import->column_mapping ?? [];
+        $systemFields = $this->systemFields();
+
+        $previewRows = [];
+        while (! $file->eof() && count($previewRows) < 10) {
+            $row = $file->fgetcsv();
+            if (is_array($row) && ! $this->rowIsEmpty($row)) {
+                $mapped = [];
+                foreach ($mapping as $field => $colIndex) {
+                    $mapped[$field] = $row[$colIndex] ?? '';
+                }
+                $previewRows[] = $mapped;
+            }
+        }
+
+        $headers = array_map(fn ($f) => $systemFields[$f] ?? $f, array_keys($mapping));
+
+        return response()->streamDownload(function () use ($headers, $previewRows, $mapping): void {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, $headers);
+            foreach ($previewRows as $row) {
+                fputcsv($handle, array_map(fn ($f) => $row[$f] ?? '', array_keys($mapping)));
+            }
+            fclose($handle);
+        }, 'preview-' . $import->stored_file_name, ['Content-Type' => 'text/csv']);
     }
 
     // -----------------------------------------------------------------------

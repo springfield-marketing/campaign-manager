@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">
         <div>
-            <h2 class="page-title">Campaign Results</h2>
+            <h2 class="page-title">Campaigns</h2>
         </div>
     </x-slot>
 
@@ -11,117 +11,17 @@
                 <div class="ui-alert mb-6">{{ session('status') }}</div>
             @endif
 
-            <div
-                class="grid gap-6"
-                x-data="importProgress({
-                    endpoint: '{{ route('modules.whatsapp.imports.status') }}',
-                    wsChannel: '',
-                    imports: @js($imports->map(fn ($import) => [
-                        'id'                 => $import->id,
-                        'status'             => $import->status,
-                        'status_label'       => $import->statusLabel(),
-                        'status_message'     => $import->statusMessage(),
-                        'original_file_name' => $import->original_file_name,
-                        'total_rows'         => $import->total_rows,
-                        'processed_rows'     => $import->processed_rows,
-                        'successful_rows'    => $import->successful_rows,
-                        'failed_rows'        => $import->failed_rows,
-                        'duplicate_rows'     => $import->duplicate_rows,
-                        'progress'           => $import->total_rows > 0 ? min(100, round(($import->processed_rows / $import->total_rows) * 100)) : 0,
-                        'progress_label'     => $import->processed_rows.' / '.($import->total_rows ?: '-'),
-                        'detail_label'       => $import->successful_rows.' imported - '.$import->failed_rows.' failed - '.$import->duplicate_rows.' duplicates',
-                        'is_active'          => in_array($import->status, ['pending', 'processing'], true),
-                    ])->values())
-                })"
-            >
-                <section class="grid gap-6">
-                    <article class="ui-card ui-card-pad">
-                        <h3 class="ui-title">Import campaign results</h3>
-                        <p class="mt-2 text-sm ui-muted">
-                            Upload the CSV export from your WhatsApp campaign platform. Expected columns:
-                            <code class="text-xs">ScheduleAt, PhoneNumber, CampaignName, TemplateName, Status, Failure reason, Quick replies, Quick reply 1–3, Clicked, Retried</code>
-                        </p>
-                        <form method="POST" action="{{ route('modules.whatsapp.imports.campaign-results.store') }}" enctype="multipart/form-data" class="mt-6">
-                            @csrf
-                            <div class="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
-                                <div>
-                                    <x-input-label for="file" :value="__('Campaign CSV')" />
-                                    <input id="file" name="file" type="file" class="ui-control mt-1 block w-full">
-                                    <x-input-error :messages="$errors->get('file')" class="mt-2" />
-                                </div>
-                                <x-primary-button>Queue Import</x-primary-button>
-                            </div>
-                        </form>
-                    </article>
-
-                    <article class="ui-card overflow-hidden">
-                        <div class="ui-section-head">
-                            <h3 class="ui-title">Import history</h3>
-                        </div>
-
-                        <div class="ui-divide max-h-[560px] overflow-y-auto">
-                            @forelse ($imports as $import)
-                                <div class="px-5 py-4 text-sm" x-data="{ item: get({{ $import->id }}) }">
-                                    <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                                        <div class="min-w-0">
-                                            <p class="break-all font-medium text-theme-primary">{{ $import->original_file_name }}</p>
-                                            <p class="ui-muted">
-                                                <span class="capitalize" x-text="item.status_label">{{ $import->statusLabel() }}</span>
-                                            </p>
-                                            <p class="mt-1 text-xs text-theme-secondary" x-text="item.status_message">{{ $import->statusMessage() }}</p>
-                                        </div>
-
-                                        <div class="flex flex-wrap items-center gap-2 sm:justify-end">
-                                            <span class="ui-pill ui-pill-active" x-show="item.is_active" x-cloak>Live</span>
-                                            <span class="ui-pill" x-show="! item.is_active" x-cloak>
-                                                <span class="capitalize" x-text="item.status_label">{{ $import->statusLabel() }}</span>
-                                            </span>
-
-                                            @if ($import->failed_rows > 0)
-                                                <a href="{{ route('modules.whatsapp.imports.show', $import) }}" class="ui-pill text-red-600">View errors</a>
-                                            @endif
-
-                                            @if (! in_array($import->status, ['pending', 'processing', 'reverted'], true) && $import->reverted_at === null)
-                                                <form method="POST" action="{{ route('modules.whatsapp.imports.destroy', $import) }}" onsubmit="return confirm('Revert this import? This will remove its campaign messages.');">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="ui-pill">Revert</button>
-                                                </form>
-                                            @endif
-                                        </div>
-                                    </div>
-
-                                    <div class="mt-3">
-                                        <div class="mb-1 flex items-center justify-between gap-3 text-xs font-medium text-theme-secondary">
-                                            <span x-text="item.progress_label">{{ $import->processed_rows }} / {{ $import->total_rows ?: '-' }}</span>
-                                            <span x-text="`${item.progress}%`">{{ $import->total_rows > 0 ? min(100, round(($import->processed_rows / $import->total_rows) * 100)) : 0 }}%</span>
-                                        </div>
-                                        <div class="ui-progress">
-                                            <div
-                                                class="ui-progress-bar"
-                                                style="width: {{ $import->total_rows > 0 ? min(100, round(($import->processed_rows / $import->total_rows) * 100)) : 0 }}%"
-                                                :style="`width: ${item.progress}%`"
-                                            ></div>
-                                        </div>
-                                        <p class="mt-2 text-xs ui-muted" x-text="item.detail_label">
-                                            {{ $import->successful_rows }} imported &ndash; {{ $import->failed_rows }} failed &ndash; {{ $import->duplicate_rows }} duplicates
-                                        </p>
-                                    </div>
-                                </div>
-                            @empty
-                                <div class="ui-empty">No imports yet.</div>
-                            @endforelse
-                        </div>
-
-                        <div class="px-5 py-4">
-                            {{ $imports->links() }}
-                        </div>
-                    </article>
-                </section>
+            <div class="grid gap-6">
 
                 <section class="ui-card overflow-hidden">
                     <div class="ui-section-head">
-                        <h3 class="ui-title">Campaigns</h3>
+                        <div>
+                            <h3 class="ui-title">Campaigns</h3>
+                            <p class="mt-1 text-sm ui-muted">
+                                To import new campaign results, go to
+                                <a href="{{ route('modules.whatsapp.imports.index') }}?tab=campaign-results" class="ui-link">Imports &rarr; Campaign Results</a>.
+                            </p>
+                        </div>
                     </div>
 
                     <div class="overflow-x-auto">
@@ -136,12 +36,14 @@
                                     <th>Read</th>
                                     <th>Replied</th>
                                     <th>Failed</th>
-                                    <th></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @forelse ($campaigns as $campaign)
-                                    <tr>
+                                    <tr
+                                        class="cursor-pointer hover:bg-theme-subtle transition-colors"
+                                        onclick="window.location.href='{{ route('modules.whatsapp.campaigns.show', $campaign) }}'"
+                                    >
                                         <td class="font-medium">{{ $campaign->name }}</td>
                                         <td>{{ optional($campaign->started_at)->format('Y-m-d') ?: '-' }}</td>
                                         <td>{{ number_format($campaign->total_messages) }}</td>
@@ -150,13 +52,10 @@
                                         <td>{{ number_format($campaign->read_count) }}</td>
                                         <td>{{ number_format($campaign->replied_count) }}</td>
                                         <td>{{ number_format($campaign->failed_count) }}</td>
-                                        <td>
-                                            <a href="{{ route('modules.whatsapp.campaigns.show', $campaign) }}" class="ui-link">View</a>
-                                        </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="9" class="ui-empty">No campaigns imported yet.</td>
+                                        <td colspan="8" class="ui-empty">No campaigns imported yet.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -180,14 +79,15 @@
                         @if ($latestCampaign)
                             <p class="mt-1 text-sm ui-muted">
                                 Showing latest imported campaign.
-                                <a href="{{ route('modules.whatsapp.campaigns.show', $latestCampaign) }}" class="ui-link">View campaign</a>
+                                <a href="{{ route('modules.whatsapp.campaigns.show', $latestCampaign) }}" class="ui-link">View full campaign &rarr;</a>
                             </p>
                         @endif
 
-                        <form method="GET" class="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto]">
+                        <form method="GET" class="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_1fr_1fr_auto]">
+                            <input type="text" name="phone" value="{{ request('phone') }}" placeholder="Phone number" class="ui-control">
                             <select name="status" class="ui-control">
                                 <option value="">All statuses</option>
-                                @foreach (['DELIVERED', 'READ', 'SENT', 'FAILED'] as $status)
+                                @foreach (['DELIVERED', 'READ', 'REPLIED', 'SENT', 'FAILED'] as $status)
                                     <option value="{{ $status }}" @selected(request('status') == $status)>{{ $status }}</option>
                                 @endforeach
                             </select>
@@ -205,7 +105,6 @@
                                     <th>Phone</th>
                                     <th>Template</th>
                                     <th>Status</th>
-                                    <th>Clicked</th>
                                     <th>Quick Reply</th>
                                 </tr>
                             </thead>
@@ -216,7 +115,6 @@
                                         <td>{{ $message->phoneNumber?->normalized_phone ?: $message->raw_payload['PhoneNumber'] ?? '-' }}</td>
                                         <td>{{ $message->template_name ?: '-' }}</td>
                                         <td>{{ $message->delivery_status ?: '-' }}</td>
-                                        <td>{{ $message->clicked ? 'Yes' : 'No' }}</td>
                                         <td>
                                             @if ($message->quick_reply_1)
                                                 {{ $message->quick_reply_1 }}
@@ -229,7 +127,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="6" class="ui-empty">No messages found.</td>
+                                        <td colspan="5" class="ui-empty">No messages found.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -240,6 +138,7 @@
                         {{ $messages->links() }}
                     </div>
                 </section>
+
             </div>
         </div>
     </div>

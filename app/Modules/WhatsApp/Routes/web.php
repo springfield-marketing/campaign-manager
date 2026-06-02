@@ -23,6 +23,7 @@ Route::middleware(['auth', 'verified'])
         Route::get('/imports/{import}/map', [WhatsAppImportController::class, 'map'])->name('imports.map');
         Route::post('/imports/{import}/map', [WhatsAppImportController::class, 'mapStore'])->name('imports.map.store');
         Route::get('/imports/{import}/preview', [WhatsAppImportController::class, 'preview'])->name('imports.preview');
+        Route::get('/imports/{import}/preview/download', [WhatsAppImportController::class, 'previewDownload'])->name('imports.preview.download');
         Route::post('/imports/{import}/confirm', [WhatsAppImportController::class, 'confirm'])->name('imports.confirm');
         Route::delete('/imports/{import}', [WhatsAppImportController::class, 'destroy'])->name('imports.destroy');
 
