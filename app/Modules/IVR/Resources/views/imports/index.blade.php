@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">
         <div>
-            <h2 class="page-title">Raw Import</h2>
+            <h2 class="page-title">Import Contacts</h2>
         </div>
     </x-slot>
 
@@ -42,7 +42,7 @@
                 })"
             >
                 <section class="ui-card ui-card-pad">
-                    <h3 class="ui-title">Upload raw file</h3>
+                    <h3 class="ui-title">Import contacts</h3>
                     <p class="mt-2 text-sm ui-muted">
                         Required columns are name and phone. Other columns may be present or omitted, and column order can vary.
                     </p>
@@ -84,12 +84,12 @@
 
                             <div>
                                 <x-input-label for="source_name" :value="__('Source name')" />
-                                <x-text-input id="source_name" name="source_name" type="text" class="mt-1 block w-full" />
+                                <x-text-input id="source_name" name="source_name" type="text" class="mt-1 block w-full" placeholder="e.g. June 2026 — Facebook" />
                                 <x-input-error :messages="$errors->get('source_name')" class="mt-2" />
                             </div>
                         </div>
 
-                        <x-primary-button>Queue Import</x-primary-button>
+                        <x-primary-button>Start Import</x-primary-button>
                     </form>
                 </section>
 
@@ -141,7 +141,7 @@
                                         >
                                             <span class="capitalize" x-text="item.status_label"></span>
                                         </span>
-                                        <a href="{{ route('modules.ivr.imports.show', $import) }}" class="ui-pill">Import log</a>
+                                        <a href="{{ route('modules.ivr.imports.show', $import) }}" class="ui-pill">Details</a>
 
                                         @if (! in_array($import->status, ['pending', 'processing', 'deleting', 'deleted', 'reverting', 'reverted'], true) && $import->reverted_at === null)
                                             <form method="POST" action="{{ route('modules.ivr.imports.destroy', $import) }}" onsubmit="return confirm('Delete this raw import? This will remove contacts and source links created only by this import. Shared contacts with other history will be kept.');">
@@ -169,9 +169,11 @@
                                             :style="`width: ${item.progress}%`"
                                         ></div>
                                     </div>
-                                    <p class="mt-2 text-xs ui-muted" x-text="item.detail_label">
-                                        {{ $import->successful_rows }} imported - {{ $import->failed_rows }} failed - {{ $import->duplicate_rows }} duplicates
-                                    </p>
+                                    <div class="mt-2 flex flex-wrap gap-3 text-xs">
+                                        <span class="ui-muted"><span class="font-medium text-green-600" x-text="item.successful_rows">{{ $import->successful_rows }}</span> imported</span>
+                                        <span class="ui-muted"><span class="font-medium text-theme-secondary" x-text="item.duplicate_rows">{{ $import->duplicate_rows }}</span> duplicates</span>
+                                        <span class="ui-muted"><span class="font-medium text-red-600" x-text="item.failed_rows">{{ $import->failed_rows }}</span> failed</span>
+                                    </div>
                                 </div>
                             </div>
                         @empty
