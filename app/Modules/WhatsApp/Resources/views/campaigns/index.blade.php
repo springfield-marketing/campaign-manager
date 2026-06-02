@@ -131,10 +131,11 @@
                                     <th>Campaign Name</th>
                                     <th>Started</th>
                                     <th>Total</th>
+                                    <th>Sent</th>
                                     <th>Delivered</th>
                                     <th>Read</th>
+                                    <th>Replied</th>
                                     <th>Failed</th>
-                                    <th>Clicked</th>
                                     <th></th>
                                 </tr>
                             </thead>
@@ -144,17 +145,18 @@
                                         <td class="font-medium">{{ $campaign->name }}</td>
                                         <td>{{ optional($campaign->started_at)->format('Y-m-d') ?: '-' }}</td>
                                         <td>{{ number_format($campaign->total_messages) }}</td>
+                                        <td>{{ number_format($campaign->sent_count) }}</td>
                                         <td>{{ number_format($campaign->delivered_count) }}</td>
                                         <td>{{ number_format($campaign->read_count) }}</td>
+                                        <td>{{ number_format($campaign->replied_count) }}</td>
                                         <td>{{ number_format($campaign->failed_count) }}</td>
-                                        <td>{{ number_format($campaign->clicked_count) }}</td>
                                         <td>
                                             <a href="{{ route('modules.whatsapp.campaigns.show', $campaign) }}" class="ui-link">View</a>
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="8" class="ui-empty">No campaigns imported yet.</td>
+                                        <td colspan="9" class="ui-empty">No campaigns imported yet.</td>
                                     </tr>
                                 @endforelse
                             </tbody>

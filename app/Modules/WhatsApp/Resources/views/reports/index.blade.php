@@ -13,14 +13,6 @@
                     5 => 'May', 6 => 'June', 7 => 'July', 8 => 'August',
                     9 => 'September', 10 => 'October', 11 => 'November', 12 => 'December',
                 ];
-
-                $summaryLabels = [
-                    'total_messages' => 'Total messages',
-                    'delivered' => 'Delivered',
-                    'read' => 'Read',
-                    'failed' => 'Failed',
-                    'clicked' => 'Clicked',
-                ];
             @endphp
 
             <div class="ui-card ui-card-pad">
@@ -36,13 +28,49 @@
                 </form>
             </div>
 
-            <div class="mt-6 grid gap-6 md:grid-cols-2 xl:grid-cols-5">
-                @foreach ($summary as $key => $value)
-                    <article class="ui-card ui-card-pad">
-                        <p class="text-sm ui-muted">{{ $summaryLabels[$key] ?? ucwords(str_replace('_', ' ', $key)) }}</p>
-                        <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($value) }}</p>
-                    </article>
-                @endforeach
+            <div class="mt-6 grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+                <article class="ui-card ui-card-pad">
+                    <p class="text-sm ui-muted">Total dispatched</p>
+                    <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($summary['total']) }}</p>
+                </article>
+                <article class="ui-card ui-card-pad">
+                    <p class="text-sm ui-muted">Sent</p>
+                    <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($summary['sent']) }}</p>
+                </article>
+                <article class="ui-card ui-card-pad">
+                    <p class="text-sm ui-muted">Delivered</p>
+                    <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($summary['delivered']) }}</p>
+                </article>
+                <article class="ui-card ui-card-pad">
+                    <p class="text-sm ui-muted">Read</p>
+                    <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($summary['read']) }}</p>
+                </article>
+                <article class="ui-card ui-card-pad">
+                    <p class="text-sm ui-muted">Replied</p>
+                    <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($summary['replied']) }}</p>
+                </article>
+                <article class="ui-card ui-card-pad">
+                    <p class="text-sm ui-muted">Failed</p>
+                    <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($summary['failed']) }}</p>
+                </article>
+            </div>
+
+            <div class="mt-4 grid gap-4 sm:grid-cols-3">
+                <article class="ui-card ui-card-pad">
+                    <p class="text-sm ui-muted">Delivery rate</p>
+                    <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($rates['delivery_rate'], 1) }}%</p>
+                    <p class="mt-1 text-xs ui-muted">Delivered + Read + Replied / Total</p>
+                </article>
+                <article class="ui-card ui-card-pad">
+                    <p class="text-sm ui-muted">Read rate</p>
+                    <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($rates['read_rate'], 1) }}%</p>
+                    <p class="mt-1 text-xs ui-muted">Read + Replied / Delivered</p>
+                </article>
+                <article class="ui-card ui-card-pad">
+                    <p class="text-sm ui-muted">Reply rate</p>
+                    <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($rates['reply_rate'], 1) }}%</p>
+                    <p class="mt-1 text-xs ui-muted">Replied / Total</p>
+                </article>
             </div>
 
             <section class="ui-card mt-6 overflow-hidden">
@@ -57,10 +85,11 @@
                                 <th>Campaign</th>
                                 <th>Started</th>
                                 <th>Total</th>
+                                <th>Sent</th>
                                 <th>Delivered</th>
                                 <th>Read</th>
+                                <th>Replied</th>
                                 <th>Failed</th>
-                                <th>Clicked</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -73,14 +102,15 @@
                                     </td>
                                     <td>{{ optional($campaign->started_at)->format('Y-m-d') ?: '-' }}</td>
                                     <td>{{ number_format($campaign->messages_count) }}</td>
+                                    <td>{{ number_format($campaign->sent_count) }}</td>
                                     <td>{{ number_format($campaign->delivered_count) }}</td>
                                     <td>{{ number_format($campaign->read_count) }}</td>
+                                    <td>{{ number_format($campaign->replied_count) }}</td>
                                     <td>{{ number_format($campaign->failed_count) }}</td>
-                                    <td>{{ number_format($campaign->clicked_count) }}</td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="ui-empty">No campaign data for this period.</td>
+                                    <td colspan="8" class="ui-empty">No campaign data for this period.</td>
                                 </tr>
                             @endforelse
                         </tbody>

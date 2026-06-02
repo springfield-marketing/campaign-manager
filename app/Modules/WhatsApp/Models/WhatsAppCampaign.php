@@ -12,10 +12,11 @@ class WhatsAppCampaign extends Model
     protected $fillable = [
         'name',
         'total_messages',
+        'sent_count',
         'delivered_count',
         'read_count',
+        'replied_count',
         'failed_count',
-        'clicked_count',
         'unsubscribed_count',
         'started_at',
         'completed_at',

@@ -59,12 +59,22 @@ class WhatsAppCampaignController extends Controller
 
     public function show(WhatsAppCampaign $campaign): View
     {
+        $row = $campaign->messages()
+            ->selectRaw('count(*) as total_messages')
+            ->selectRaw("sum(case when delivery_status = 'SENT'      then 1 else 0 end) as sent_count")
+            ->selectRaw("sum(case when delivery_status = 'DELIVERED' then 1 else 0 end) as delivered_count")
+            ->selectRaw("sum(case when delivery_status = 'READ'      then 1 else 0 end) as read_count")
+            ->selectRaw("sum(case when delivery_status = 'REPLIED'   then 1 else 0 end) as replied_count")
+            ->selectRaw("sum(case when delivery_status = 'FAILED'    then 1 else 0 end) as failed_count")
+            ->first();
+
         $stats = [
-            'total_messages' => $campaign->messages()->count(),
-            'delivered_count' => $campaign->messages()->where('delivery_status', 'DELIVERED')->count(),
-            'read_count' => $campaign->messages()->where('delivery_status', 'READ')->count(),
-            'failed_count' => $campaign->messages()->where('delivery_status', 'FAILED')->count(),
-            'clicked_count' => $campaign->messages()->where('clicked', true)->count(),
+            'total_messages'  => (int) ($row->total_messages ?? 0),
+            'sent_count'      => (int) ($row->sent_count ?? 0),
+            'delivered_count' => (int) ($row->delivered_count ?? 0),
+            'read_count'      => (int) ($row->read_count ?? 0),
+            'replied_count'   => (int) ($row->replied_count ?? 0),
+            'failed_count'    => (int) ($row->failed_count ?? 0),
         ];
 
         $messages = $campaign->messages()

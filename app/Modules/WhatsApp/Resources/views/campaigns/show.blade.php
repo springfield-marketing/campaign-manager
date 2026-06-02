@@ -22,10 +22,14 @@
                     </div>
                 </div>
 
-                <div class="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                <div class="mt-6 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
                     <div class="ui-stat">
-                        <p class="ui-stat-label">Total messages</p>
+                        <p class="ui-stat-label">Total</p>
                         <p class="ui-stat-value text-2xl">{{ number_format($stats['total_messages']) }}</p>
+                    </div>
+                    <div class="ui-stat">
+                        <p class="ui-stat-label">Sent</p>
+                        <p class="ui-stat-value text-2xl">{{ number_format($stats['sent_count']) }}</p>
                     </div>
                     <div class="ui-stat">
                         <p class="ui-stat-label">Delivered</p>
@@ -36,12 +40,12 @@
                         <p class="ui-stat-value text-2xl">{{ number_format($stats['read_count']) }}</p>
                     </div>
                     <div class="ui-stat">
-                        <p class="ui-stat-label">Failed</p>
-                        <p class="ui-stat-value text-2xl">{{ number_format($stats['failed_count']) }}</p>
+                        <p class="ui-stat-label">Replied</p>
+                        <p class="ui-stat-value text-2xl">{{ number_format($stats['replied_count']) }}</p>
                     </div>
                     <div class="ui-stat">
-                        <p class="ui-stat-label">Clicked</p>
-                        <p class="ui-stat-value text-2xl">{{ number_format($stats['clicked_count']) }}</p>
+                        <p class="ui-stat-label">Failed</p>
+                        <p class="ui-stat-value text-2xl">{{ number_format($stats['failed_count']) }}</p>
                     </div>
                 </div>
             </section>
