@@ -33,7 +33,7 @@
             >
                 <section class="grid gap-6">
                     <article class="ui-card ui-card-pad">
-                        <h3 class="ui-title">Import campaign report</h3>
+                        <h3 class="ui-title">Upload campaign results</h3>
                         <form method="POST" action="{{ route('modules.ivr.results.store') }}" enctype="multipart/form-data" class="mt-6 space-y-4">
                             @csrf
                             <div>
@@ -54,13 +54,13 @@
                                     <p class="mt-1 text-xs ui-muted">No scripts yet. <a href="{{ route('modules.ivr.scripts.index') }}" class="ui-link">Upload one in Scripts.</a></p>
                                 @endif
                             </div>
-                            <x-primary-button>Queue Results Import</x-primary-button>
+                            <x-primary-button>Start Import</x-primary-button>
                         </form>
                     </article>
 
                     <article class="ui-card overflow-hidden">
                         <div class="ui-section-head">
-                            <h3 class="ui-title">Result import history</h3>
+                            <h3 class="ui-title">Upload history</h3>
                         </div>
                         <div class="ui-divide max-h-[560px] overflow-y-auto">
                             @forelse ($imports as $import)
@@ -98,7 +98,11 @@
                                         <div class="ui-progress">
                                             <div class="ui-progress-bar" :style="`width: ${item.progress}%`"></div>
                                         </div>
-                                        <p class="mt-2 text-xs ui-muted" x-text="`${item.successful_rows} imported - ${item.failed_rows} failed - ${item.duplicate_rows} duplicates`"></p>
+                                        <div class="mt-2 flex flex-wrap gap-3 text-xs">
+                                            <span class="ui-muted"><span class="font-medium text-green-600" x-text="item.successful_rows"></span> imported</span>
+                                            <span class="ui-muted"><span class="font-medium text-theme-secondary" x-text="item.duplicate_rows"></span> duplicates</span>
+                                            <span class="ui-muted"><span class="font-medium text-red-600" x-text="item.failed_rows"></span> failed</span>
+                                        </div>
                                     </div>
                                 </div>
                             @empty
@@ -113,21 +117,29 @@
 
                 <section class="ui-card overflow-hidden">
                     <div class="ui-section-head">
-                        <h3 class="ui-title">Imported call outcomes</h3>
-                        <p class="mt-1 text-sm ui-muted">
-                            Showing latest imported campaign:
-                            @if ($latestCampaign)
-                                <a href="{{ route('modules.ivr.results.show', $latestCampaign) }}" class="ui-link">{{ $latestCampaign->external_campaign_id }}</a>
-                            @else
-                                none yet
-                            @endif
-                        </p>
-                        <form method="GET" action="{{ route('modules.ivr.results.export') }}" class="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto]">
-                            <input type="date" name="from" value="{{ request('from', now()->startOfYear()->format('Y-m-d')) }}" aria-label="Export from date" class="ui-control" required>
-                            <input type="date" name="to" value="{{ request('to', now()->format('Y-m-d')) }}" aria-label="Export to date" class="ui-control" required>
-                            <button type="submit" class="ui-button">Export CSV</button>
-                        </form>
-                        <form method="GET" class="mt-4 grid gap-3 md:grid-cols-3">
+                        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h3 class="ui-title">Call outcomes</h3>
+                                <p class="mt-1 text-sm ui-muted">
+                                    Latest campaign:
+                                    @if ($latestCampaign)
+                                        <a href="{{ route('modules.ivr.results.show', $latestCampaign) }}" class="ui-link">{{ $latestCampaign->external_campaign_id }}</a>
+                                    @else
+                                        none yet
+                                    @endif
+                                </p>
+                            </div>
+                            <div>
+                                <p class="text-xs ui-muted mb-1">Export all outcomes by date range</p>
+                                <form method="GET" action="{{ route('modules.ivr.results.export') }}" class="flex flex-wrap gap-2">
+                                    <input type="date" name="from" value="{{ request('from', now()->startOfYear()->format('Y-m-d')) }}" aria-label="Export from date" class="ui-control" required>
+                                    <input type="date" name="to" value="{{ request('to', now()->format('Y-m-d')) }}" aria-label="Export to date" class="ui-control" required>
+                                    <button type="submit" class="ui-button">Export CSV</button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <form method="GET" class="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto_auto]">
                             <select name="outcome" class="ui-control">
                                 <option value="">All outcomes</option>
                                 @foreach (['interested', 'more_info', 'unsubscribe', 'no_input', 'other'] as $outcome)
@@ -141,7 +153,13 @@
                                 @endforeach
                             </select>
                             <input type="date" name="date" value="{{ request('date') }}" class="ui-control">
+                            <button type="submit" class="ui-button">Filter</button>
+                            <a href="{{ route('modules.ivr.results.index') }}" class="ui-button text-center">Clear</a>
                         </form>
+
+                        @if ($results->total() > 0)
+                            <p class="mt-3 text-sm ui-muted">Showing {{ number_format($results->firstItem()) }}–{{ number_format($results->lastItem()) }} of {{ number_format($results->total()) }}</p>
+                        @endif
                     </div>
 
                     <div class="overflow-x-auto">
@@ -152,7 +170,7 @@
                                     <th>Campaign</th>
                                     <th>Phone</th>
                                     <th>Status</th>
-                                    <th>DTMF</th>
+                                    <th>Response</th>
                                 </tr>
                             </thead>
                             <tbody>
