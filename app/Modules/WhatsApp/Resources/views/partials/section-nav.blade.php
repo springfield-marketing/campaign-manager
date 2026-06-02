@@ -5,7 +5,6 @@
         ['label' => 'Numbers', 'route' => 'modules.whatsapp.numbers.index', 'active' => request()->routeIs('modules.whatsapp.numbers.*')],
         ['label' => 'Unsubscribers', 'route' => 'modules.whatsapp.unsubscribers.index', 'active' => request()->routeIs('modules.whatsapp.unsubscribers.*')],
         ['label' => 'Reports', 'route' => 'modules.whatsapp.reports.index', 'active' => request()->routeIs('modules.whatsapp.index', 'modules.whatsapp.reports.*')],
-        ['label' => 'Guide', 'route' => 'modules.whatsapp.guide', 'active' => request()->routeIs('modules.whatsapp.guide')],
     ];
 @endphp
 

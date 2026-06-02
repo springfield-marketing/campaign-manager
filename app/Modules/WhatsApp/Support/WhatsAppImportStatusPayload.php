@@ -17,6 +17,14 @@ class WhatsAppImportStatusPayload
         $isActive = in_array($import->status, [
             WhatsAppImportStatus::Pending->value,
             WhatsAppImportStatus::Processing->value,
+            WhatsAppImportStatus::Deleting->value,
+        ], true);
+
+        $deleteProgress = $import->deleteProgress();
+        $isDeleting = in_array($import->status, [
+            WhatsAppImportStatus::Deleting->value,
+            WhatsAppImportStatus::Deleted->value,
+            WhatsAppImportStatus::DeleteFailed->value,
         ], true);
 
         return [
@@ -32,9 +40,14 @@ class WhatsAppImportStatusPayload
             'successful_rows'    => $import->successful_rows,
             'failed_rows'        => $import->failed_rows,
             'duplicate_rows'     => $import->duplicate_rows,
-            'progress'           => $progress,
-            'progress_label'     => "{$import->processed_rows} / " . ($import->total_rows ?: '-'),
-            'detail_label'       => "{$import->successful_rows} imported - {$import->failed_rows} failed - {$import->duplicate_rows} duplicates",
+            'progress'           => $isDeleting ? $deleteProgress['percent'] : $progress,
+            'progress_label'     => $isDeleting
+                ? ($deleteProgress['processed'].' / '.$deleteProgress['total'].' delete steps')
+                : ("{$import->processed_rows} / " . ($import->total_rows ?: '-')),
+            'detail_label'       => $isDeleting
+                ? ($deleteProgress['source_rows_deleted'].' source links deleted — '.$deleteProgress['phone_numbers_deleted'].' phone numbers deleted — '.$deleteProgress['clients_deleted'].' clients deleted')
+                : "{$import->successful_rows} imported - {$import->failed_rows} failed - {$import->duplicate_rows} duplicates",
+            'delete_progress'    => $deleteProgress,
             'is_active'          => $isActive,
         ];
     }

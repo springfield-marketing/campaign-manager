@@ -5,10 +5,12 @@ namespace App\Modules\WhatsApp\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Modules\WhatsApp\Enums\WhatsAppImportStatus;
 use App\Modules\WhatsApp\Enums\WhatsAppImportType;
+use App\Modules\WhatsApp\Jobs\DeleteWhatsAppRawImport;
 use App\Modules\WhatsApp\Jobs\ProcessWhatsAppCampaignResultsImport;
 use App\Modules\WhatsApp\Jobs\ProcessWhatsAppRawImport;
 use App\Modules\WhatsApp\Models\WhatsAppImport;
 use App\Modules\WhatsApp\Support\WhatsAppImportStatusPayload;
+use App\Modules\WhatsApp\Support\WhatsAppRawImportDeleter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -78,7 +80,7 @@ class WhatsAppImportController extends Controller
             ->with('status', 'Raw contact import queued successfully.');
     }
 
-    public function destroy(WhatsAppImport $import): RedirectResponse
+    public function destroy(Request $request, WhatsAppImport $import): RedirectResponse
     {
         if ($import->type !== WhatsAppImportType::RawContacts->value) {
             abort(404);
@@ -87,6 +89,7 @@ class WhatsAppImportController extends Controller
         if (in_array($import->status, [
             WhatsAppImportStatus::Pending->value,
             WhatsAppImportStatus::Processing->value,
+            WhatsAppImportStatus::Deleting->value,
         ], true)) {
             return back()->with('status', 'This import is still running and cannot be deleted yet.');
         }
@@ -95,16 +98,36 @@ class WhatsAppImportController extends Controller
             return back()->with('status', 'This import has already been deleted.');
         }
 
-        // Mark reverted (full revert job can be added later)
+        $validated = $request->validate([
+            'delete_reason' => ['nullable', 'string', 'max:1000'],
+        ]);
+
         $import->forceFill([
-            'status'      => WhatsAppImportStatus::Reverted,
-            'reverted_at' => now(),
-            'reverted_by' => request()->user()?->id,
+            'status'        => WhatsAppImportStatus::Deleting,
+            'error_message' => null,
+            'summary'       => array_merge($import->summary ?? [], [
+                'delete_progress' => [
+                    'stage'                => 'queued',
+                    'stage_label'          => 'Delete queued',
+                    'processed'            => 0,
+                    'total'                => WhatsAppRawImportDeleter::DELETE_STEPS,
+                    'percent'              => 0,
+                    'source_rows_deleted'  => 0,
+                    'phone_numbers_deleted' => 0,
+                    'clients_deleted'      => 0,
+                ],
+            ]),
         ])->save();
+
+        DeleteWhatsAppRawImport::dispatch(
+            $import->id,
+            $request->user()?->id,
+            $validated['delete_reason'] ?? null,
+        );
 
         return redirect()
             ->route('modules.whatsapp.imports.index')
-            ->with('status', "Import {$import->original_file_name} marked as reverted.");
+            ->with('status', "Import {$import->original_file_name} is being deleted. The status will update automatically.");
     }
 
     public function status(Request $request): JsonResponse

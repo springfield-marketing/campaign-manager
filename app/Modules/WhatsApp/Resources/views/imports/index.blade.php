@@ -16,23 +16,7 @@
                 x-data="importProgress({
                     endpoint: '{{ route('modules.whatsapp.imports.status') }}',
                     wsChannel: '',
-                    imports: @js($imports->map(fn ($import) => [
-                        'id'                 => $import->id,
-                        'status'             => $import->status,
-                        'status_label'       => $import->statusLabel(),
-                        'status_message'     => $import->statusMessage(),
-                        'original_file_name' => $import->original_file_name,
-                        'source_name'        => $import->source_name,
-                        'total_rows'         => $import->total_rows,
-                        'processed_rows'     => $import->processed_rows,
-                        'successful_rows'    => $import->successful_rows,
-                        'failed_rows'        => $import->failed_rows,
-                        'duplicate_rows'     => $import->duplicate_rows,
-                        'progress'           => $import->total_rows > 0 ? min(100, round(($import->processed_rows / $import->total_rows) * 100)) : 0,
-                        'progress_label'     => $import->processed_rows.' / '.($import->total_rows ?: '-'),
-                        'detail_label'       => $import->successful_rows.' imported - '.$import->failed_rows.' failed - '.$import->duplicate_rows.' duplicates',
-                        'is_active'          => in_array($import->status, ['pending', 'processing'], true),
-                    ])->values())
+                    imports: @js($imports->map(fn ($import) => \App\Modules\WhatsApp\Support\WhatsAppImportStatusPayload::make($import))->values())
                 })"
             >
                 <section class="ui-card ui-card-pad">
@@ -105,8 +89,32 @@
                                     </div>
 
                                     <div class="flex flex-wrap items-center gap-2 sm:justify-end">
-                                        <span class="ui-pill ui-pill-active" x-show="item.is_active" x-cloak>Live</span>
-                                        <span class="ui-pill" x-show="! item.is_active" x-cloak>
+                                        <span
+                                            class="ui-pill ui-pill-active"
+                                            x-show="item.is_active"
+                                            x-cloak
+                                        >
+                                            <span x-text="item.status === 'deleting' ? 'Deleting' : 'Live'"></span>
+                                        </span>
+                                        <span
+                                            class="ui-pill ui-pill-active"
+                                            x-show="['deleted', 'reverted'].includes(item.status)"
+                                            x-cloak
+                                        >
+                                            Deleted
+                                        </span>
+                                        <span
+                                            class="ui-pill ui-pill-active"
+                                            x-show="item.status === 'delete_failed'"
+                                            x-cloak
+                                        >
+                                            Delete failed
+                                        </span>
+                                        <span
+                                            class="ui-pill"
+                                            x-show="! item.is_active && ! ['deleted', 'deleting', 'delete_failed', 'reverted'].includes(item.status)"
+                                            x-cloak
+                                        >
                                             <span class="capitalize" x-text="item.status_label">{{ $import->statusLabel() }}</span>
                                         </span>
 
@@ -114,8 +122,9 @@
                                             <a href="{{ route('modules.whatsapp.imports.show', $import) }}" class="ui-pill text-red-600">View errors</a>
                                         @endif
 
-                                        @if (! in_array($import->status, ['pending', 'processing', 'reverted'], true) && $import->reverted_at === null)
-                                            <form method="POST" action="{{ route('modules.whatsapp.imports.destroy', $import) }}" onsubmit="return confirm('Mark this import as deleted?');">
+                                        @if (! in_array($import->status, ['pending', 'processing', 'deleting', 'deleted', 'reverted'], true) && $import->reverted_at === null)
+                                            <form method="POST" action="{{ route('modules.whatsapp.imports.destroy', $import) }}"
+                                                  onsubmit="return confirm('Delete this import? Contacts created only by this import will be removed. Numbers with other history (other imports, suppressions, or WhatsApp messages) will be kept.');">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit" class="ui-pill">Delete</button>

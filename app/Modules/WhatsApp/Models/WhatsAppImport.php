@@ -66,16 +66,18 @@ class WhatsAppImport extends Model
 
     public function deleteProgress(): array
     {
-        return [
+        $default = [
             'stage' => null,
             'stage_label' => null,
             'processed' => 0,
-            'total' => 0,
+            'total' => 7,
             'percent' => 0,
             'source_rows_deleted' => 0,
             'phone_numbers_deleted' => 0,
             'clients_deleted' => 0,
         ];
+
+        return array_merge($default, ($this->summary ?? [])['delete_progress'] ?? []);
     }
 
     public function statusLabel(): string
@@ -90,6 +92,9 @@ class WhatsAppImport extends Model
             WhatsAppImportStatus::Processing->value => 'Import is running in the background.',
             WhatsAppImportStatus::Completed->value => 'Import completed successfully.',
             WhatsAppImportStatus::CompletedWithErrors->value => 'Import completed with some row errors.',
+            WhatsAppImportStatus::Deleting->value => 'Deleting contacts and source links in the background.',
+            WhatsAppImportStatus::Deleted->value => 'Import deleted'.($this->reverted_at ? ' on '.$this->reverted_at->format('M j, Y g:i A') : '').'.',
+            WhatsAppImportStatus::DeleteFailed->value => 'Delete failed'.($this->error_message ? ': '.$this->error_message : '.'),
             WhatsAppImportStatus::Reverting->value => 'Revert is running in the background.',
             WhatsAppImportStatus::Reverted->value => 'Revert complete'.($this->reverted_at ? ' on '.$this->reverted_at->format('M j, Y g:i A') : '').'.',
             WhatsAppImportStatus::RevertFailed->value => 'Revert failed'.($this->error_message ? ': '.$this->error_message : '.'),
