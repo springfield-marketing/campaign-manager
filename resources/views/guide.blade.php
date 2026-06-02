@@ -30,15 +30,13 @@
                 <p class="mt-3 text-sm ui-muted leading-relaxed">
                     Campaign Tracker is a central hub for managing outreach campaigns across two channels: <strong class="ui-strong">IVR (automated voice calls)</strong> and <strong class="ui-strong">WhatsApp messages</strong>. It holds a database of all client phone numbers, tracks every campaign that has been run against them, and uses that history to decide which numbers are eligible to be contacted again.
                 </p>
-                <p class="mt-3 text-sm ui-muted leading-relaxed">
-                    The main jobs the system handles are:
-                </p>
-                <ul class="mt-3 list-disc" style="padding-left: 1.5rem space-y-2 text-sm ui-muted">
-                    <li><strong class="ui-strong">Import contacts</strong> — upload a CSV file of names and phone numbers to add them to the database.</li>
-                    <li><strong class="ui-strong">Upload campaign results</strong> — after a campaign is run externally (by a call centre or messaging platform), upload the results file here so the system can record who was reached, who missed the call, who replied, etc.</li>
-                    <li><strong class="ui-strong">Track eligibility</strong> — based on the campaign history, the system automatically marks numbers as Active, Inactive, or Dead so you know who can be contacted in the next campaign.</li>
-                    <li><strong class="ui-strong">Manage unsubscribers</strong> — numbers that have opted out are suppressed and excluded from all future campaigns.</li>
-                    <li><strong class="ui-strong">Reports</strong> — see campaign performance, call outcomes, WhatsApp lead interest, and cost summaries.</li>
+                <p class="mt-3 text-sm ui-muted leading-relaxed">The main jobs the system handles are:</p>
+                <ul class="mt-2 list-disc pl-5 space-y-1 text-sm ui-muted">
+                    <li>Import contacts — upload a CSV file of names and phone numbers to add them to the database.</li>
+                    <li>Upload campaign results — after a campaign is run externally, upload the results file here so the system can record who was reached, who missed the call, who replied, etc.</li>
+                    <li>Track eligibility — based on call history, the system automatically marks numbers as Active, Inactive, or Dead so you know who can be contacted in the next campaign.</li>
+                    <li>Manage unsubscribers — numbers that have opted out are suppressed and excluded from all future campaigns.</li>
+                    <li>Reports — see campaign performance, call outcomes, WhatsApp lead interest, and cost summaries.</li>
                 </ul>
             </section>
 
@@ -55,7 +53,7 @@
                 </p>
 
                 <h4 class="mt-5 font-semibold text-sm ui-strong">What information is stored per number</h4>
-                <ul class="mt-2 list-disc" style="padding-left: 1.5rem space-y-1 text-sm ui-muted">
+                <ul class="mt-2 list-disc pl-5 space-y-1 text-sm ui-muted">
                     <li>The raw and normalised phone number (e.g. 0526000403 → +971526000403)</li>
                     <li>Whether it is a UAE number</li>
                     <li>Which client it belongs to, and their region/community</li>
@@ -82,14 +80,14 @@
                     <div>
                         <p class="font-semibold text-sm ui-strong">Step 1 — Upload a script (optional but recommended)</p>
                         <p class="mt-1 text-sm ui-muted leading-relaxed">
-                            Go to <strong class="ui-strong">Scripts</strong> in the IVR section. Upload the audio file and paste the script text. Give it a clear name (e.g. "June 2026 — Project Launch"). Scripts are stored in a library so they can be reused across multiple campaigns without re-uploading.
+                            Go to Scripts in the IVR section. Upload the audio file and paste the script text. Give it a clear name (e.g. "June 2026 — Project Launch"). Scripts are stored in a library so they can be reused across multiple campaigns without re-uploading.
                         </p>
                     </div>
 
                     <div>
                         <p class="font-semibold text-sm ui-strong">Step 2 — Import your contact list</p>
                         <p class="mt-1 text-sm ui-muted leading-relaxed">
-                            Go to <strong class="ui-strong">Import</strong>. Upload a CSV file containing the names and phone numbers you want to dial. The required columns are <code class="bg-[var(--surface-alt)] px-1 rounded text-xs">name</code> and <code class="bg-[var(--surface-alt)] px-1 rounded text-xs">phone</code>. Optional columns include <code class="bg-[var(--surface-alt)] px-1 rounded text-xs">email</code>, <code class="bg-[var(--surface-alt)] px-1 rounded text-xs">city</code>, <code class="bg-[var(--surface-alt)] px-1 rounded text-xs">community</code>, <code class="bg-[var(--surface-alt)] px-1 rounded text-xs">nationality</code>, and <code class="bg-[var(--surface-alt)] px-1 rounded text-xs">gender</code>.
+                            Go to Import. Upload a CSV file containing the names and phone numbers you want to dial. The required columns are <code class="bg-[var(--surface-alt)] px-1 rounded text-xs">name</code> and <code class="bg-[var(--surface-alt)] px-1 rounded text-xs">phone</code>. Optional columns include <code class="bg-[var(--surface-alt)] px-1 rounded text-xs">email</code>, <code class="bg-[var(--surface-alt)] px-1 rounded text-xs">city</code>, <code class="bg-[var(--surface-alt)] px-1 rounded text-xs">community</code>, <code class="bg-[var(--surface-alt)] px-1 rounded text-xs">nationality</code>, and <code class="bg-[var(--surface-alt)] px-1 rounded text-xs">gender</code>.
                         </p>
                         <p class="mt-2 text-sm ui-muted leading-relaxed">
                             The import processes in the background. You will see a progress bar on the page. Once done, the numbers are added to the database and are ready to be exported for the call centre.
@@ -106,7 +104,7 @@
                     <div>
                         <p class="font-semibold text-sm ui-strong">Step 4 — Upload campaign results</p>
                         <p class="mt-1 text-sm ui-muted leading-relaxed">
-                            After the campaign, the call centre sends back a CSV file with the result of each call (Answered, Missed, No Answer, etc.) and the key pressed by the recipient. Go to <strong class="ui-strong">Campaign Results</strong> and upload this file. Select the script that was used, give the campaign an ID, and submit.
+                            After the campaign, the call centre sends back a CSV file with the result of each call (Answered, Missed, No Answer, etc.) and the key pressed by the recipient. Go to Campaign Results and upload this file. Select the script that was used, give the campaign an ID, and submit.
                         </p>
                         <p class="mt-2 text-sm ui-muted leading-relaxed">
                             The system processes the file and for each number: records the call outcome, updates the number's eligibility status, and calculates the cooldown period before it can be called again.
@@ -124,7 +122,7 @@
 
                 <h4 class="mt-6 font-semibold text-sm ui-strong">Cooldown periods</h4>
                 <p class="mt-2 text-sm ui-muted leading-relaxed">
-                    After a call, each number is placed on a cooldown — a waiting period before it can be called again. The cooldown length is different depending on whether the call was answered or missed. These durations are configured in <strong class="ui-strong">IVR → Settings</strong>. During the cooldown, the number shows as <strong class="ui-strong">Inactive</strong>.
+                    After a call, each number is placed on a cooldown — a waiting period before it can be called again. The cooldown length is different depending on whether the call was answered or missed. These durations are configured in IVR Settings. During the cooldown, the number shows as Inactive.
                 </p>
             </section>
 
@@ -140,7 +138,7 @@
                     <div>
                         <p class="font-semibold text-sm ui-strong">Step 1 — Import your contact list</p>
                         <p class="mt-1 text-sm ui-muted leading-relaxed">
-                            Go to <strong class="ui-strong">WhatsApp → Import</strong>. Upload a CSV with <code class="bg-[var(--surface-alt)] px-1 rounded text-xs">name</code> and <code class="bg-[var(--surface-alt)] px-1 rounded text-xs">phone</code> as required columns. The same optional columns (city, community, etc.) are supported. Numbers are added to the shared contacts database — the same database used by IVR.
+                            Go to WhatsApp → Import. Upload a CSV with <code class="bg-[var(--surface-alt)] px-1 rounded text-xs">name</code> and <code class="bg-[var(--surface-alt)] px-1 rounded text-xs">phone</code> as required columns. The same optional columns (city, community, etc.) are supported. Numbers are added to the shared contacts database — the same database used by IVR.
                         </p>
                     </div>
 
@@ -154,14 +152,14 @@
                     <div>
                         <p class="font-semibold text-sm ui-strong">Step 3 — Upload campaign results</p>
                         <p class="mt-1 text-sm ui-muted leading-relaxed">
-                            After the campaign, upload the results file via <strong class="ui-strong">Import → Upload campaign results</strong>. The system records delivery status, whether the recipient replied, and whether they expressed interest (a "lead").
+                            After the campaign, upload the results file via Import → Upload campaign results. The system records delivery status, whether the recipient replied, and whether they expressed interest (a "lead").
                         </p>
                     </div>
 
                     <div>
                         <p class="font-semibold text-sm ui-strong">Step 4 — Review results and leads</p>
                         <p class="mt-1 text-sm ui-muted leading-relaxed">
-                            Go to <strong class="ui-strong">Campaign Results</strong> to open any campaign and see a breakdown of message delivery, replies, and leads. Leads can be exported to a CSV for the sales team.
+                            Go to Campaign Results to open any campaign and see a breakdown of message delivery, replies, and leads. Leads can be exported to a CSV for the sales team.
                         </p>
                     </div>
 
@@ -178,18 +176,14 @@
                 <div class="mt-5 space-y-5">
 
                     <div class="rounded-lg border border-[var(--line)] p-4">
-                        <div class="flex items-center gap-2">
-                            <span class="ui-pill ui-pill-active">Active</span>
-                        </div>
+                        <span class="ui-pill ui-pill-active">Active</span>
                         <p class="mt-2 text-sm ui-muted leading-relaxed">
                             The number is eligible to be included in the next campaign. It has been called fewer than 3 times in total and is not currently in a cooldown period.
                         </p>
                     </div>
 
                     <div class="rounded-lg border border-[var(--line)] p-4">
-                        <div class="flex items-center gap-2">
-                            <span class="ui-pill">Inactive</span>
-                        </div>
+                        <span class="ui-pill">Inactive</span>
                         <p class="mt-2 text-sm ui-muted leading-relaxed">
                             The number is temporarily on hold. This happens when the number is within its cooldown window (waiting period after the last call) or has been called 3 or more times in total. Once the cooldown window passes, it becomes Active again — unless it has crossed the Dead threshold.
                         </p>
@@ -198,7 +192,7 @@
                     <div class="rounded-lg border border-[var(--line)] p-4">
                         <p class="text-sm font-semibold ui-strong">Dead</p>
                         <p class="mt-2 text-sm ui-muted leading-relaxed">
-                            The number has had 5 consecutive missed or unanswered calls — meaning no one has picked up in the last 5 attempts in a row. The system treats this as a permanently unreachable number and removes it from future campaigns. If the number is ever answered again (on a future campaign), the consecutive miss counter resets.
+                            The number has had 5 consecutive missed or unanswered calls — meaning no one has picked up in the last 5 attempts in a row. The system treats this as a permanently unreachable number and removes it from future campaigns. If the number is ever answered again, the consecutive miss counter resets.
                         </p>
                     </div>
 
@@ -216,19 +210,19 @@
             <section id="suppressions" class="ui-card ui-card-pad mt-6">
                 <h3 class="ui-title text-lg">Suppressions &amp; Unsubscribers</h3>
                 <p class="mt-3 text-sm ui-muted leading-relaxed">
-                    A <strong class="ui-strong">suppression</strong> is a record that says "do not contact this number". When a number is suppressed, it is excluded from campaign exports and is shown as Dead in the Numbers list.
+                    A suppression is a record that says "do not contact this number". When a number is suppressed, it is excluded from campaign exports and is shown as Dead in the Numbers list.
                 </p>
 
                 <h4 class="mt-5 font-semibold text-sm ui-strong">How suppressions are created</h4>
-                <ul class="mt-2 list-disc" style="padding-left: 1.5rem space-y-2 text-sm ui-muted">
-                    <li><strong class="ui-strong">Unsubscriber import</strong> — upload a CSV of numbers that have opted out via the Unsubscribers page. Each number in the file gets a suppression record.</li>
-                    <li><strong class="ui-strong">During campaign result upload</strong> — if the results file contains an unsubscribe outcome (e.g. the recipient pressed the unsubscribe key), the system automatically creates a suppression.</li>
-                    <li><strong class="ui-strong">Manual</strong> — from the number history page, use the "Mark as unsubscribed" button to suppress a number individually.</li>
+                <ul class="mt-2 list-disc pl-5 space-y-1 text-sm ui-muted">
+                    <li>Unsubscriber import — upload a CSV of numbers that have opted out via the Unsubscribers page. Each number in the file gets a suppression record.</li>
+                    <li>During campaign result upload — if the results file contains an unsubscribe outcome (e.g. the recipient pressed the unsubscribe key), the system automatically creates a suppression.</li>
+                    <li>Manual — from the number history page, use the "Mark as unsubscribed" button to suppress a number individually.</li>
                 </ul>
 
                 <h4 class="mt-5 font-semibold text-sm ui-strong">Viewing &amp; removing suppressions</h4>
                 <p class="mt-2 text-sm ui-muted leading-relaxed">
-                    The <strong class="ui-strong">Unsubscribers</strong> page shows all suppressed numbers. You can also see the full suppression history for any individual number on its history page. To remove a suppression, click "Remove unsubscribe" on the number history page — the number will become eligible again.
+                    The Unsubscribers page shows all suppressed numbers. You can also see the full suppression history for any individual number on its history page. To remove a suppression, click "Remove unsubscribe" on the number history page — the number will become eligible again.
                 </p>
 
                 <h4 class="mt-5 font-semibold text-sm ui-strong">Important</h4>
@@ -245,7 +239,7 @@
                 </p>
 
                 <h4 class="mt-5 font-semibold text-sm ui-strong">IVR Reports</h4>
-                <ul class="mt-2 list-disc" style="padding-left: 1.5rem space-y-1 text-sm ui-muted">
+                <ul class="mt-2 list-disc pl-5 space-y-1 text-sm ui-muted">
                     <li>Total calls made, answered, missed, and unanswered per month</li>
                     <li>Lead count (numbers that pressed a response key)</li>
                     <li>Total call duration in minutes</li>
@@ -254,7 +248,7 @@
                 </ul>
 
                 <h4 class="mt-5 font-semibold text-sm ui-strong">WhatsApp Reports</h4>
-                <ul class="mt-2 list-disc" style="padding-left: 1.5rem space-y-1 text-sm ui-muted">
+                <ul class="mt-2 list-disc pl-5 space-y-1 text-sm ui-muted">
                     <li>Total messages sent, delivered, read, and replied per campaign</li>
                     <li>Lead count per campaign</li>
                     <li>Monthly overview</li>
