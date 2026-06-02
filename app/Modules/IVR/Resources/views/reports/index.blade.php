@@ -12,8 +12,8 @@
                     'total_calls' => 'Total calls',
                     'answered_calls' => 'Answered calls',
                     'missed_calls' => 'Missed calls',
-                    'leads' => 'Pressed 1',
-                    'more_info' => 'Pressed 2',
+                    'leads' => 'Leads (interested)',
+                    'more_info' => 'More info',
                     'unsubscribed' => 'Unsubscribed',
                     'minutes_consumed' => 'Minutes consumed',
                 ];
@@ -78,9 +78,9 @@
                         </article>
                     </div>
                     @if ($monthlyBudget['minutes_used'] > $monthlyBudget['minutes_quota'])
-                        <p class="mt-4 text-sm text-red-500">
-                            Quota exceeded by {{ number_format($monthlyBudget['minutes_used'] - $monthlyBudget['minutes_quota']) }} minutes.
-                        </p>
+                        <div class="mt-4 rounded border border-red-300 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                            Quota exceeded by {{ number_format($monthlyBudget['minutes_used'] - $monthlyBudget['minutes_quota']) }} minutes. You are being billed at the over-quota rate.
+                        </div>
                     @endif
                 </section>
             @endif
@@ -94,17 +94,20 @@
                         <thead>
                             <tr>
                                 <th>Run date</th>
-                                <th>Campaign Run time</th>
+                                <th title="Time of first to last call in this campaign">Call window</th>
                                 <th>ID</th>
-                                <th>Total Calls</th>
-                                <th>Leads (1+2)</th>
-                                <th>Minutes Used</th>
-                                <th>Cost (Overall)</th>
-                                <th>Cost (Answered)</th>
-                                <th>CPL</th>
+                                <th>Total calls</th>
+                                <th title="Callers who responded as Interested or More info">Leads</th>
+                                <th>Minutes used</th>
+                                <th title="Total cost for all calls (including missed)">Cost (total)</th>
+                                <th title="Cost attributed only to answered calls, minus unsubscribes">Cost (answered)</th>
+                                <th title="Cost per lead — Cost (answered) ÷ Leads">CPL</th>
                             </tr>
                         </thead>
                         <tbody>
+                            @php
+                                $totals = ['calls' => 0, 'leads' => 0, 'minutes' => 0, 'costGross' => 0.0, 'costAnswered' => 0.0];
+                            @endphp
                             @forelse ($campaignBreakdown as $campaign)
                                 @php
                                     $started = $campaign->campaign_started_at ? \Illuminate\Support\Carbon::parse($campaign->campaign_started_at) : null;
@@ -117,6 +120,11 @@
                                         : 0;
                                     $totalLeads = (int) $campaign->leads_count_filtered + (int) $campaign->more_info_count_filtered;
                                     $cpl = $totalLeads > 0 ? $costAnswered / $totalLeads : null;
+                                    $totals['calls'] += (int) $campaign->calls_count;
+                                    $totals['leads'] += $totalLeads;
+                                    $totals['minutes'] += (int) $campaign->minutes_used;
+                                    $totals['costGross'] += $costGross;
+                                    $totals['costAnswered'] += $costAnswered;
                                 @endphp
                                 <tr>
                                     <td>
@@ -128,7 +136,7 @@
                                     </td>
                                     <td>
                                         @if ($started && $completed)
-                                            {{ $started->format('H:i') }} - {{ $completed->format('H:i') }}
+                                            {{ $started->format('H:i') }} – {{ $completed->format('H:i') }}
                                         @else
                                             -
                                         @endif
@@ -139,7 +147,7 @@
                                         </a>
                                     </td>
                                     <td>{{ number_format($campaign->calls_count) }}</td>
-                                    <td>{{ number_format((int) $campaign->leads_count_filtered + (int) $campaign->more_info_count_filtered) }}</td>
+                                    <td>{{ number_format($totalLeads) }}</td>
                                     <td>{{ number_format($campaign->minutes_used) }}</td>
                                     <td>{{ number_format($costGross, 2) }} AED</td>
                                     <td>{{ number_format($costAnswered, 2) }} AED</td>
@@ -151,6 +159,20 @@
                                 </tr>
                             @endforelse
                         </tbody>
+                        @if ($campaignBreakdown->isNotEmpty())
+                            @php $totalCpl = $totals['leads'] > 0 ? $totals['costAnswered'] / $totals['leads'] : null; @endphp
+                            <tfoot>
+                                <tr class="font-semibold bg-theme-subtle">
+                                    <td colspan="3" class="px-4 py-3 text-sm ui-muted">Page total</td>
+                                    <td class="px-4 py-3 text-sm">{{ number_format($totals['calls']) }}</td>
+                                    <td class="px-4 py-3 text-sm">{{ number_format($totals['leads']) }}</td>
+                                    <td class="px-4 py-3 text-sm">{{ number_format($totals['minutes']) }}</td>
+                                    <td class="px-4 py-3 text-sm">{{ number_format($totals['costGross'], 2) }} AED</td>
+                                    <td class="px-4 py-3 text-sm">{{ number_format($totals['costAnswered'], 2) }} AED</td>
+                                    <td class="px-4 py-3 text-sm">{{ $totalCpl !== null ? number_format($totalCpl, 2).' AED' : '—' }}</td>
+                                </tr>
+                            </tfoot>
+                        @endif
                     </table>
                 </div>
                 <div class="px-5 py-4">
