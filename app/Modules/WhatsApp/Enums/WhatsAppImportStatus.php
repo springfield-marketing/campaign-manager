@@ -4,6 +4,7 @@ namespace App\Modules\WhatsApp\Enums;
 
 enum WhatsAppImportStatus: string
 {
+    case Draft = 'draft';
     case Pending = 'pending';
     case Processing = 'processing';
     case Completed = 'completed';

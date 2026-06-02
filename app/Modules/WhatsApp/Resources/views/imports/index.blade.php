@@ -49,7 +49,7 @@
                         </div>
                     </div>
 
-                    <form method="POST" action="{{ route('modules.whatsapp.imports.store') }}" enctype="multipart/form-data" class="mt-6">
+                    <form method="POST" action="{{ route('modules.whatsapp.imports.upload') }}" enctype="multipart/form-data" class="mt-6">
                         @csrf
                         <div class="grid gap-4 md:grid-cols-2">
                             <div>
@@ -64,7 +64,7 @@
                             </div>
                         </div>
                         <div class="mt-4">
-                            <x-primary-button>Queue Import</x-primary-button>
+                            <x-primary-button>Next: Map columns &rarr;</x-primary-button>
                         </div>
                     </form>
                 </section>
@@ -76,80 +76,107 @@
 
                     <div class="ui-divide max-h-[560px] overflow-y-auto">
                         @forelse ($imports as $import)
-                            <div class="px-5 py-4 text-sm" x-data="{ item: get({{ $import->id }}) }">
-                                <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                                    <div class="min-w-0">
-                                        <p class="break-all font-medium text-theme-primary">{{ $import->original_file_name }}</p>
-                                        <p class="ui-muted">
-                                            <span>{{ $import->source_name ?: 'No source name' }}</span>
-                                            <span aria-hidden="true"> &ndash; </span>
-                                            <span class="capitalize" x-text="item.status_label">{{ $import->statusLabel() }}</span>
-                                        </p>
-                                        <p class="mt-2 text-xs font-medium text-theme-secondary" x-text="item.status_message">{{ $import->statusMessage() }}</p>
-                                    </div>
-
-                                    <div class="flex flex-wrap items-center gap-2 sm:justify-end">
-                                        <span
-                                            class="ui-pill ui-pill-active"
-                                            x-show="item.is_active"
-                                            x-cloak
-                                        >
-                                            <span x-text="item.status === 'deleting' ? 'Deleting' : 'Live'"></span>
-                                        </span>
-                                        <span
-                                            class="ui-pill ui-pill-active"
-                                            x-show="['deleted', 'reverted'].includes(item.status)"
-                                            x-cloak
-                                        >
-                                            Deleted
-                                        </span>
-                                        <span
-                                            class="ui-pill ui-pill-active"
-                                            x-show="item.status === 'delete_failed'"
-                                            x-cloak
-                                        >
-                                            Delete failed
-                                        </span>
-                                        <span
-                                            class="ui-pill"
-                                            x-show="! item.is_active && ! ['deleted', 'deleting', 'delete_failed', 'reverted'].includes(item.status)"
-                                            x-cloak
-                                        >
-                                            <span class="capitalize" x-text="item.status_label">{{ $import->statusLabel() }}</span>
-                                        </span>
-
-                                        @if ($import->failed_rows > 0)
-                                            <a href="{{ route('modules.whatsapp.imports.show', $import) }}" class="ui-pill text-red-600">View errors</a>
-                                        @endif
-
-                                        @if (! in_array($import->status, ['pending', 'processing', 'deleting', 'deleted', 'reverted'], true) && $import->reverted_at === null)
+                            @if ($import->status === 'draft')
+                                {{-- Draft imports show a simplified row with wizard navigation --}}
+                                <div class="px-5 py-4 text-sm opacity-75">
+                                    <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                        <div class="min-w-0">
+                                            <p class="break-all font-medium text-theme-primary">{{ $import->original_file_name }}</p>
+                                            <p class="ui-muted">
+                                                <span>{{ $import->source_name ?: 'No source name' }}</span>
+                                                <span aria-hidden="true"> &ndash; </span>
+                                                <span>Draft</span>
+                                            </p>
+                                            <p class="mt-1 text-xs ui-muted">{{ $import->statusMessage() }}</p>
+                                        </div>
+                                        <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+                                            <span class="ui-pill">Draft</span>
+                                            <a href="{{ route('modules.whatsapp.imports.map', $import) }}" class="ui-pill">Continue setup &rarr;</a>
                                             <form method="POST" action="{{ route('modules.whatsapp.imports.destroy', $import) }}"
-                                                  onsubmit="return confirm('Delete this import? Contacts created only by this import will be removed. Numbers with other history (other imports, suppressions, or WhatsApp messages) will be kept.');">
+                                                  onsubmit="return confirm('Cancel this draft? The uploaded file will be removed.');">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="ui-pill">Delete</button>
+                                                <button type="submit" class="ui-pill">Cancel</button>
                                             </form>
-                                        @endif
+                                        </div>
                                     </div>
                                 </div>
+                            @else
+                                <div class="px-5 py-4 text-sm" x-data="{ item: get({{ $import->id }}) }">
+                                    <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                        <div class="min-w-0">
+                                            <p class="break-all font-medium text-theme-primary">{{ $import->original_file_name }}</p>
+                                            <p class="ui-muted">
+                                                <span>{{ $import->source_name ?: 'No source name' }}</span>
+                                                <span aria-hidden="true"> &ndash; </span>
+                                                <span class="capitalize" x-text="item.status_label">{{ $import->statusLabel() }}</span>
+                                            </p>
+                                            <p class="mt-2 text-xs font-medium text-theme-secondary" x-text="item.status_message">{{ $import->statusMessage() }}</p>
+                                        </div>
 
-                                <div class="mt-3">
-                                    <div class="mb-1 flex items-center justify-between gap-3 text-xs font-medium text-theme-secondary">
-                                        <span x-text="item.progress_label">{{ $import->processed_rows }} / {{ $import->total_rows ?: '-' }}</span>
-                                        <span x-text="`${item.progress}%`">{{ $import->total_rows > 0 ? min(100, round(($import->processed_rows / $import->total_rows) * 100)) : 0 }}%</span>
+                                        <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+                                            <span
+                                                class="ui-pill ui-pill-active"
+                                                x-show="item.is_active"
+                                                x-cloak
+                                            >
+                                                <span x-text="item.status === 'deleting' ? 'Deleting' : 'Live'"></span>
+                                            </span>
+                                            <span
+                                                class="ui-pill ui-pill-active"
+                                                x-show="['deleted', 'reverted'].includes(item.status)"
+                                                x-cloak
+                                            >
+                                                Deleted
+                                            </span>
+                                            <span
+                                                class="ui-pill ui-pill-active"
+                                                x-show="item.status === 'delete_failed'"
+                                                x-cloak
+                                            >
+                                                Delete failed
+                                            </span>
+                                            <span
+                                                class="ui-pill"
+                                                x-show="! item.is_active && ! ['deleted', 'deleting', 'delete_failed', 'reverted'].includes(item.status)"
+                                                x-cloak
+                                            >
+                                                <span class="capitalize" x-text="item.status_label">{{ $import->statusLabel() }}</span>
+                                            </span>
+
+                                            @if ($import->failed_rows > 0)
+                                                <a href="{{ route('modules.whatsapp.imports.show', $import) }}" class="ui-pill text-red-600">View errors</a>
+                                            @endif
+
+                                            @if (! in_array($import->status, ['pending', 'processing', 'deleting', 'deleted', 'reverted'], true) && $import->reverted_at === null)
+                                                <form method="POST" action="{{ route('modules.whatsapp.imports.destroy', $import) }}"
+                                                      onsubmit="return confirm('Delete this import? Contacts created only by this import will be removed. Numbers with other history (other imports, suppressions, or WhatsApp messages) will be kept.');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="ui-pill">Delete</button>
+                                                </form>
+                                            @endif
+                                        </div>
                                     </div>
-                                    <div class="ui-progress">
-                                        <div
-                                            class="ui-progress-bar"
-                                            style="width: {{ $import->total_rows > 0 ? min(100, round(($import->processed_rows / $import->total_rows) * 100)) : 0 }}%"
-                                            :style="`width: ${item.progress}%`"
-                                        ></div>
+
+                                    <div class="mt-3">
+                                        <div class="mb-1 flex items-center justify-between gap-3 text-xs font-medium text-theme-secondary">
+                                            <span x-text="item.progress_label">{{ $import->processed_rows }} / {{ $import->total_rows ?: '-' }}</span>
+                                            <span x-text="`${item.progress}%`">{{ $import->total_rows > 0 ? min(100, round(($import->processed_rows / $import->total_rows) * 100)) : 0 }}%</span>
+                                        </div>
+                                        <div class="ui-progress">
+                                            <div
+                                                class="ui-progress-bar"
+                                                style="width: {{ $import->total_rows > 0 ? min(100, round(($import->processed_rows / $import->total_rows) * 100)) : 0 }}%"
+                                                :style="`width: ${item.progress}%`"
+                                            ></div>
+                                        </div>
+                                        <p class="mt-2 text-xs ui-muted" x-text="item.detail_label">
+                                            {{ $import->successful_rows }} imported &ndash; {{ $import->failed_rows }} failed &ndash; {{ $import->duplicate_rows }} duplicates
+                                        </p>
                                     </div>
-                                    <p class="mt-2 text-xs ui-muted" x-text="item.detail_label">
-                                        {{ $import->successful_rows }} imported &ndash; {{ $import->failed_rows }} failed &ndash; {{ $import->duplicate_rows }} duplicates
-                                    </p>
                                 </div>
-                            </div>
+                            @endif
                         @empty
                             <div class="ui-empty">No imports yet.</div>
                         @endforelse

@@ -26,6 +26,7 @@ class WhatsAppImport extends Model
         'failed_rows',
         'duplicate_rows',
         'error_message',
+        'column_mapping',
         'summary',
         'started_at',
         'completed_at',
@@ -37,6 +38,7 @@ class WhatsAppImport extends Model
     protected function casts(): array
     {
         return [
+            'column_mapping' => 'array',
             'summary' => 'array',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
@@ -88,6 +90,7 @@ class WhatsAppImport extends Model
     public function statusMessage(): string
     {
         return match ($this->status) {
+            WhatsAppImportStatus::Draft->value => 'Column mapping not confirmed — setup not complete.',
             WhatsAppImportStatus::Pending->value => 'Waiting for the queue worker to start.',
             WhatsAppImportStatus::Processing->value => 'Import is running in the background.',
             WhatsAppImportStatus::Completed->value => 'Import completed successfully.',

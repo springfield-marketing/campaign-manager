@@ -39,11 +39,16 @@ class WhatsAppRawImportProcessor
             $file->setFlags(SplFileObject::READ_CSV | SplFileObject::DROP_NEW_LINE);
             $file->setCsvControl(',', '"', '\\');
 
-            $header  = $this->readHeader($file);
-            $mapping = $this->mapper->map($header);
+            $header = $this->readHeader($file);
 
-            if ($mapping['missing'] !== []) {
-                throw new \RuntimeException('Missing required columns: ' . implode(', ', $mapping['missing']));
+            if ($import->column_mapping !== null) {
+                $mapping = ['mapped' => $import->column_mapping, 'missing' => []];
+            } else {
+                $mapping = $this->mapper->map($header);
+
+                if ($mapping['missing'] !== []) {
+                    throw new \RuntimeException('Missing required columns: ' . implode(', ', $mapping['missing']));
+                }
             }
 
             $import->update(['total_rows' => $this->countDataRows($file)]);

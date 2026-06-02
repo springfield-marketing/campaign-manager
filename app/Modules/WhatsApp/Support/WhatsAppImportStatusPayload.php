@@ -20,6 +20,8 @@ class WhatsAppImportStatusPayload
             WhatsAppImportStatus::Deleting->value,
         ], true);
 
+        $isDraft = $import->status === WhatsAppImportStatus::Draft->value;
+
         $deleteProgress = $import->deleteProgress();
         $isDeleting = in_array($import->status, [
             WhatsAppImportStatus::Deleting->value,
@@ -29,6 +31,7 @@ class WhatsAppImportStatusPayload
 
         return [
             'id'                 => $import->id,
+            'is_draft'           => $isDraft,
             'type'               => $import->type,
             'status'             => $import->status,
             'status_label'       => $import->statusLabel(),
