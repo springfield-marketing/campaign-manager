@@ -2,10 +2,12 @@
 
 namespace App\Modules\WhatsApp\Jobs;
 
+use App\Modules\WhatsApp\Enums\WhatsAppImportStatus;
 use App\Modules\WhatsApp\Models\WhatsAppImport;
 use App\Modules\WhatsApp\Support\WhatsAppRawImportProcessor;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Throwable;
 
 class ProcessWhatsAppRawImport implements ShouldQueue
 {
@@ -21,5 +23,17 @@ class ProcessWhatsAppRawImport implements ShouldQueue
     {
         $import = WhatsAppImport::findOrFail($this->importId);
         $processor->process($import);
+    }
+
+    public function failed(Throwable $exception): void
+    {
+        WhatsAppImport::query()
+            ->whereKey($this->importId)
+            ->where('status', WhatsAppImportStatus::Processing->value)
+            ->update([
+                'status'        => WhatsAppImportStatus::Failed,
+                'error_message' => 'Import timed out. Rows processed before the timeout were saved.',
+                'completed_at'  => now(),
+            ]);
     }
 }
