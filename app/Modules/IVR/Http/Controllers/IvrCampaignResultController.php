@@ -13,7 +13,6 @@ use App\Modules\IVR\Models\IvrCallRecord;
 use App\Modules\IVR\Models\IvrCampaign;
 use App\Modules\IVR\Models\IvrImport;
 use App\Modules\IVR\Models\IvrScript;
-use App\Modules\IVR\Support\BillableDuration;
 use App\Modules\IVR\Support\IvrImportStatusPayload;
 use App\Modules\IVR\Support\NumberEligibilityService;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -529,20 +528,29 @@ class IvrCampaignResultController extends Controller
      */
     private function campaignStats(IvrCampaign $campaign): array
     {
-        $base = $campaign->callRecords();
+        $driver = DB::connection()->getDriverName();
+        $billableMinutes = $driver === 'sqlite'
+            ? "coalesce(sum(case when lower(call_status) <> 'answered' then 0 when total_duration_seconds <= 0 then 0 when total_duration_seconds <= 60 then 1 else cast((total_duration_seconds + 59) / 60 as integer) end), 0)"
+            : "coalesce(sum(case when lower(call_status) <> 'answered' then 0 when total_duration_seconds <= 0 then 0 when total_duration_seconds <= 60 then 1 else ceiling(total_duration_seconds / 60.0) end), 0)";
 
-        $answeredSecondsList = (clone $base)
-            ->whereRaw('lower(call_status) = ?', ['answered'])
-            ->pluck('total_duration_seconds');
+        $row = $campaign->callRecords()
+            ->selectRaw('count(*) as total_calls')
+            ->selectRaw("sum(case when lower(call_status) = 'answered' then 1 else 0 end) as answered_calls")
+            ->selectRaw("sum(case when lower(call_status) = 'missed' then 1 else 0 end) as missed_calls")
+            ->selectRaw("sum(case when dtmf_outcome = 'interested' then 1 else 0 end) as leads_count")
+            ->selectRaw("sum(case when dtmf_outcome = 'more_info' then 1 else 0 end) as more_info_count")
+            ->selectRaw("sum(case when dtmf_outcome = 'unsubscribe' then 1 else 0 end) as unsubscribed_count")
+            ->selectRaw("{$billableMinutes} as time_consumed_minutes")
+            ->first();
 
         return [
-            'total_calls' => (clone $base)->count(),
-            'answered_calls' => $answeredSecondsList->count(),
-            'missed_calls' => (clone $base)->whereRaw('lower(call_status) = ?', ['missed'])->count(),
-            'leads_count' => (clone $base)->where('dtmf_outcome', 'interested')->count(),
-            'more_info_count' => (clone $base)->where('dtmf_outcome', 'more_info')->count(),
-            'unsubscribed_count' => (clone $base)->where('dtmf_outcome', 'unsubscribe')->count(),
-            'time_consumed_minutes' => $answeredSecondsList->sum(fn ($s): int => BillableDuration::minutes((int) $s)),
+            'total_calls'           => (int) ($row->total_calls ?? 0),
+            'answered_calls'        => (int) ($row->answered_calls ?? 0),
+            'missed_calls'          => (int) ($row->missed_calls ?? 0),
+            'leads_count'           => (int) ($row->leads_count ?? 0),
+            'more_info_count'       => (int) ($row->more_info_count ?? 0),
+            'unsubscribed_count'    => (int) ($row->unsubscribed_count ?? 0),
+            'time_consumed_minutes' => (int) ($row->time_consumed_minutes ?? 0),
         ];
     }
 }
