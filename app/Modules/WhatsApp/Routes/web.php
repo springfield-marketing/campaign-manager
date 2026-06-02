@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\GuideController;
 use App\Modules\WhatsApp\Http\Controllers\WhatsAppCampaignController;
 use App\Modules\WhatsApp\Http\Controllers\WhatsAppController;
 use App\Modules\WhatsApp\Http\Controllers\WhatsAppImportController;
@@ -37,4 +38,5 @@ Route::middleware(['auth', 'verified'])
         Route::delete('/unsubscribers/{suppression}', [WhatsAppUnsubscriberController::class, 'destroy'])->name('unsubscribers.destroy');
 
         Route::get('/reports', [WhatsAppReportController::class, 'index'])->name('reports.index');
+        Route::get('/guide', [GuideController::class, 'show'])->name('guide');
     });

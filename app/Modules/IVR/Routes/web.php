@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\GuideController;
 use App\Modules\IVR\Http\Controllers\IVRController;
 use App\Modules\IVR\Http\Controllers\IvrCampaignResultController;
 use App\Modules\IVR\Http\Controllers\IvrImportController;
@@ -47,4 +48,5 @@ Route::middleware(['auth', 'verified'])
         Route::put('/settings', [IvrSettingsController::class, 'update'])->name('settings.update');
         Route::post('/settings/database-export', [IvrSettingsController::class, 'exportDatabase'])->name('settings.database-export.store');
         Route::get('/settings/database-export/{export}', [IvrSettingsController::class, 'downloadDatabaseExport'])->name('settings.database-export.download');
+        Route::get('/guide', [GuideController::class, 'show'])->name('guide');
     });
