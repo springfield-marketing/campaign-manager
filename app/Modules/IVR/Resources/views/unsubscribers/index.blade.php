@@ -30,25 +30,45 @@
                 </div>
             @endif
 
-            <section class="ui-card ui-card-pad">
-                <h3 class="ui-title">Import unsubscribers</h3>
-                <p class="mt-2 text-sm ui-muted">
-                    Upload a CSV with two columns in this order: <strong>phone number</strong>, then <strong>name</strong>.
-                    A header row is optional. Imported numbers are excluded from IVR exports.
-                </p>
+            <div class="grid gap-6 md:grid-cols-2 mb-6">
+                {{-- Bulk upload --}}
+                <section class="ui-card ui-card-pad">
+                    <h3 class="ui-title">Import from CSV</h3>
+                    <p class="mt-2 text-sm ui-muted">
+                        Upload a CSV with two columns in this order: <strong>phone number</strong>, then <strong>name</strong>.
+                        A header row is optional. Imported numbers are excluded from IVR exports.
+                    </p>
 
-                <form method="POST" action="{{ route('modules.ivr.unsubscribers.store') }}" enctype="multipart/form-data" class="mt-6 grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
-                    @csrf
+                    <form method="POST" action="{{ route('modules.ivr.unsubscribers.store') }}" enctype="multipart/form-data" class="mt-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+                        @csrf
+                        <div>
+                            <label class="ui-label" for="file">CSV file</label>
+                            <input id="file" name="file" type="file" class="ui-control mt-1 block w-full">
+                            <x-input-error :messages="$errors->get('file')" class="mt-2" />
+                        </div>
+                        <button type="submit" class="ui-button">Import</button>
+                    </form>
+                </section>
 
-                    <div>
-                        <label class="ui-label" for="file">CSV file</label>
-                        <input id="file" name="file" type="file" class="ui-control mt-1 block w-full">
-                        <x-input-error :messages="$errors->get('file')" class="mt-2" />
-                    </div>
+                {{-- Add single --}}
+                <section class="ui-card ui-card-pad">
+                    <h3 class="ui-title">Add number manually</h3>
+                    <p class="mt-2 text-sm ui-muted">
+                        Suppress a single phone number immediately. The number must already exist in the database.
+                        Enter in any format: <code class="text-xs">0501234567</code>, <code class="text-xs">+971501234567</code>, etc.
+                    </p>
 
-                    <button type="submit" class="ui-button">Import</button>
-                </form>
-            </section>
+                    <form method="POST" action="{{ route('modules.ivr.unsubscribers.add') }}" class="mt-4 grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+                        @csrf
+                        <div>
+                            <label class="ui-label" for="phone">Phone number</label>
+                            <x-text-input id="phone" name="phone" type="text" class="mt-1 block w-full" placeholder="+971501234567" value="{{ old('phone') }}" />
+                            <x-input-error :messages="$errors->get('phone')" class="mt-2" />
+                        </div>
+                        <button type="submit" class="ui-button">Suppress</button>
+                    </form>
+                </section>
+            </div>
 
             <section class="ui-card mt-6 overflow-hidden">
                 <div class="ui-section-head">
@@ -83,9 +103,11 @@
                                         :style="`width: ${item.progress}%`"
                                     ></div>
                                 </div>
-                                <p class="mt-2 text-xs ui-muted" x-text="`${item.successful_rows} added - ${item.duplicate_rows} already existed - ${item.failed_rows} failed`">
-                                    {{ $import->successful_rows }} added - {{ $import->duplicate_rows }} already existed - {{ $import->failed_rows }} failed
-                                </p>
+                                <div class="mt-2 flex flex-wrap gap-3 text-xs">
+                                    <span class="ui-muted"><span class="font-medium text-green-600" x-text="item.successful_rows">{{ $import->successful_rows }}</span> added</span>
+                                    <span class="ui-muted"><span class="font-medium text-theme-secondary" x-text="item.duplicate_rows">{{ $import->duplicate_rows }}</span> already existed</span>
+                                    <span class="ui-muted"><span class="font-medium text-red-600" x-text="item.failed_rows">{{ $import->failed_rows }}</span> failed</span>
+                                </div>
                             </div>
                         </div>
                     @empty
@@ -98,17 +120,25 @@
                 </div>
             </section>
 
-            <section class="ui-card ui-card-pad mt-6">
-                <h3 class="ui-title">Filter unsubscribers</h3>
-
-                <form method="GET" class="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto]">
-                    <input type="search" name="phone" value="{{ request('phone') }}" placeholder="Search phone" class="ui-control">
-                    <input type="search" name="name" value="{{ request('name') }}" placeholder="Search name" class="ui-control">
-                    <button type="submit" class="ui-button">Filter</button>
-                </form>
-            </section>
-
             <section class="ui-card mt-6 overflow-hidden">
+                <div class="ui-section-head">
+                    <div>
+                        <h3 class="ui-title">Suppressed numbers</h3>
+                        @if ($unsubscribers->total() > 0)
+                            <p class="mt-1 text-sm ui-muted">{{ number_format($unsubscribers->total()) }} total</p>
+                        @endif
+                    </div>
+                </div>
+
+                <div class="px-5 py-4 border-b border-[var(--line)]">
+                    <form method="GET" class="grid gap-3 md:grid-cols-[1fr_1fr_auto_auto]">
+                        <input type="search" name="phone" value="{{ request('phone') }}" placeholder="Search phone" class="ui-control">
+                        <input type="search" name="name" value="{{ request('name') }}" placeholder="Search name" class="ui-control">
+                        <button type="submit" class="ui-button">Filter</button>
+                        <a href="{{ route('modules.ivr.unsubscribers.index') }}" class="ui-button text-center">Clear</a>
+                    </form>
+                </div>
+
                 <div class="overflow-x-auto">
                     <table class="ui-table">
                         <thead>
@@ -127,7 +157,9 @@
                                     <td>{{ $suppression->phoneNumber?->normalized_phone ?: '-' }}</td>
                                     <td>{{ optional($suppression->suppressed_at)->format('Y-m-d H:i') ?: '-' }}</td>
                                     <td>
-                                        @if ($suppression->context['source_file'] ?? null)
+                                        @if (($suppression->context['source'] ?? null) === 'manual')
+                                            Manual entry
+                                        @elseif ($suppression->context['source_file'] ?? null)
                                             {{ $suppression->context['source_file'] }}
                                         @elseif ($suppression->context['campaign_id'] ?? null)
                                             Campaign: {{ $suppression->context['campaign_id'] }}

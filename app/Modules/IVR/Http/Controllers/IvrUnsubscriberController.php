@@ -3,6 +3,7 @@
 namespace App\Modules\IVR\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\ClientPhoneNumber;
 use App\Models\ContactSuppression;
 use App\Modules\IVR\Enums\IvrImportStatus;
 use App\Modules\IVR\Enums\IvrImportType;
@@ -10,6 +11,7 @@ use App\Modules\IVR\Jobs\ProcessUnsubscriberImport;
 use App\Modules\IVR\Models\IvrImport;
 use App\Modules\IVR\Support\IvrImportStatusPayload;
 use App\Modules\IVR\Support\NumberEligibilityService;
+use App\Modules\IVR\Support\PhoneNormalizer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
@@ -97,6 +99,46 @@ class IvrUnsubscriberController extends Controller
         return redirect()
             ->route('modules.ivr.unsubscribers.index')
             ->with('status', 'Unsubscriber import queued successfully.');
+    }
+
+    public function addSingle(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'phone' => ['required', 'string', 'max:30'],
+        ]);
+
+        try {
+            $normalizer = app(PhoneNormalizer::class);
+            $normalized = $normalizer->normalize($validated['phone'])['normalized'];
+        } catch (\InvalidArgumentException $e) {
+            return back()->withErrors(['phone' => 'Could not parse this phone number: ' . $e->getMessage()]);
+        }
+
+        $number = ClientPhoneNumber::where('normalized_phone', $normalized)->first();
+
+        if (! $number) {
+            return back()->withErrors(['phone' => "Number {$normalized} is not in the database. Only numbers that have been imported can be manually suppressed."]);
+        }
+
+        $existing = ContactSuppression::where('client_phone_number_id', $number->id)
+            ->where('channel', 'ivr')
+            ->whereIn('reason', self::UNSUBSCRIBE_REASONS)
+            ->whereNull('released_at')
+            ->exists();
+
+        if ($existing) {
+            return back()->withErrors(['phone' => "Number {$normalized} is already suppressed."]);
+        }
+
+        ContactSuppression::create([
+            'client_phone_number_id' => $number->id,
+            'channel'                => 'ivr',
+            'reason'                 => 'customer_unsubscribed',
+            'suppressed_at'          => now(),
+            'context'                => ['source' => 'manual', 'added_by' => $request->user()?->id],
+        ]);
+
+        return back()->with('status', "Number {$normalized} added to IVR unsubscribers.");
     }
 
     public function destroy(ContactSuppression $suppression, NumberEligibilityService $eligibilityService): RedirectResponse
