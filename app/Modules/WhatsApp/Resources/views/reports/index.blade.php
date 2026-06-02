@@ -16,15 +16,6 @@
             @endphp
 
             <div class="ui-card ui-card-pad">
-                {{-- Quick presets --}}
-                <div class="mb-3 flex flex-wrap gap-2 text-sm">
-                    <a href="{{ route('modules.whatsapp.reports.index') }}?year={{ now()->year }}&month={{ now()->month }}" class="ui-pill @if((int)$year === now()->year && (int)$month === now()->month) ui-pill-active @endif">This month</a>
-                    @php $threeMonthsAgo = now()->subMonths(2); @endphp
-                    <a href="{{ route('modules.whatsapp.reports.index') }}?year={{ $threeMonthsAgo->year }}&month={{ $threeMonthsAgo->month }}" class="ui-pill">3 months ago</a>
-                    <a href="{{ route('modules.whatsapp.reports.index') }}?year={{ now()->year }}" class="ui-pill @if((int)$year === now()->year && !$month) ui-pill-active @endif">{{ now()->year }} (full year)</a>
-                    <a href="{{ route('modules.whatsapp.reports.index') }}?year={{ now()->year - 1 }}" class="ui-pill @if((int)$year === now()->year - 1 && !$month) ui-pill-active @endif">{{ now()->year - 1 }} (full year)</a>
-                </div>
-
                 <form method="GET" class="grid gap-3 md:grid-cols-3">
                     <input type="number" name="year" value="{{ $year }}" class="ui-control">
                     <select name="month" class="ui-control">
