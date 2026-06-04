@@ -6,6 +6,7 @@ use App\Models\Client;
 use App\Models\ClientPhoneNumber;
 use App\Models\ClientSource;
 use App\Modules\WhatsApp\Enums\WhatsAppImportStatus;
+use App\Modules\WhatsApp\Jobs\AnalyseWhatsAppNumber;
 use App\Modules\WhatsApp\Models\WhatsAppCampaign;
 use App\Modules\WhatsApp\Models\WhatsAppImport;
 use Carbon\Carbon;
@@ -20,7 +21,6 @@ class WhatsAppCampaignResultsProcessor
 
     public function __construct(
         private readonly WhatsAppPhoneNormalizer $phoneNormalizer,
-        private readonly WhatsAppNumberAnalyser $analyser,
         private readonly WhatsAppSummaryService $summaryService,
     ) {}
 
@@ -156,8 +156,10 @@ class WhatsAppCampaignResultsProcessor
                 }
             }
 
+            // Dispatch analysis as individual background jobs so the import
+            // job itself is not held hostage by potentially thousands of queries.
             foreach (array_values($phoneIdCache) as $phoneNumberId) {
-                $this->analyser->analyse($phoneNumberId);
+                AnalyseWhatsAppNumber::dispatch($phoneNumberId);
             }
 
             $import->update([
