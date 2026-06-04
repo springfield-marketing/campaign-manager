@@ -30,21 +30,24 @@ class WhatsAppNumberAnalyser
             ->orderByDesc('scheduled_at')
             ->orderByDesc('id')
             ->get(['delivery_status', 'failure_reason', 'has_quick_replies',
-                   'quick_reply_1', 'quick_reply_2', 'quick_reply_3', 'scheduled_at']);
+                   'quick_reply_1', 'quick_reply_2', 'quick_reply_3',
+                   'scheduled_at', 'whatsapp_campaign_id', 'clicked']);
 
         if ($messages->isEmpty()) {
             return;
         }
 
-        $isLead              = false;
-        $isSpam              = false;
+        $isLead               = false;
+        $isSpam               = false;
         $consecutiveHardFails = 0;
-        $totalMessages       = $messages->count();
-        $totalHardFails      = 0;
-        $totalNonSystemFails = 0;
-        $countingConsecutive = true;
-        $hasOptOut           = false;
-        $latestCooldownUntil = null;
+        $totalMessages        = $messages->count();
+        $totalHardFails       = 0;
+        $totalNonSystemFails  = 0;
+        $countingConsecutive  = true;
+        $hasOptOut            = false;
+        $latestCooldownUntil  = null;
+        $distinctCampaigns    = [];
+        $totalClicks          = 0;
 
         foreach ($messages as $message) {
             $class = $message->delivery_status === 'FAILED'
@@ -88,11 +91,20 @@ class WhatsAppNumberAnalyser
                     $isLead = true;
                 }
             }
+
+            // Engagement tracking
+            if ($message->whatsapp_campaign_id) {
+                $distinctCampaigns[$message->whatsapp_campaign_id] = true;
+            }
+            if ($message->clicked) {
+                $totalClicks++;
+            }
         }
 
-        $latest            = $messages->first();
-        $hardFailThreshold = config('whatsapp.hard_fail_threshold', 3);
-        $bulkDeadThreshold = config('whatsapp.bulk_dead_threshold', 10);
+        $latest               = $messages->first();
+        $hardFailThreshold    = config('whatsapp.hard_fail_threshold', 3);
+        $bulkDeadThreshold    = config('whatsapp.bulk_dead_threshold', 10);
+        $noEngagementThreshold = config('whatsapp.no_engagement_threshold', 5);
 
         // Dead when consecutive hard fails exceed threshold,
         // OR the number has been tried 10+ times and every non-system attempt hard-failed.
@@ -101,15 +113,18 @@ class WhatsAppNumberAnalyser
                 && $totalNonSystemFails > 0
                 && $totalHardFails === $totalNonSystemFails);
 
-        // Determine usage_status (dead beats cooldown beats active)
+        // Determine usage_status (dead beats failure cooldown beats no-engagement cooldown beats active)
         $usageStatus  = 'active';
         $cooldownUntil = null;
 
         if ($isDead) {
             $usageStatus = 'dead';
         } elseif ($latestCooldownUntil !== null && $latestCooldownUntil->isFuture()) {
-            $usageStatus  = 'cooldown';
+            $usageStatus   = 'cooldown';
             $cooldownUntil = $latestCooldownUntil;
+        } elseif ($totalClicks === 0 && count($distinctCampaigns) >= $noEngagementThreshold) {
+            $usageStatus   = 'cooldown';
+            $cooldownUntil = $this->cooldownUntil('no_engagement', null);
         }
 
         // Persist the profile
