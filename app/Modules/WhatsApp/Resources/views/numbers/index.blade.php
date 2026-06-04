@@ -12,19 +12,23 @@
             <section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <article class="ui-card ui-card-pad">
                     <p class="text-sm ui-muted">Total numbers</p>
-                    <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($stats['total']) }}</p>
+                    <p class="mt-2 text-3xl font-bold text-theme-primary">{{ number_format($stats['total']) }}</p>
+                    <p class="mt-1 text-xs ui-muted">All imported contacts</p>
                 </article>
-                <article class="ui-card ui-card-pad">
-                    <p class="text-sm ui-muted">Active</p>
-                    <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($stats['active']) }}</p>
+                <article class="ui-card ui-card-pad border-t-4 border-t-green-500">
+                    <p class="text-sm font-medium text-green-700">Active</p>
+                    <p class="mt-2 text-3xl font-bold text-green-600">{{ number_format($stats['active']) }}</p>
+                    <p class="mt-1 text-xs text-green-600/70">Ready to contact</p>
                 </article>
-                <article class="ui-card ui-card-pad">
-                    <p class="text-sm ui-muted">Unsubscribed</p>
-                    <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($stats['unsubscribed']) }}</p>
+                <article class="ui-card ui-card-pad border-t-4 border-t-orange-400">
+                    <p class="text-sm font-medium text-orange-700">Unsubscribed</p>
+                    <p class="mt-2 text-3xl font-bold text-orange-500">{{ number_format($stats['unsubscribed']) }}</p>
+                    <p class="mt-1 text-xs text-orange-500/70">Dead or opted out</p>
                 </article>
-                <article class="ui-card ui-card-pad">
-                    <p class="text-sm ui-muted">Cooldown</p>
-                    <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($stats['cooldown']) }}</p>
+                <article class="ui-card ui-card-pad border-t-4 border-t-amber-400">
+                    <p class="text-sm font-medium text-amber-700">Cooldown</p>
+                    <p class="mt-2 text-3xl font-bold text-amber-500">{{ number_format($stats['cooldown']) }}</p>
+                    <p class="mt-1 text-xs text-amber-500/70">Temporarily paused</p>
                 </article>
             </section>
 
@@ -35,46 +39,13 @@
 
                     <input type="search" name="name" value="{{ request('name') }}" placeholder="Client name" class="ui-control">
 
-                    {{-- Origin combobox --}}
-                    <div
-                        class="relative"
-                        x-data="combobox({ options: @js($origins->values()->all()), name: 'origin', value: '{{ request('origin') }}' })"
-                    >
-                        <div class="relative flex items-center">
-                            <input
-                                type="text"
-                                class="ui-control w-full pr-7"
-                                placeholder="Country of origin (e.g. AE)"
-                                autocomplete="off"
-                                x-model="query"
-                                @focus="open = true"
-                                @blur="onBlur()"
-                                @keydown.escape="onBlur()"
-                            >
-                            <button
-                                type="button"
-                                class="absolute right-2 text-gray-400 hover:text-gray-600"
-                                x-show="selected"
-                                @mousedown.prevent="clear()"
-                                tabindex="-1"
-                            >&times;</button>
-                        </div>
-                        <input type="hidden" :name="name" :value="selected">
-                        <ul
-                            x-show="open && filtered.length > 0"
-                            x-cloak
-                            class="absolute z-20 mt-1 max-h-48 w-full overflow-y-auto rounded border border-[var(--line)] bg-theme-surface shadow-lg text-sm"
-                        >
-                            <template x-for="option in filtered" :key="option">
-                                <li
-                                    class="cursor-pointer px-3 py-2 hover:bg-theme-subtle"
-                                    :class="{ 'bg-theme-subtle font-medium': option === selected }"
-                                    @mousedown.prevent="select(option)"
-                                    x-text="option"
-                                ></li>
-                            </template>
-                        </ul>
-                    </div>
+                    {{-- Origin select --}}
+                    <select name="origin" class="ui-control">
+                        <option value="">All origins</option>
+                        @foreach ($origins as $origin)
+                            <option value="{{ $origin }}" @selected(request('origin') === $origin)>{{ $origin }}</option>
+                        @endforeach
+                    </select>
 
                     {{-- Emirate select --}}
                     <select name="region" class="ui-control">
@@ -104,8 +75,8 @@
                         @endforeach
                     </select>
 
-                    <button type="submit" class="ui-button">Filter</button>
-                    <a href="{{ route('modules.whatsapp.numbers.index') }}" class="ui-button text-center">Clear</a>
+                    <button type="submit" class="ui-button-subtle">Filter</button>
+                    <a href="{{ route('modules.whatsapp.numbers.index') }}" class="ui-button-subtle text-center">Clear</a>
 
                     <div class="ml-auto flex items-end gap-2">
                         <div>
