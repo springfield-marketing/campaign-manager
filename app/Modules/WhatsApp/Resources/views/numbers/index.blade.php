@@ -34,64 +34,76 @@
 
             {{-- Filters + Export --}}
             <div class="ui-card ui-card-pad">
-                <form method="GET" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_1fr_1fr_auto_auto_auto]" id="numbers-filter-form">
-                    <input type="search" name="phone" value="{{ request('phone') }}" placeholder="Phone number" class="ui-control">
-
-                    <input type="search" name="name" value="{{ request('name') }}" placeholder="Client name" class="ui-control">
-
-                    {{-- Origin select --}}
-                    <select name="origin" class="ui-control">
-                        <option value="">All origins</option>
-                        @foreach ($origins as $origin)
-                            <option value="{{ $origin }}" @selected(request('origin') === $origin)>{{ $origin }}</option>
-                        @endforeach
-                    </select>
-
-                    {{-- Emirate select --}}
-                    <select name="region" class="ui-control">
-                        <option value="">All emirates</option>
-                        @foreach ($regions as $region)
-                            <option value="{{ $region->id }}" @selected(request('region') == $region->id)>{{ $region->name }}</option>
-                        @endforeach
-                    </select>
-
-                    {{-- Community select --}}
-                    <select name="community" class="ui-control">
-                        <option value="">All communities</option>
-                        @foreach ($communities->groupBy(fn ($c) => $c->region?->name) as $emirate => $group)
-                            <optgroup label="{{ $emirate }}">
-                                @foreach ($group->sortBy('name') as $community)
-                                    <option value="{{ $community->id }}" @selected(request('community') == $community->id)>{{ $community->name }}</option>
-                                @endforeach
-                            </optgroup>
-                        @endforeach
-                    </select>
-
-                    {{-- Status select --}}
-                    <select name="status" class="ui-control">
-                        <option value="">All statuses</option>
-                        @foreach ($statuses as $status)
-                            <option value="{{ $status }}" @selected(request('status') === $status)>{{ ucfirst($status) }}</option>
-                        @endforeach
-                    </select>
-
-                    <button type="submit" class="ui-button-subtle">Filter</button>
-                    <a href="{{ route('modules.whatsapp.numbers.index') }}" class="ui-button-subtle text-center">Clear</a>
-
-                    <div class="ml-auto flex items-end gap-2">
+                <form method="GET" class="grid gap-4">
+                    {{-- Primary filters --}}
+                    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         <div>
-                            <label class="ui-label">Export limit <span class="font-normal ui-muted">(max rows)</span></label>
-                            <input type="number" name="export_limit" min="1" max="50000" value="{{ request('export_limit', 5000) }}" class="ui-control mt-1 w-28">
+                            <label class="ui-label">Phone</label>
+                            <input type="search" name="phone" value="{{ request('phone') }}" placeholder="Search number" class="ui-control mt-1 w-full">
                         </div>
-                        <button
-                            type="submit"
-                            formaction="{{ route('modules.whatsapp.numbers.export') }}"
-                            class="ui-button"
-                        >Export</button>
+                        <div>
+                            <label class="ui-label">Name</label>
+                            <input type="search" name="name" value="{{ request('name') }}" placeholder="Search name" class="ui-control mt-1 w-full">
+                        </div>
+                        <div>
+                            <label class="ui-label">Origin</label>
+                            <select name="origin" class="ui-control mt-1 w-full">
+                                <option value="">All origins</option>
+                                @foreach ($origins as $origin)
+                                    <option value="{{ $origin }}" @selected(request('origin') === $origin)>{{ $origin }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="ui-label">Emirate</label>
+                            <select name="region" class="ui-control mt-1 w-full">
+                                <option value="">All emirates</option>
+                                @foreach ($regions as $region)
+                                    <option value="{{ $region->id }}" @selected(request('region') == $region->id)>{{ $region->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="ui-label">Community</label>
+                            <select name="community" class="ui-control mt-1 w-full">
+                                <option value="">All communities</option>
+                                @foreach ($communities->groupBy(fn ($c) => $c->region?->name) as $emirate => $group)
+                                    <optgroup label="{{ $emirate }}">
+                                        @foreach ($group->sortBy('name') as $community)
+                                            <option value="{{ $community->id }}" @selected(request('community') == $community->id)>{{ $community->name }}</option>
+                                        @endforeach
+                                    </optgroup>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="ui-label">Status</label>
+                            <select name="status" class="ui-control mt-1 w-full">
+                                <option value="">All statuses</option>
+                                @foreach ($statuses as $status)
+                                    <option value="{{ $status }}" @selected(request('status') === $status)>{{ ucfirst($status) }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+
+                    {{-- Actions --}}
+                    <div class="flex flex-wrap items-end gap-3">
+                        <div class="flex gap-2">
+                            <button type="submit" class="ui-button-subtle">Filter</button>
+                            <a href="{{ route('modules.whatsapp.numbers.index') }}" class="ui-button-subtle text-center">Clear</a>
+                        </div>
+                        <div class="ml-auto">
+                            <label class="ui-label">Export limit <span class="font-normal ui-muted">(max rows)</span></label>
+                            <div class="mt-1 flex gap-2">
+                                <input type="number" name="export_limit" min="1" max="50000" value="{{ request('export_limit', 5000) }}" class="ui-control w-28">
+                                <button type="submit" formaction="{{ route('modules.whatsapp.numbers.export') }}" class="ui-button">Export</button>
+                            </div>
+                        </div>
                     </div>
                 </form>
 
-                <p class="mt-3 text-xs ui-muted">
+                <p class="mt-4 text-xs ui-muted">
                     Status: <strong>Active</strong> = receiving messages normally &nbsp;&middot;&nbsp;
                     <strong>Cooldown</strong> = temporarily paused after delivery failures &nbsp;&middot;&nbsp;
                     <strong>Dead</strong> = permanently marked invalid
