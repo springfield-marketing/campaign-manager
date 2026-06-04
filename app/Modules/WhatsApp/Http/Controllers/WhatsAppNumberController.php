@@ -223,10 +223,11 @@ class WhatsAppNumberController extends Controller
                          AND (wpp.usage_status IS NULL OR wpp.usage_status = 'active')
                         THEN wm.client_phone_number_id
                     END) AS active,
-                    COUNT(DISTINCT CASE WHEN wpp.usage_status = 'dead' THEN wm.client_phone_number_id END) AS dead,
-                    COUNT(DISTINCT CASE WHEN cs.id IS NOT NULL THEN wm.client_phone_number_id END) AS suppressed,
-                    COUNT(DISTINCT CASE WHEN wpp.usage_status = 'cooldown' AND wpp.cooldown_until > NOW() THEN wm.client_phone_number_id END) AS cooldown,
-                    COUNT(DISTINCT cpn.detected_country) AS origins
+                    COUNT(DISTINCT CASE
+                        WHEN wpp.usage_status = 'dead' OR cs.id IS NOT NULL
+                        THEN wm.client_phone_number_id
+                    END) AS unsubscribed,
+                    COUNT(DISTINCT CASE WHEN wpp.usage_status = 'cooldown' AND wpp.cooldown_until > NOW() THEN wm.client_phone_number_id END) AS cooldown
                 FROM whatsapp_messages wm
                 INNER JOIN client_phone_numbers cpn ON cpn.id = wm.client_phone_number_id
                 LEFT  JOIN whatsapp_phone_profiles wpp ON wpp.client_phone_number_id = cpn.id
@@ -238,12 +239,10 @@ class WhatsAppNumberController extends Controller
             ");
 
             return [
-                'total'      => (int) ($row->total ?? 0),
-                'active'     => (int) ($row->active ?? 0),
-                'dead'       => (int) ($row->dead ?? 0),
-                'suppressed' => (int) ($row->suppressed ?? 0),
-                'cooldown'   => (int) ($row->cooldown ?? 0),
-                'origins'    => (int) ($row->origins ?? 0),
+                'total'        => (int) ($row->total ?? 0),
+                'active'       => (int) ($row->active ?? 0),
+                'unsubscribed' => (int) ($row->unsubscribed ?? 0),
+                'cooldown'     => (int) ($row->cooldown ?? 0),
             ];
         });
     }
