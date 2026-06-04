@@ -43,6 +43,13 @@ class WhatsAppNumberController extends Controller
             ->leftJoin('regions', 'regions.id', '=', 'clients.region_id')
             ->selectRaw('MAX(clients.full_name) as client_name')
             ->selectRaw('MAX(regions.name) as region_name')
+            ->whereNotExists(function ($q): void {
+                $q->select(DB::raw(1))
+                  ->from('contact_suppressions')
+                  ->whereColumn('contact_suppressions.client_phone_number_id', 'client_phone_numbers.id')
+                  ->where('contact_suppressions.channel', 'whatsapp')
+                  ->whereNull('contact_suppressions.released_at');
+            })
             ->where(function (Builder $q): void {
                 $q->whereNull('whatsapp_phone_profiles.usage_status')
                   ->orWhere('whatsapp_phone_profiles.usage_status', 'active')
@@ -58,7 +65,7 @@ class WhatsAppNumberController extends Controller
         return response()->streamDownload(function () use ($query): void {
             $handle = fopen('php://output', 'w');
 
-            fputcsv($handle, ['phone', 'name', 'emirate', 'origin', 'source', 'messages', 'suppressed']);
+            fputcsv($handle, ['phone', 'name', 'emirate', 'origin', 'source', 'messages']);
 
             foreach ($query->cursor() as $number) {
                 fputcsv($handle, [
@@ -68,7 +75,6 @@ class WhatsAppNumberController extends Controller
                     $number->detected_country,
                     $number->last_source_name,
                     $number->whats_app_messages_count,
-                    $number->suppressed ? 'yes' : 'no',
                 ]);
             }
 
