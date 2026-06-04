@@ -105,12 +105,19 @@
                     </select>
 
                     <button type="submit" class="ui-button">Filter</button>
-                    <button
-                        type="submit"
-                        formaction="{{ route('modules.whatsapp.numbers.export') }}"
-                        class="ui-button"
-                    >Export</button>
                     <a href="{{ route('modules.whatsapp.numbers.index') }}" class="ui-button text-center">Clear</a>
+
+                    <div class="ml-auto flex items-end gap-2">
+                        <div>
+                            <label class="ui-label">Export limit <span class="font-normal ui-muted">(max rows)</span></label>
+                            <input type="number" name="export_limit" min="1" max="50000" value="{{ request('export_limit', 5000) }}" class="ui-control mt-1 w-28">
+                        </div>
+                        <button
+                            type="submit"
+                            formaction="{{ route('modules.whatsapp.numbers.export') }}"
+                            class="ui-button"
+                        >Export</button>
+                    </div>
                 </form>
 
                 <p class="mt-3 text-xs ui-muted">

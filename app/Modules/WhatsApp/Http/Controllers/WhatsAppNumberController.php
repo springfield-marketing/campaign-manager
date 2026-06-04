@@ -36,6 +36,8 @@ class WhatsAppNumberController extends Controller
 
     public function export(Request $request): StreamedResponse
     {
+        $limit = min(max((int) ($request->integer('export_limit') ?: 5000), 1), 50000);
+
         $numbers = $this->buildQuery($request)
             ->where(function (Builder $q): void {
                 // Exclude dead numbers and numbers still in active cooldown
@@ -47,6 +49,7 @@ class WhatsAppNumberController extends Controller
                   });
             })
             ->with('client.region')
+            ->limit($limit)
             ->get();
 
         $filename = 'whatsapp-numbers-' . now()->format('Y-m-d') . '.csv';
