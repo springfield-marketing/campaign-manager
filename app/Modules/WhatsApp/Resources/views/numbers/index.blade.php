@@ -9,22 +9,26 @@
         <div class="page-wrap space-y-6">
 
             {{-- Stats --}}
-            <section class="grid gap-4 sm:grid-cols-4">
+            <section class="grid gap-4 sm:grid-cols-3 xl:grid-cols-5">
                 <article class="ui-card ui-card-pad">
                     <p class="text-sm ui-muted">Total numbers</p>
                     <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($stats['total']) }}</p>
                 </article>
                 <article class="ui-card ui-card-pad">
-                    <p class="text-sm ui-muted">Dead</p>
-                    <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($stats['dead']) }}</p>
+                    <p class="text-sm ui-muted">Active</p>
+                    <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($stats['active']) }}</p>
                 </article>
                 <article class="ui-card ui-card-pad">
                     <p class="text-sm ui-muted">Suppressed</p>
                     <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($stats['suppressed']) }}</p>
                 </article>
                 <article class="ui-card ui-card-pad">
-                    <p class="text-sm ui-muted">Unique origins</p>
-                    <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($stats['origins']) }}</p>
+                    <p class="text-sm ui-muted">Cooldown</p>
+                    <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($stats['cooldown']) }}</p>
+                </article>
+                <article class="ui-card ui-card-pad">
+                    <p class="text-sm ui-muted">Dead</p>
+                    <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($stats['dead']) }}</p>
                 </article>
             </section>
 
