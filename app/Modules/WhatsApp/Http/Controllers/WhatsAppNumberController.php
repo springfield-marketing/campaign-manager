@@ -38,9 +38,12 @@ class WhatsAppNumberController extends Controller
     {
         $limit = min(max((int) ($request->integer('export_limit') ?: 5000), 1), 50000);
 
-        $numbers = $this->buildQuery($request)
+        $query = $this->buildQuery($request)
+            ->leftJoin('clients', 'clients.id', '=', 'client_phone_numbers.client_id')
+            ->leftJoin('regions', 'regions.id', '=', 'clients.region_id')
+            ->selectRaw('MAX(clients.full_name) as client_name')
+            ->selectRaw('MAX(regions.name) as region_name')
             ->where(function (Builder $q): void {
-                // Exclude dead numbers and numbers still in active cooldown
                 $q->whereNull('whatsapp_phone_profiles.usage_status')
                   ->orWhere('whatsapp_phone_profiles.usage_status', 'active')
                   ->orWhere(function (Builder $q2): void {
@@ -48,22 +51,20 @@ class WhatsAppNumberController extends Controller
                          ->where('whatsapp_phone_profiles.cooldown_until', '<=', now());
                   });
             })
-            ->with('client.region')
-            ->limit($limit)
-            ->get();
+            ->limit($limit);
 
         $filename = 'whatsapp-numbers-' . now()->format('Y-m-d') . '.csv';
 
-        return response()->streamDownload(function () use ($numbers): void {
+        return response()->streamDownload(function () use ($query): void {
             $handle = fopen('php://output', 'w');
 
             fputcsv($handle, ['phone', 'name', 'emirate', 'origin', 'source', 'messages', 'suppressed']);
 
-            foreach ($numbers as $number) {
+            foreach ($query->cursor() as $number) {
                 fputcsv($handle, [
                     $number->normalized_phone,
-                    $number->client?->full_name,
-                    $number->client?->region?->name,
+                    $number->client_name,
+                    $number->region_name,
                     $number->detected_country,
                     $number->last_source_name,
                     $number->whats_app_messages_count,
