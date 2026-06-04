@@ -397,11 +397,15 @@ class WhatsAppImportController extends Controller
             ->where('type', WhatsAppImportType::CampaignResults)
             ->where('original_file_name', $originalFileName)
             ->whereNull('reverted_at')
+            ->whereNotIn('status', [
+                WhatsAppImportStatus::Failed->value,
+                WhatsAppImportStatus::CompletedWithErrors->value,
+            ])
             ->exists();
 
         if ($existing) {
             return back()
-                ->withErrors(['file' => "An import named {$originalFileName} already exists."])
+                ->withErrors(['file' => "An import named {$originalFileName} already exists. Delete or revert it first if you want to re-import."])
                 ->withInput();
         }
 
