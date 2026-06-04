@@ -7,6 +7,7 @@ use App\Models\ClientPhoneNumber;
 use App\Models\ContactSuppression;
 use App\Modules\WhatsApp\Enums\WhatsAppImportStatus;
 use App\Modules\WhatsApp\Enums\WhatsAppImportType;
+use App\Modules\WhatsApp\Jobs\ProcessWhatsAppUnsubscriberImport;
 use App\Modules\WhatsApp\Models\WhatsAppImport;
 use App\Modules\WhatsApp\Support\WhatsAppPhoneNormalizer;
 use Illuminate\Http\RedirectResponse;
@@ -42,6 +43,15 @@ class WhatsAppUnsubscriberController extends Controller
         ]);
     }
 
+    public function show(WhatsAppImport $import): View
+    {
+        abort_unless($import->type === WhatsAppImportType::Unsubscribers->value, 404);
+
+        $import->load(['errors' => fn ($q) => $q->orderBy('row_number')->take(500)]);
+
+        return view('whatsapp::unsubscribers.show', ['import' => $import]);
+    }
+
     public function store(Request $request): RedirectResponse
     {
         $request->validate([
@@ -51,7 +61,7 @@ class WhatsAppUnsubscriberController extends Controller
         $originalFileName = $request->file('file')->getClientOriginalName();
         $storedPath = $request->file('file')->store('whatsapp/unsubscribers', 'local');
 
-        WhatsAppImport::create([
+        $import = WhatsAppImport::create([
             'type' => WhatsAppImportType::Unsubscribers->value,
             'status' => WhatsAppImportStatus::Pending->value,
             'original_file_name' => $originalFileName,
@@ -59,6 +69,8 @@ class WhatsAppUnsubscriberController extends Controller
             'storage_path' => $storedPath,
             'uploaded_by' => $request->user()?->id,
         ]);
+
+        ProcessWhatsAppUnsubscriberImport::dispatch($import->id);
 
         return redirect()
             ->route('modules.whatsapp.unsubscribers.index')

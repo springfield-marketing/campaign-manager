@@ -51,36 +51,54 @@
                 </section>
             </div>
 
-            <section class="ui-card mt-6 overflow-hidden">
+            <div
+                class="ui-card mt-6 overflow-hidden"
+                x-data="importProgress({
+                    endpoint: '{{ route('modules.whatsapp.imports.status') }}',
+                    wsChannel: '',
+                    imports: @js($imports->map(fn ($import) => \App\Modules\WhatsApp\Support\WhatsAppImportStatusPayload::make($import))->values())
+                })"
+            >
                 <div class="ui-section-head">
                     <h3 class="ui-title">Import history</h3>
                 </div>
 
                 <div class="ui-divide max-h-[360px] overflow-y-auto">
                     @forelse ($imports as $import)
-                        <div class="px-5 py-4 text-sm">
+                        <div class="px-5 py-4 text-sm" x-data="{ item: get({{ $import->id }}) }">
                             <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                                 <div class="min-w-0">
                                     <p class="break-all font-medium text-theme-primary">{{ $import->original_file_name }}</p>
-                                    <p class="capitalize ui-muted">{{ $import->statusLabel() }}</p>
+                                    <p class="capitalize ui-muted" x-text="item.status_label">{{ $import->statusLabel() }}</p>
+                                    <p class="mt-1 text-xs text-theme-secondary" x-text="item.status_message">{{ $import->statusMessage() }}</p>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+                                    <span class="ui-pill ui-pill-active" x-show="item.is_active" x-cloak>Live</span>
+                                    <span class="ui-pill" x-show="! item.is_active" x-cloak>
+                                        <span class="capitalize" x-text="item.status_label">{{ $import->statusLabel() }}</span>
+                                    </span>
+                                    @if ($import->failed_rows > 0)
+                                        <a href="{{ route('modules.whatsapp.unsubscribers.imports.show', $import) }}" class="ui-pill text-red-600">View errors</a>
+                                    @endif
                                 </div>
                             </div>
 
                             <div class="mt-3">
-                                <div class="mb-1 flex items-center justify-between gap-3 text-xs ui-muted">
-                                    <span>{{ $import->processed_rows }} / {{ $import->total_rows ?: '-' }}</span>
-                                    <span>{{ $import->total_rows > 0 ? min(100, round(($import->processed_rows / $import->total_rows) * 100)) : 0 }}%</span>
+                                <div class="mb-1 flex items-center justify-between gap-3 text-xs font-medium text-theme-secondary">
+                                    <span x-text="item.progress_label">{{ $import->processed_rows }} / {{ $import->total_rows ?: '-' }}</span>
+                                    <span x-text="`${item.progress}%`">{{ $import->total_rows > 0 ? min(100, round(($import->processed_rows / $import->total_rows) * 100)) : 0 }}%</span>
                                 </div>
                                 <div class="ui-progress">
                                     <div
                                         class="ui-progress-bar"
                                         style="width: {{ $import->total_rows > 0 ? min(100, round(($import->processed_rows / $import->total_rows) * 100)) : 0 }}%"
+                                        :style="`width: ${item.progress}%`"
                                     ></div>
                                 </div>
                                 <div class="mt-2 flex flex-wrap gap-3 text-xs">
-                                    <span class="ui-muted"><span class="font-medium text-green-600">{{ $import->successful_rows }}</span> added</span>
-                                    <span class="ui-muted"><span class="font-medium text-theme-secondary">{{ $import->duplicate_rows }}</span> already existed</span>
-                                    <span class="ui-muted"><span class="font-medium text-red-600">{{ $import->failed_rows }}</span> failed</span>
+                                    <span class="ui-muted"><span class="font-medium text-green-600" x-text="item.successful_rows">{{ $import->successful_rows }}</span> suppressed</span>
+                                    <span class="ui-muted"><span class="font-medium text-theme-secondary" x-text="item.duplicate_rows">{{ $import->duplicate_rows }}</span> already existed</span>
+                                    <span class="ui-muted"><span class="font-medium text-red-600" x-text="item.failed_rows">{{ $import->failed_rows }}</span> failed</span>
                                 </div>
                             </div>
                         </div>
@@ -92,7 +110,7 @@
                 <div class="px-5 py-4">
                     {{ $imports->links('pagination::tailwind', ['pageName' => 'imports_page']) }}
                 </div>
-            </section>
+            </div>
 
             <section class="ui-card overflow-hidden mt-6">
                 <div class="ui-section-head">
