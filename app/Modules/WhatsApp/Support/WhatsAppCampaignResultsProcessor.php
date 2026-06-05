@@ -6,7 +6,7 @@ use App\Models\Client;
 use App\Models\ClientPhoneNumber;
 use App\Models\ClientSource;
 use App\Modules\WhatsApp\Enums\WhatsAppImportStatus;
-use App\Modules\WhatsApp\Jobs\AnalyseWhatsAppNumber;
+use App\Modules\WhatsApp\Jobs\BatchAnalyseWhatsAppNumbers;
 use App\Modules\WhatsApp\Models\WhatsAppCampaign;
 use App\Modules\WhatsApp\Models\WhatsAppImport;
 use Carbon\Carbon;
@@ -156,11 +156,10 @@ class WhatsAppCampaignResultsProcessor
                 }
             }
 
-            // Dispatch analysis as individual background jobs so the import
-            // job itself is not held hostage by potentially thousands of queries.
-            foreach (array_values($phoneIdCache) as $phoneNumberId) {
-                AnalyseWhatsAppNumber::dispatch($phoneNumberId);
-            }
+            // One batch job covers all unique numbers from this import.
+            // Runs on the 'analysis' queue so it never blocks the next import.
+            BatchAnalyseWhatsAppNumbers::dispatch(array_values($phoneIdCache))
+                ->onQueue('analysis');
 
             $import->update([
                 'status' => $failed > 0

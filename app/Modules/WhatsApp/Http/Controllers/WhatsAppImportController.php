@@ -422,7 +422,7 @@ class WhatsAppImportController extends Controller
 
         $import->broadcastProgress();
 
-        ProcessWhatsAppCampaignResultsImport::dispatch($import->id);
+        ProcessWhatsAppCampaignResultsImport::dispatch($import->id)->onQueue('imports');
 
         return redirect()
             ->route('modules.whatsapp.imports.index', ['tab' => 'campaign-results'])
