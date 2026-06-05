@@ -47,7 +47,7 @@
                     @endphp
 
                     {{-- Primary filters --}}
-                    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         <div>
                             <label class="ui-label">Phone</label>
                             <input type="search" name="phone" value="{{ request('phone') }}" placeholder="Search number" class="ui-control mt-1 w-full">
@@ -75,11 +75,33 @@
                             </select>
                         </div>
                         <div>
+                            <label class="ui-label">Country</label>
+                            <select name="country" class="ui-control mt-1 w-full">
+                                <option value="">All countries</option>
+                                @foreach ($countries as $country)
+                                    <option value="{{ $country->id }}" @selected(request('country') == $country->id)>{{ $country->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
                             <label class="ui-label">Status</label>
                             <select name="status" class="ui-control mt-1 w-full">
                                 <option value="">All statuses</option>
                                 @foreach (['active', 'inactive', 'dead'] as $status)
                                     <option value="{{ $status }}" @selected(request('status') == $status)>{{ ucfirst($status) }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="ui-label">Project</label>
+                            <select name="project" class="ui-control mt-1 w-full">
+                                <option value="">All projects</option>
+                                @foreach ($projects->groupBy(fn ($p) => $p->community?->name) as $communityName => $group)
+                                    <optgroup label="{{ $communityName }}">
+                                        @foreach ($group->sortBy('name') as $project)
+                                            <option value="{{ $project->id }}" @selected(request('project') == $project->id)>{{ $project->name }}</option>
+                                        @endforeach
+                                    </optgroup>
                                 @endforeach
                             </select>
                         </div>
@@ -124,8 +146,8 @@
                             <input type="number" name="uses_max" value="{{ request('uses_max') }}" placeholder="∞" class="ui-control mt-1 w-28">
                         </div>
                         <div class="flex gap-2 pt-5">
-                            <button type="submit" class="ui-button">Filter</button>
-                            <a href="{{ route('modules.ivr.numbers.index') }}" class="ui-button text-center">Clear</a>
+                            <button type="submit" class="ui-button-subtle">Filter</button>
+                            <a href="{{ route('modules.ivr.numbers.index') }}" class="ui-button-subtle text-center">Clear</a>
                         </div>
                         <div class="ml-auto">
                             <label class="ui-label">Export limit <span class="font-normal ui-muted">(max rows)</span></label>

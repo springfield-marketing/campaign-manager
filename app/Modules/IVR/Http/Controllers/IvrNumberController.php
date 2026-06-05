@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\ClientPhoneNumber;
 use App\Models\Community;
 use App\Models\ContactSuppression;
+use App\Models\Country;
+use App\Models\Project;
 use App\Models\Region;
 use App\Modules\IVR\Support\NumberEligibilityService;
 use Illuminate\Database\Eloquent\Builder;
@@ -36,6 +38,8 @@ class IvrNumberController extends Controller
                 ->pluck('source_name'),
             'regions'     => Region::orderBy('name')->get(),
             'communities' => Community::with('region')->orderBy('name')->get(),
+            'countries'   => Country::orderBy('name')->get(),
+            'projects'    => Project::with('community')->orderBy('name')->get(),
         ]);
     }
 
@@ -232,6 +236,15 @@ class IvrNumberController extends Controller
 
         if ($request->filled('community')) {
             $query->whereHas('client', fn ($builder) => $builder->where('community_id', $request->integer('community')));
+        }
+
+        if ($request->filled('country')) {
+            $query->whereHas('client', fn ($builder) => $builder->where('country_id', $request->integer('country')));
+        }
+
+        if ($request->filled('project')) {
+            $query->whereHas('client.communities', fn ($builder) => $builder
+                ->wherePivot('project_id', $request->integer('project')));
         }
 
         if ($applyStatusFilter && $request->filled('status')) {
