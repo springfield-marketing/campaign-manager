@@ -43,7 +43,6 @@ class CampaignResultsProcessor
             $file->setCsvControl(',', '"', '\\');
 
             $inspection = $this->inspectFile($file);
-            $this->ensureCampaignHasNotBeenImported($inspection['summary'], $import);
 
             $import->update(['total_rows' => $inspection['total_rows']]);
             $import->broadcastProgress();
@@ -220,15 +219,6 @@ class CampaignResultsProcessor
                 'summary' => $summary,
             ],
         );
-    }
-
-    private function ensureCampaignHasNotBeenImported(array $summary, IvrImport $import): void
-    {
-        $campaignId = (string) ($summary['order_number'] ?? pathinfo($import->original_file_name, PATHINFO_FILENAME));
-
-        if (IvrCampaign::query()->where('external_campaign_id', $campaignId)->exists()) {
-            throw new \RuntimeException("Campaign {$campaignId} has already been imported.");
-        }
     }
 
     /**
