@@ -62,9 +62,8 @@ class CampaignResultsProcessor
                 $row = $file->fgetcsv();
                 $rowNumber++;
 
-                if (! is_array($row) || $this->rowIsEmpty($row)) {
-                    continue;
-                }
+                if (! is_array($row) || $row === [null]) break;
+                if ($this->rowIsEmpty($row)) continue;
 
                 $firstCell = trim((string) ($row[0] ?? ''));
 
@@ -233,9 +232,8 @@ class CampaignResultsProcessor
         while (! $file->eof()) {
             $row = $file->fgetcsv();
 
-            if (! is_array($row) || $this->rowIsEmpty($row)) {
-                continue;
-            }
+            if (! is_array($row) || $row === [null]) break;
+            if ($this->rowIsEmpty($row)) continue;
 
             $firstCell = trim((string) ($row[0] ?? ''));
 

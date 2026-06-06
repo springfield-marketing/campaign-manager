@@ -67,9 +67,8 @@ class RawImportProcessor
                 $row = $file->fgetcsv();
                 $rowNumber++;
 
-                if (! is_array($row) || $this->rowIsEmpty($row)) {
-                    continue;
-                }
+                if (! is_array($row) || $row === [null]) break;
+                if ($this->rowIsEmpty($row)) continue;
 
                 $processed++;
 
@@ -147,7 +146,9 @@ class RawImportProcessor
         while (! $file->eof()) {
             $header = $file->fgetcsv();
 
-            if (is_array($header) && ! $this->rowIsEmpty($header)) {
+            if (! is_array($header) || $header === [null]) break;
+
+            if (! $this->rowIsEmpty($header)) {
                 $header = array_map(fn ($value) => (string) $value, $header);
                 // Strip UTF-8 BOM that Excel adds to the first cell
                 $header[0] = ltrim($header[0], "\xEF\xBB\xBF");
@@ -166,9 +167,8 @@ class RawImportProcessor
         while (! $file->eof()) {
             $row = $file->fgetcsv();
 
-            if (is_array($row) && ! $this->rowIsEmpty($row)) {
-                $count++;
-            }
+            if (! is_array($row) || $row === [null]) break;
+            if (! $this->rowIsEmpty($row)) $count++;
         }
 
         return $count;
