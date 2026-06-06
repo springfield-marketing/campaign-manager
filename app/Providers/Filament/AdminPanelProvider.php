@@ -34,6 +34,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->navigationGroups([
                 NavigationGroup::make('Contacts'),
+                NavigationGroup::make('Imports'),
                 NavigationGroup::make('IVR'),
                 NavigationGroup::make('WhatsApp'),
                 NavigationGroup::make('Geography')
