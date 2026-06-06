@@ -17,14 +17,14 @@ Route::middleware(['auth', 'verified'])
 
         Route::get('/imports', [WhatsAppImportController::class, 'index'])->name('imports.index');
         Route::get('/imports/status', [WhatsAppImportController::class, 'status'])->name('imports.status');
-        Route::post('/imports/upload', [WhatsAppImportController::class, 'upload'])->name('imports.upload');
-        Route::post('/imports/campaign-results', [WhatsAppImportController::class, 'storeCampaignResults'])->name('imports.campaign-results.store');
+        Route::post('/imports/upload', [WhatsAppImportController::class, 'upload'])->middleware('throttle:file-uploads')->name('imports.upload');
+        Route::post('/imports/campaign-results', [WhatsAppImportController::class, 'storeCampaignResults'])->middleware('throttle:file-uploads')->name('imports.campaign-results.store');
         Route::get('/imports/{import}', [WhatsAppImportController::class, 'show'])->name('imports.show');
         Route::get('/imports/{import}/map', [WhatsAppImportController::class, 'map'])->name('imports.map');
         Route::post('/imports/{import}/map', [WhatsAppImportController::class, 'mapStore'])->name('imports.map.store');
         Route::get('/imports/{import}/preview', [WhatsAppImportController::class, 'preview'])->name('imports.preview');
         Route::get('/imports/{import}/preview/download', [WhatsAppImportController::class, 'previewDownload'])->name('imports.preview.download');
-        Route::post('/imports/{import}/confirm', [WhatsAppImportController::class, 'confirm'])->name('imports.confirm');
+        Route::post('/imports/{import}/confirm', [WhatsAppImportController::class, 'confirm'])->middleware('throttle:file-uploads')->name('imports.confirm');
         Route::delete('/imports/{import}', [WhatsAppImportController::class, 'destroy'])->name('imports.destroy');
 
         Route::get('/campaigns', [WhatsAppCampaignController::class, 'index'])->name('campaigns.index');
@@ -32,14 +32,14 @@ Route::middleware(['auth', 'verified'])
         Route::get('/campaigns/{campaign}', [WhatsAppCampaignController::class, 'show'])->name('campaigns.show');
 
         Route::get('/numbers', [WhatsAppNumberController::class, 'index'])->name('numbers.index');
-        Route::get('/numbers/export', [WhatsAppNumberController::class, 'export'])->name('numbers.export');
+        Route::get('/numbers/export', [WhatsAppNumberController::class, 'export'])->middleware('throttle:exports')->name('numbers.export');
         Route::get('/numbers/{number}', [WhatsAppNumberController::class, 'show'])->name('numbers.show');
         Route::patch('/numbers/{number}/client', [WhatsAppNumberController::class, 'updateClient'])->name('numbers.client.update');
         Route::delete('/numbers/{number}/client', [WhatsAppNumberController::class, 'destroyClient'])->name('numbers.client.destroy');
         Route::patch('/numbers/{number}', [WhatsAppNumberController::class, 'updateNumber'])->name('numbers.update');
 
         Route::get('/unsubscribers', [WhatsAppUnsubscriberController::class, 'index'])->name('unsubscribers.index');
-        Route::post('/unsubscribers', [WhatsAppUnsubscriberController::class, 'store'])->name('unsubscribers.store');
+        Route::post('/unsubscribers', [WhatsAppUnsubscriberController::class, 'store'])->middleware('throttle:file-uploads')->name('unsubscribers.store');
         Route::post('/unsubscribers/add', [WhatsAppUnsubscriberController::class, 'addSingle'])->name('unsubscribers.add');
         Route::get('/unsubscribers/imports/{import}', [WhatsAppUnsubscriberController::class, 'show'])->name('unsubscribers.imports.show');
         Route::delete('/unsubscribers/{suppression}', [WhatsAppUnsubscriberController::class, 'destroy'])->name('unsubscribers.destroy');

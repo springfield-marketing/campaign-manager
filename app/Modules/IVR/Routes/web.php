@@ -17,16 +17,16 @@ Route::middleware(['auth', 'verified'])
     ->group(function (): void {
         Route::get('/', IVRController::class)->name('index');
         Route::get('/imports', [IvrImportController::class, 'index'])->name('imports.index');
-        Route::post('/imports', [IvrImportController::class, 'store'])->name('imports.store');
+        Route::post('/imports', [IvrImportController::class, 'store'])->middleware('throttle:file-uploads')->name('imports.store');
         Route::get('/imports/status', [IvrImportController::class, 'status'])->name('imports.status');
         Route::delete('/imports/{import}', [IvrImportController::class, 'destroy'])->name('imports.destroy');
         Route::get('/imports/{import}', [IvrImportController::class, 'show'])->name('imports.show');
         Route::get('/campaign-results', [IvrCampaignResultController::class, 'index'])->name('results.index');
-        Route::post('/campaign-results', [IvrCampaignResultController::class, 'store'])->name('results.store');
+        Route::post('/campaign-results', [IvrCampaignResultController::class, 'store'])->middleware('throttle:file-uploads')->name('results.store');
         Route::get('/campaign-results/status', [IvrCampaignResultController::class, 'status'])->name('results.status');
         Route::delete('/campaign-results/imports/{import}', [IvrCampaignResultController::class, 'destroy'])->name('results.destroy');
-        Route::get('/campaign-results/export', [IvrCampaignResultController::class, 'export'])->name('results.export');
-        Route::get('/campaign-results/{campaign}/leads/export', [IvrCampaignResultController::class, 'exportLeads'])->name('results.leads.export');
+        Route::get('/campaign-results/export', [IvrCampaignResultController::class, 'export'])->middleware('throttle:exports')->name('results.export');
+        Route::get('/campaign-results/{campaign}/leads/export', [IvrCampaignResultController::class, 'exportLeads'])->middleware('throttle:exports')->name('results.leads.export');
         Route::get('/campaign-results/{campaign}/audio', [IvrCampaignResultController::class, 'audio'])->name('results.audio');
         Route::patch('/campaign-results/{campaign}/script', [IvrCampaignResultController::class, 'assignScript'])->name('results.script.assign');
         Route::get('/campaign-results/{campaign}', [IvrCampaignResultController::class, 'show'])->name('results.show');
@@ -35,12 +35,15 @@ Route::middleware(['auth', 'verified'])
         Route::get('/scripts/{script}/audio', [IvrScriptController::class, 'audio'])->name('scripts.audio');
         Route::delete('/scripts/{script}', [IvrScriptController::class, 'destroy'])->name('scripts.destroy');
         Route::get('/numbers', [IvrNumberController::class, 'index'])->name('numbers.index');
-        Route::get('/numbers/export', [IvrNumberController::class, 'export'])->name('numbers.export');
+        Route::get('/numbers/export', [IvrNumberController::class, 'export'])->middleware('throttle:exports')->name('numbers.export');
         Route::get('/numbers/{number}', [IvrNumberController::class, 'show'])->name('numbers.show');
+        Route::patch('/numbers/{number}/client', [IvrNumberController::class, 'updateClient'])->name('numbers.client.update');
+        Route::patch('/numbers/{number}/tags', [IvrNumberController::class, 'updateTags'])->name('numbers.tags.update');
+        Route::post('/numbers/{number}/interactions', [IvrNumberController::class, 'storeInteraction'])->name('numbers.interactions.store');
         Route::post('/numbers/{number}/suppress', [IvrNumberController::class, 'suppress'])->name('numbers.suppress');
         Route::delete('/numbers/{number}/suppress', [IvrNumberController::class, 'unsuppress'])->name('numbers.unsuppress');
         Route::get('/unsubscribers', [IvrUnsubscriberController::class, 'index'])->name('unsubscribers.index');
-        Route::post('/unsubscribers', [IvrUnsubscriberController::class, 'store'])->name('unsubscribers.store');
+        Route::post('/unsubscribers', [IvrUnsubscriberController::class, 'store'])->middleware('throttle:file-uploads')->name('unsubscribers.store');
         Route::post('/unsubscribers/add', [IvrUnsubscriberController::class, 'addSingle'])->name('unsubscribers.add');
         Route::get('/unsubscribers/status', [IvrUnsubscriberController::class, 'status'])->name('unsubscribers.status');
         Route::delete('/unsubscribers/{suppression}', [IvrUnsubscriberController::class, 'destroy'])->name('unsubscribers.destroy');
