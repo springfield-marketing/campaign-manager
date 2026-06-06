@@ -5,6 +5,9 @@ namespace App\Filament\Resources\IvrNumbers;
 use App\Filament\Resources\IvrNumbers\Pages\CreateIvrNumber;
 use App\Filament\Resources\IvrNumbers\Pages\EditIvrNumber;
 use App\Filament\Resources\IvrNumbers\Pages\ListIvrNumbers;
+use App\Filament\Resources\IvrNumbers\RelationManagers\IvrCallRecordsRelationManager;
+use App\Filament\Resources\IvrNumbers\RelationManagers\SourcesRelationManager;
+use App\Filament\Resources\IvrNumbers\RelationManagers\SuppressionsRelationManager;
 use App\Filament\Resources\IvrNumbers\Schemas\IvrNumberForm;
 use App\Filament\Resources\IvrNumbers\Tables\IvrNumbersTable;
 use App\Models\ClientPhoneNumber;
@@ -43,7 +46,9 @@ class IvrNumberResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            IvrCallRecordsRelationManager::class,
+            SourcesRelationManager::class,
+            SuppressionsRelationManager::class,
         ];
     }
 

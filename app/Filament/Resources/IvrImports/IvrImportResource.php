@@ -5,6 +5,7 @@ namespace App\Filament\Resources\IvrImports;
 use App\Filament\Resources\IvrImports\Pages\CreateIvrImport;
 use App\Filament\Resources\IvrImports\Pages\EditIvrImport;
 use App\Filament\Resources\IvrImports\Pages\ListIvrImports;
+use App\Filament\Resources\IvrImports\RelationManagers\ImportErrorsRelationManager;
 use App\Filament\Resources\IvrImports\Schemas\IvrImportForm;
 use App\Filament\Resources\IvrImports\Tables\IvrImportsTable;
 use App\Modules\IVR\Models\IvrImport;
@@ -41,7 +42,7 @@ class IvrImportResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            ImportErrorsRelationManager::class,
         ];
     }
 
