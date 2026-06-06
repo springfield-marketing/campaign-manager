@@ -67,7 +67,7 @@ class RawImportProcessor
                 $row = $file->fgetcsv();
                 $rowNumber++;
 
-                if (! is_array($row) || $row === [null]) break;
+                if (! is_array($row) || ($row === [null] && $file->eof())) break;
                 if ($this->rowIsEmpty($row)) continue;
 
                 $processed++;
@@ -146,7 +146,7 @@ class RawImportProcessor
         while (! $file->eof()) {
             $header = $file->fgetcsv();
 
-            if (! is_array($header) || $header === [null]) break;
+            if (! is_array($header) || ($header === [null] && $file->eof())) break;
 
             if (! $this->rowIsEmpty($header)) {
                 $header = array_map(fn ($value) => (string) $value, $header);
@@ -167,7 +167,7 @@ class RawImportProcessor
         while (! $file->eof()) {
             $row = $file->fgetcsv();
 
-            if (! is_array($row) || $row === [null]) break;
+            if (! is_array($row) || ($row === [null] && $file->eof())) break;
             if (! $this->rowIsEmpty($row)) $count++;
         }
 

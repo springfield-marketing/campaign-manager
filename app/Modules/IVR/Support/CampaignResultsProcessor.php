@@ -62,7 +62,7 @@ class CampaignResultsProcessor
                 $row = $file->fgetcsv();
                 $rowNumber++;
 
-                if (! is_array($row) || $row === [null]) break;
+                if (! is_array($row) || ($row === [null] && $file->eof())) break;
                 if ($this->rowIsEmpty($row)) continue;
 
                 $firstCell = trim((string) ($row[0] ?? ''));
@@ -83,6 +83,12 @@ class CampaignResultsProcessor
                     }
 
                     continue;
+                }
+
+                // Stop at secondary sections (e.g. "DNP Call Details Records").
+                // These rows have no customer phone and are not call records.
+                if (count($row) === 1) {
+                    break;
                 }
 
                 $processed++;
@@ -252,6 +258,11 @@ class CampaignResultsProcessor
                 }
 
                 continue;
+            }
+
+            // Stop at secondary sections (e.g. "DNP Call Details Records")
+            if (count($row) === 1) {
+                break;
             }
 
             $totalRows++;

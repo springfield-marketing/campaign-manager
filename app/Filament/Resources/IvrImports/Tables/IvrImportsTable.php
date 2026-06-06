@@ -3,13 +3,16 @@
 namespace App\Filament\Resources\IvrImports\Tables;
 
 use App\Modules\IVR\Enums\IvrImportStatus;
+use App\Modules\IVR\Enums\IvrImportType;
 use App\Modules\IVR\Jobs\ProcessRawIvrImport;
 use App\Modules\IVR\Jobs\ProcessIvrCampaignResultsImport;
 use App\Modules\IVR\Jobs\ProcessUnsubscriberImport;
 use App\Modules\IVR\Models\IvrImport;
+use App\Modules\IVR\Models\IvrScript;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
@@ -19,24 +22,56 @@ use Illuminate\Support\Facades\Storage;
 
 class IvrImportsTable
 {
+    private static function typeLabel(string $type): string
+    {
+        return match ($type) {
+            'raw_contacts'     => 'Raw Contacts',
+            'campaign_results' => 'Campaign Results',
+            'unsubscribers'    => 'Unsubscribers',
+            default            => ucwords(str_replace('_', ' ', $type)),
+        };
+    }
+
     public static function configure(Table $table): Table
     {
         return $table
             ->poll('4s')
             ->columns([
+                TextColumn::make('type')
+                    ->label('Type')
+                    ->badge()
+                    ->color(fn (string $state) => match ($state) {
+                        'raw_contacts'     => 'primary',
+                        'campaign_results' => 'success',
+                        'unsubscribers'    => 'warning',
+                        default            => 'gray',
+                    })
+                    ->formatStateUsing(fn (string $state) => self::typeLabel($state)),
+
                 TextColumn::make('original_file_name')
                     ->label('File')
                     ->searchable()
-                    ->limit(40),
+                    ->limit(35),
 
                 TextColumn::make('source_name')
-                    ->label('Source')
+                    ->label('Source / Campaign')
+                    ->getStateUsing(fn (IvrImport $record): ?string =>
+                        $record->source_name
+                        ?? ($record->type === 'campaign_results'
+                            ? data_get($record->summary, 'order_number')
+                            : null)
+                    )
                     ->placeholder('—')
-                    ->searchable(),
+                    ->searchable(query: fn ($query, $search) =>
+                        $query->where(fn ($q) =>
+                            $q->where('source_name', 'like', "%{$search}%")
+                              ->orWhere('original_file_name', 'like', "%{$search}%")
+                        )
+                    ),
 
                 TextColumn::make('status')
                     ->badge()
-                    ->color(fn (string $state) => match($state) {
+                    ->color(fn (string $state) => match ($state) {
                         'completed'             => 'success',
                         'completed_with_errors' => 'warning',
                         'processing'            => 'info',
@@ -65,12 +100,6 @@ class IvrImportsTable
                     ->numeric()
                     ->color('gray'),
 
-                TextColumn::make('started_at')
-                    ->label('Started')
-                    ->dateTime('d M H:i')
-                    ->sortable()
-                    ->placeholder('—'),
-
                 TextColumn::make('completed_at')
                     ->label('Completed')
                     ->dateTime('d M H:i')
@@ -78,6 +107,13 @@ class IvrImportsTable
                     ->placeholder('—'),
             ])
             ->filters([
+                SelectFilter::make('type')
+                    ->options([
+                        'raw_contacts'     => 'Raw Contacts',
+                        'campaign_results' => 'Campaign Results',
+                        'unsubscribers'    => 'Unsubscribers',
+                    ]),
+
                 SelectFilter::make('status')
                     ->options(array_column(
                         array_map(fn ($c) => ['value' => $c->value, 'label' => ucwords(str_replace('_', ' ', $c->value))],
@@ -86,9 +122,10 @@ class IvrImportsTable
                     )),
             ])
             ->headerActions([
-                Action::make('upload')
-                    ->label('Upload CSV')
-                    ->icon('heroicon-o-arrow-up-tray')
+                // ── Raw contacts upload ────────────────────────────────────
+                Action::make('upload_raw')
+                    ->label('Upload Raw Contacts')
+                    ->icon('heroicon-o-user-group')
                     ->color('primary')
                     ->form([
                         FileUpload::make('file')
@@ -106,22 +143,21 @@ class IvrImportsTable
                             ->maxLength(255),
                     ])
                     ->action(function (array $data): void {
-                        $tmpRelative = 'ivr/imports/raw/tmp/' . $data['file'];
                         $originalName = $data['file'];
+                        $tmpRelative  = 'ivr/imports/raw/tmp/' . $originalName;
                         $finalRelative = 'ivr/imports/raw/' . $originalName;
 
                         if (IvrImport::where('original_file_name', $originalName)->whereNull('reverted_at')->exists()) {
                             Notification::make()
                                 ->title("An import named \"{$originalName}\" already exists. Rename the file if this is a new upload.")
-                                ->danger()
-                                ->send();
+                                ->danger()->send();
                             return;
                         }
 
                         Storage::disk('local')->move($tmpRelative, $finalRelative);
 
                         $import = IvrImport::create([
-                            'type'               => 'raw_contacts',
+                            'type'               => IvrImportType::RawContacts,
                             'status'             => IvrImportStatus::Pending,
                             'original_file_name' => $originalName,
                             'stored_file_name'   => $originalName,
@@ -133,12 +169,58 @@ class IvrImportsTable
                         $import->broadcastProgress();
                         ProcessRawIvrImport::dispatch($import->id)->onQueue('imports');
 
-                        Notification::make()
-                            ->title('Import queued — status will update automatically')
-                            ->success()
-                            ->send();
+                        Notification::make()->title('Import queued — status will update automatically')->success()->send();
                     })
-                    ->modalHeading('Upload IVR Raw Import CSV')
+                    ->modalHeading('Upload Raw Contacts CSV')
+                    ->modalDescription('Required columns: name, phone. Optional: email, nationality, city, community, interest, source.')
+                    ->modalSubmitActionLabel('Upload & Queue'),
+
+                // ── Campaign results upload ────────────────────────────────
+                Action::make('upload_results')
+                    ->label('Upload Campaign Results')
+                    ->icon('heroicon-o-megaphone')
+                    ->color('success')
+                    ->form([
+                        FileUpload::make('file')
+                            ->label('Campaign CSV')
+                            ->required()
+                            ->disk('local')
+                            ->directory('ivr/imports/results/tmp')
+                            ->preserveFilenames()
+                            ->acceptedFileTypes(['text/csv', 'text/plain', 'application/csv'])
+                            ->maxSize(51200),
+
+                        Select::make('ivr_script_id')
+                            ->label('Script (optional)')
+                            ->options(fn () => IvrScript::orderBy('name')->pluck('name', 'id'))
+                            ->nullable()
+                            ->placeholder('— No script —')
+                            ->searchable(),
+                    ])
+                    ->action(function (array $data): void {
+                        $originalName  = $data['file'];
+                        $tmpRelative   = 'ivr/imports/results/tmp/' . $originalName;
+                        $finalRelative = 'ivr/imports/results/' . $originalName;
+
+                        Storage::disk('local')->move($tmpRelative, $finalRelative);
+
+                        $import = IvrImport::create([
+                            'type'               => IvrImportType::CampaignResults,
+                            'status'             => IvrImportStatus::Pending,
+                            'original_file_name' => $originalName,
+                            'stored_file_name'   => $originalName,
+                            'storage_path'       => $finalRelative,
+                            'ivr_script_id'      => $data['ivr_script_id'] ?: null,
+                            'uploaded_by'        => auth()->id(),
+                        ]);
+
+                        $import->broadcastProgress();
+                        ProcessIvrCampaignResultsImport::dispatch($import->id)->onQueue('imports');
+
+                        Notification::make()->title('Campaign results import queued — status will update automatically')->success()->send();
+                    })
+                    ->modalHeading('Upload Campaign Results CSV')
+                    ->modalDescription('Upload the campaign results CSV exported from your IVR platform. Optionally link a script for reference.')
                     ->modalSubmitActionLabel('Upload & Queue'),
             ])
             ->recordActions([
@@ -146,13 +228,14 @@ class IvrImportsTable
                     ->label('Re-process')
                     ->icon('heroicon-o-arrow-path')
                     ->color('warning')
-                    ->visible(fn (IvrImport $record) => in_array($record->status, ['completed', 'completed_with_errors', 'failed'])
+                    ->visible(fn (IvrImport $record) =>
+                        in_array($record->status, ['completed', 'completed_with_errors', 'failed'])
                         && $record->storage_path
                         && file_exists(storage_path('app/private/' . $record->storage_path))
                     )
                     ->requiresConfirmation()
                     ->modalHeading('Re-process this import?')
-                    ->modalDescription('The import will be reset to pending and re-queued. Existing contacts from this file will be updated or skipped as duplicates.')
+                    ->modalDescription('The import will be reset to pending and re-queued. Existing records will be updated or counted as duplicates.')
                     ->action(function (IvrImport $record): void {
                         $record->update([
                             'status'          => IvrImportStatus::Pending->value,
