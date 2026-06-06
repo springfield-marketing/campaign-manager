@@ -157,6 +157,11 @@ class IvrImportsTable
                         $record->update([
                             'status'          => IvrImportStatus::Pending->value,
                             'error_message'   => null,
+                            'total_rows'      => 0,
+                            'processed_rows'  => 0,
+                            'successful_rows' => 0,
+                            'failed_rows'     => 0,
+                            'duplicate_rows'  => 0,
                             'started_at'      => null,
                             'completed_at'    => null,
                         ]);

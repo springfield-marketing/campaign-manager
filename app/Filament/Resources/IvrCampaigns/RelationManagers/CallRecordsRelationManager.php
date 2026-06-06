@@ -27,7 +27,7 @@ class CallRecordsRelationManager extends RelationManager
                     ->searchable()
                     ->copyable(),
 
-                TextColumn::make('call_outcome')
+                TextColumn::make('call_status')
                     ->label('Outcome')
                     ->badge()
                     ->color(fn (?string $state) => match($state) {
@@ -38,7 +38,7 @@ class CallRecordsRelationManager extends RelationManager
                     })
                     ->placeholder('—'),
 
-                TextColumn::make('dtmf_response')
+                TextColumn::make('dtmf_outcome')
                     ->label('DTMF')
                     ->badge()
                     ->placeholder('—'),
@@ -49,13 +49,13 @@ class CallRecordsRelationManager extends RelationManager
                     ->sortable()
                     ->placeholder('—'),
 
-                TextColumn::make('call_duration')
+                TextColumn::make('total_duration_seconds')
                     ->label('Duration (s)')
                     ->numeric()
                     ->placeholder('—'),
             ])
             ->filters([
-                SelectFilter::make('call_outcome')
+                SelectFilter::make('call_status')
                     ->label('Outcome')
                     ->options([
                         'answered' => 'Answered',
