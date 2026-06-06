@@ -13,9 +13,9 @@ class ProcessRawIvrImport implements ShouldQueue
 {
     use Queueable;
 
-    public int $timeout = 1200;
+    public int $timeout = 1800;
 
-    public int $tries = 1;
+    public int $tries = 3;
 
     public bool $failOnTimeout = true;
 

@@ -4,6 +4,8 @@ namespace App\Filament\Resources\IvrImports\Tables;
 
 use App\Modules\IVR\Enums\IvrImportStatus;
 use App\Modules\IVR\Jobs\ProcessRawIvrImport;
+use App\Modules\IVR\Jobs\ProcessIvrCampaignResultsImport;
+use App\Modules\IVR\Jobs\ProcessUnsubscriberImport;
 use App\Modules\IVR\Models\IvrImport;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
@@ -140,6 +142,33 @@ class IvrImportsTable
                     ->modalSubmitActionLabel('Upload & Queue'),
             ])
             ->recordActions([
+                Action::make('reprocess')
+                    ->label('Re-process')
+                    ->icon('heroicon-o-arrow-path')
+                    ->color('warning')
+                    ->visible(fn (IvrImport $record) => in_array($record->status, ['completed', 'completed_with_errors', 'failed'])
+                        && $record->storage_path
+                        && file_exists(storage_path('app/private/' . $record->storage_path))
+                    )
+                    ->requiresConfirmation()
+                    ->modalHeading('Re-process this import?')
+                    ->modalDescription('The import will be reset to pending and re-queued. Existing contacts from this file will be updated or skipped as duplicates.')
+                    ->action(function (IvrImport $record): void {
+                        $record->update([
+                            'status'          => IvrImportStatus::Pending->value,
+                            'error_message'   => null,
+                            'started_at'      => null,
+                            'completed_at'    => null,
+                        ]);
+                        match ($record->type) {
+                            'raw_contacts'     => ProcessRawIvrImport::dispatch($record->id)->onQueue('imports'),
+                            'campaign_results' => ProcessIvrCampaignResultsImport::dispatch($record->id)->onQueue('imports'),
+                            'unsubscribers'    => ProcessUnsubscriberImport::dispatch($record->id)->onQueue('imports'),
+                            default            => ProcessRawIvrImport::dispatch($record->id)->onQueue('imports'),
+                        };
+                        Notification::make()->title('Re-queued — watch status update below')->warning()->send();
+                    }),
+
                 DeleteAction::make()
                     ->visible(fn (IvrImport $record) => ! in_array($record->status, ['processing', 'deleting'])),
             ])
