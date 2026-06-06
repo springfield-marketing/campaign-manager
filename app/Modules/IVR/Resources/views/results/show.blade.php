@@ -187,7 +187,7 @@
                                             -
                                         @endif
                                     </td>
-                                    <td>{{ $lead->phoneNumber?->client?->email ?: '-' }}</td>
+                                    <td>{{ $lead->phoneNumber?->client?->primary_email_address ?: '-' }}</td>
                                     <td>{{ $lead->phoneNumber?->client?->region?->name ?: '-' }}</td>
                                     <td>{{ $lead->phoneNumber?->last_source_name ?: '-' }}</td>
                                     <td>{{ ucfirst(str_replace('_', ' ', $lead->dtmf_outcome)) }}</td>

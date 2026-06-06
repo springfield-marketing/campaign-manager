@@ -4,9 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Client extends Model
 {
@@ -14,15 +14,12 @@ class Client extends Model
 
     protected $fillable = [
         'full_name',
-        'email',
+        'country_iso',
+        'emirate',
         'nationality',
-        'resident',
         'gender',
         'interest',
         'metadata',
-        'country_id',
-        'region_id',
-        'community_id',
     ];
 
     protected function casts(): array
@@ -32,29 +29,14 @@ class Client extends Model
         ];
     }
 
-    public function country(): BelongsTo
-    {
-        return $this->belongsTo(Country::class, 'country_id');
-    }
-
-    public function region(): BelongsTo
-    {
-        return $this->belongsTo(Region::class);
-    }
-
-    public function community(): BelongsTo
-    {
-        return $this->belongsTo(Community::class, 'community_id');
-    }
-
     public function phoneNumbers(): HasMany
     {
         return $this->hasMany(ClientPhoneNumber::class);
     }
 
-    public function sources(): HasMany
+    public function primaryPhone(): HasOne
     {
-        return $this->hasMany(ClientSource::class);
+        return $this->hasOne(ClientPhoneNumber::class)->where('is_primary', true);
     }
 
     public function emails(): HasMany
@@ -62,21 +44,67 @@ class Client extends Model
         return $this->hasMany(ClientEmail::class);
     }
 
-    public function tags(): BelongsToMany
+    public function primaryEmail(): HasOne
     {
-        return $this->belongsToMany(Tag::class, 'client_tags')->withTimestamps();
+        return $this->hasOne(ClientEmail::class)->where('is_primary', true);
     }
 
-    public function communities(): BelongsToMany
+    public function getPrimaryEmailAddressAttribute(): ?string
     {
-        return $this->belongsToMany(Community::class, 'client_communities')
-            ->using(ClientCommunity::class)
-            ->withPivot(['id', 'project_id', 'relationship_type', 'confidence_level', 'source', 'notes'])
-            ->withTimestamps();
+        return $this->primaryEmail?->email;
+    }
+
+    public function setPrimaryEmailAddress(?string $email): void
+    {
+        $email = trim((string) $email);
+
+        if ($email === '') {
+            $this->emails()->where('is_primary', true)->delete();
+            $this->unsetRelation('primaryEmail');
+
+            return;
+        }
+
+        $existing = $this->emails()
+            ->whereRaw('lower(email) = lower(?)', [$email])
+            ->first();
+
+        $this->emails()
+            ->where('is_primary', true)
+            ->when($existing, fn ($q) => $q->where('id', '<>', $existing->id))
+            ->update(['is_primary' => false]);
+
+        if ($existing) {
+            $existing->forceFill(['email' => $email, 'is_primary' => true])->save();
+        } else {
+            $this->emails()->create(['email' => $email, 'is_primary' => true]);
+        }
+
+        $this->unsetRelation('primaryEmail');
+    }
+
+    public function ownerships(): HasMany
+    {
+        return $this->hasMany(Ownership::class);
+    }
+
+    public function sources(): HasMany
+    {
+        return $this->hasMany(ClientSource::class);
     }
 
     public function interactions(): HasMany
     {
         return $this->hasMany(ClientInteraction::class)->latest('created_at');
+    }
+
+    public function tags(): BelongsToMany
+    {
+        return $this->belongsToMany(Tag::class, 'client_tags')->withTimestamps();
+    }
+
+    public function scopeForEmirate(\Illuminate\Database\Eloquent\Builder $query, string $emirate): void
+    {
+        $query->where('emirate', $emirate);
     }
 }

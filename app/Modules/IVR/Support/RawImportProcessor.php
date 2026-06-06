@@ -7,7 +7,8 @@ use App\Models\ClientPhoneNumber;
 use App\Models\ClientSource;
 use App\Modules\IVR\Enums\IvrImportStatus;
 use App\Modules\IVR\Models\IvrImport;
-use App\Support\GeographyLookup;
+use App\Support\LocationResolver;
+use App\Support\RawContactImportEnricher;
 use Illuminate\Support\Facades\Log;
 use SplFileObject;
 use Throwable;
@@ -16,13 +17,15 @@ class RawImportProcessor
 {
     use CsvRowTrait;
 
-    private GeographyLookup $geo;
+    private LocationResolver $resolver;
+    private RawContactImportEnricher $enricher;
 
     public function __construct(
         private readonly RawImportColumnMapper $mapper,
         private readonly PhoneNormalizer $phoneNormalizer,
     ) {
-        $this->geo = new GeographyLookup();
+        $this->resolver = new LocationResolver();
+        $this->enricher = new RawContactImportEnricher();
     }
 
     public function process(IvrImport $import): void
@@ -200,70 +203,67 @@ class RawImportProcessor
         $normalized = $this->phoneNormalizer->normalize((string) $payload['phone']);
 
         $phoneNumber = ClientPhoneNumber::query()->where('normalized_phone', $normalized['normalized'])->first();
-        $duplicate = $phoneNumber !== null;
+        $duplicate   = $phoneNumber !== null;
 
-        $regionId    = $this->geo->regionId($payload['city'] ?? '');
-        $communityId = $this->geo->communityId($payload['community'] ?? '');
-        if (! $regionId && $communityId) {
-            $regionId = $this->geo->regionIdForCommunity($communityId);
-        }
+        $emirate = trim((string) ($payload['emirate'] ?? ''));
+
+        // Resolve new geography FKs
+        $officialAreaId  = $this->resolver->officialAreaId($emirate, $payload['official_area_name'] ?? '');
+        $marketingAreaId = $this->resolver->marketingAreaId($emirate, $payload['marketing_area_name'] ?? '');
+        $projectId       = $this->resolver->projectId($marketingAreaId, $payload['project_name'] ?? '');
+        $buildingId      = $this->resolver->buildingId($projectId, $payload['building_name'] ?? '');
+
+        $enrichPayload = array_merge($payload, [
+            'normalized_phone' => $normalized['normalized'],
+            'emirate'          => $emirate,
+        ]);
+
+        $client = $this->enricher->resolveClient($enrichPayload);
 
         if (! $phoneNumber) {
-            $client = Client::create([
-                'full_name'    => $payload['name'],
-                'email'        => $payload['email'] ?? null,
-                'nationality'  => $payload['nationality'] ?? null,
-                'resident'     => $payload['resident'] ?? null,
-                'gender'       => $payload['gender'] ?? null,
-                'interest'     => $payload['interest'] ?? null,
-                'region_id'    => $regionId,
-                'community_id' => $communityId,
-            ]);
-
             $phoneNumber = ClientPhoneNumber::create([
-                'client_id' => $client->id,
-                'raw_phone' => $payload['phone'],
+                'client_id'        => $client->id,
+                'raw_phone'        => $payload['phone'],
                 'normalized_phone' => $normalized['normalized'],
-                'country_code' => $normalized['country_code'],
-                'national_number' => $normalized['national_number'],
+                'country_code'     => $normalized['country_code'],
+                'national_number'  => $normalized['national_number'],
                 'detected_country' => $normalized['detected_country'],
-                'is_uae' => $normalized['is_uae'],
-                'is_primary' => true,
-                'priority' => 1,
+                'is_uae'           => $normalized['is_uae'],
+                'is_primary'       => true,
+                'priority'         => 1,
                 'last_source_name' => $sourceName,
                 'last_imported_at' => now(),
             ]);
         } else {
-            $client = $phoneNumber->client ?: Client::create(['full_name' => $payload['name']]);
-
-            $client->fill(array_filter([
-                'full_name'    => $client->full_name    ?: $payload['name'],
-                'email'        => $client->email         ?: ($payload['email'] ?? null),
-                'nationality'  => $client->nationality   ?: ($payload['nationality'] ?? null),
-                'resident'     => $client->resident      ?: ($payload['resident'] ?? null),
-                'gender'       => $client->gender        ?: ($payload['gender'] ?? null),
-                'interest'     => $client->interest      ?: ($payload['interest'] ?? null),
-                'region_id'    => $client->region_id    ?: $regionId,
-                'community_id' => $client->community_id ?: $communityId,
-            ], fn ($value) => $value !== null && $value !== ''))->save();
-
             $phoneNumber->forceFill([
-                'client_id' => $client->id,
-                'raw_phone' => $payload['phone'],
+                'client_id'        => $client->id,
                 'last_source_name' => $sourceName,
                 'last_imported_at' => now(),
             ])->save();
         }
 
+        // Sync ownership if we have at least a marketing area
+        if ($marketingAreaId) {
+            $this->enricher->syncOwnership(
+                client: $client,
+                payload: $enrichPayload,
+                officialAreaId: $officialAreaId,
+                marketingAreaId: $marketingAreaId,
+                projectId: $projectId,
+                buildingId: $buildingId,
+                sourceName: $sourceName,
+            );
+        }
+
         ClientSource::create([
-            'client_id' => $phoneNumber->client_id,
+            'client_id'              => $client->id,
             'client_phone_number_id' => $phoneNumber->id,
-            'channel' => 'ivr',
-            'source_type' => 'raw_import',
-            'source_name' => $sourceName,
-            'source_file_name' => $import->original_file_name,
-            'source_reference' => (string) $import->id,
-            'metadata' => ['duplicate' => $duplicate],
+            'channel'                => 'ivr',
+            'source_type'            => 'raw_import',
+            'source_name'            => $sourceName,
+            'source_file_name'       => $import->original_file_name,
+            'source_reference'       => (string) $import->id,
+            'metadata'               => ['duplicate' => $duplicate],
         ]);
 
         return $duplicate;

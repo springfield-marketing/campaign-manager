@@ -5,8 +5,8 @@ namespace App\Modules\WhatsApp\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\ClientPhoneNumber;
-use App\Models\Community;
-use App\Models\Region;
+use App\Models\MarketingArea;
+use App\Models\Ownership;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,12 +25,11 @@ class WhatsAppNumberController extends Controller
             ->withQueryString();
 
         return view('whatsapp::numbers.index', [
-            'numbers'     => $numbers,
-            'stats'       => $this->stats(),
-            'origins'     => $this->distinctOrigins(),
-            'regions'     => $this->availableRegions(),
-            'communities' => $this->availableCommunities(),
-            'statuses'    => ['active', 'cooldown', 'dead'],
+            'numbers'        => $numbers,
+            'stats'          => $this->stats(),
+            'origins'        => $this->distinctOrigins(),
+            'marketingAreas' => MarketingArea::active()->orderBy('emirate')->orderBy('name')->get()->groupBy('emirate'),
+            'statuses'       => ['active', 'cooldown', 'dead'],
         ]);
     }
 
@@ -40,9 +39,8 @@ class WhatsAppNumberController extends Controller
 
         $query = $this->buildQuery($request)
             ->leftJoin('clients', 'clients.id', '=', 'client_phone_numbers.client_id')
-            ->leftJoin('regions', 'regions.id', '=', 'clients.region_id')
             ->selectRaw('MAX(clients.full_name) as client_name')
-            ->selectRaw('MAX(regions.name) as region_name')
+            ->selectRaw('MAX(clients.emirate) as emirate_name')
             ->whereNotExists(function ($q): void {
                 $q->select(DB::raw(1))
                   ->from('contact_suppressions')
@@ -71,7 +69,7 @@ class WhatsAppNumberController extends Controller
                 fputcsv($handle, [
                     $number->normalized_phone,
                     $number->client_name,
-                    $number->region_name,
+                    $number->emirate_name,
                     $number->detected_country,
                     $number->last_source_name,
                     $number->whats_app_messages_count,
@@ -87,8 +85,7 @@ class WhatsAppNumberController extends Controller
         abort_unless($number->whatsAppMessages()->exists(), 404);
 
         $number->load([
-            'client.region',
-            'client.community',
+            'client.primaryEmail',
             'client.phoneNumbers' => fn ($q) => $q
                 ->withCount('whatsAppMessages')
                 ->orderByDesc('is_primary')
@@ -99,9 +96,17 @@ class WhatsAppNumberController extends Controller
             'whatsAppProfile',
         ]);
 
+        $ownerships = $number->client
+            ? Ownership::with(['marketingArea', 'officialArea', 'project', 'building'])
+                ->where('client_id', $number->client->id)
+                ->latest()
+                ->get()
+            : collect();
+
         return view('whatsapp::numbers.show', [
-            'number'  => $number,
-            'regions' => Region::with('communities')->orderBy('name')->get(),
+            'number'         => $number,
+            'ownerships'     => $ownerships,
+            'marketingAreas' => MarketingArea::active()->orderBy('emirate')->orderBy('name')->get()->groupBy('emirate'),
         ]);
     }
 
@@ -110,17 +115,22 @@ class WhatsAppNumberController extends Controller
         abort_unless($number->client, 404);
 
         $data = $request->validate([
-            'full_name'    => ['nullable', 'string', 'max:255'],
-            'email'        => ['nullable', 'email', 'max:255'],
-            'gender'       => ['nullable', 'string', 'max:50'],
-            'region_id'    => ['nullable', 'integer', 'exists:regions,id'],
-            'community_id' => ['nullable', 'integer', 'exists:communities,id'],
-            'nationality'  => ['nullable', 'string', 'max:100'],
-            'resident'     => ['nullable', 'string', 'max:100'],
-            'interest'     => ['nullable', 'string', 'max:255'],
+            'full_name'   => ['nullable', 'string', 'max:255'],
+            'email'       => ['nullable', 'email', 'max:255'],
+            'gender'      => ['nullable', 'string', 'max:50'],
+            'nationality' => ['nullable', 'string', 'max:100'],
+            'interest'    => ['nullable', 'string', 'max:255'],
+            'country_iso' => ['nullable', 'string', 'size:2'],
+            'emirate'     => ['nullable', 'string', 'max:100'],
         ]);
 
-        $number->client->update($data);
+        $email = $data['email'] ?? null;
+        unset($data['email']);
+
+        DB::transaction(function () use ($number, $data, $email): void {
+            $number->client->update($data);
+            $number->client->setPrimaryEmailAddress($email);
+        });
 
         return redirect()->route('modules.whatsapp.numbers.show', $number)
             ->with('status', 'Client details updated.');
@@ -195,12 +205,13 @@ class WhatsAppNumberController extends Controller
             $query->where('client_phone_numbers.detected_country', $request->string('origin'));
         }
 
-        if ($request->filled('region')) {
-            $query->whereHas('client', fn ($q) => $q->where('region_id', $request->integer('region')));
+        if ($request->filled('emirate')) {
+            $query->whereHas('client', fn ($q) => $q->where('emirate', $request->string('emirate')));
         }
 
-        if ($request->filled('community')) {
-            $query->whereHas('client', fn ($q) => $q->where('community_id', $request->integer('community')));
+        if ($request->filled('marketing_area')) {
+            $query->whereHas('client.ownerships', fn ($q) => $q
+                ->where('marketing_area_id', $request->integer('marketing_area')));
         }
 
         if ($request->filled('status')) {
@@ -225,6 +236,8 @@ class WhatsAppNumberController extends Controller
     private function stats(): array
     {
         return Cache::remember('whatsapp.number_stats', 300, function (): array {
+            $now = now();
+
             $row = DB::selectOne("
                 SELECT
                     COUNT(DISTINCT wm.client_phone_number_id) AS total,
@@ -237,7 +250,7 @@ class WhatsAppNumberController extends Controller
                         WHEN wpp.usage_status = 'dead' OR cs.id IS NOT NULL
                         THEN wm.client_phone_number_id
                     END) AS unsubscribed,
-                    COUNT(DISTINCT CASE WHEN wpp.usage_status = 'cooldown' AND wpp.cooldown_until > NOW() THEN wm.client_phone_number_id END) AS cooldown
+                    COUNT(DISTINCT CASE WHEN wpp.usage_status = 'cooldown' AND wpp.cooldown_until > ? THEN wm.client_phone_number_id END) AS cooldown
                 FROM whatsapp_messages wm
                 INNER JOIN client_phone_numbers cpn ON cpn.id = wm.client_phone_number_id
                 LEFT  JOIN whatsapp_phone_profiles wpp ON wpp.client_phone_number_id = cpn.id
@@ -246,7 +259,7 @@ class WhatsAppNumberController extends Controller
                     AND cs.channel = 'whatsapp'
                     AND cs.released_at IS NULL
                 WHERE wm.client_phone_number_id IS NOT NULL
-            ");
+            ", [$now]);
 
             return [
                 'total'        => (int) ($row->total ?? 0),
@@ -269,29 +282,4 @@ class WhatsAppNumberController extends Controller
             ->pluck('detected_country');
     }
 
-    /** @return \Illuminate\Database\Eloquent\Collection<int, Region> */
-    private function availableRegions()
-    {
-        $ids = DB::table('clients')
-            ->join('client_phone_numbers', 'client_phone_numbers.client_id', '=', 'clients.id')
-            ->join('whatsapp_messages', 'whatsapp_messages.client_phone_number_id', '=', 'client_phone_numbers.id')
-            ->whereNotNull('clients.region_id')
-            ->distinct()
-            ->pluck('clients.region_id');
-
-        return Region::whereIn('id', $ids)->orderBy('name')->get();
-    }
-
-    /** @return \Illuminate\Database\Eloquent\Collection<int, Community> */
-    private function availableCommunities()
-    {
-        $ids = DB::table('clients')
-            ->join('client_phone_numbers', 'client_phone_numbers.client_id', '=', 'clients.id')
-            ->join('whatsapp_messages', 'whatsapp_messages.client_phone_number_id', '=', 'client_phone_numbers.id')
-            ->whereNotNull('clients.community_id')
-            ->distinct()
-            ->pluck('clients.community_id');
-
-        return Community::whereIn('id', $ids)->with('region')->orderBy('name')->get();
-    }
 }

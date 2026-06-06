@@ -2,20 +2,18 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Project extends Model
+class Building extends Model
 {
     protected $fillable = [
         'emirate',
         'name',
+        'project_id',
         'marketing_area_id',
         'official_area_id',
-        'developer_name',
-        'dld_project_id',
         'is_active',
     ];
 
@@ -24,6 +22,11 @@ class Project extends Model
         return [
             'is_active' => 'boolean',
         ];
+    }
+
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
     }
 
     public function marketingArea(): BelongsTo
@@ -36,11 +39,6 @@ class Project extends Model
         return $this->belongsTo(OfficialArea::class);
     }
 
-    public function buildings(): HasMany
-    {
-        return $this->hasMany(Building::class);
-    }
-
     public function ownerships(): HasMany
     {
         return $this->hasMany(Ownership::class);
@@ -49,16 +47,11 @@ class Project extends Model
     public function aliases(): \Illuminate\Database\Eloquent\Relations\MorphMany
     {
         return $this->morphMany(PlaceAlias::class, null, 'entity_type', 'entity_id')
-            ->where('entity_type', 'project');
+            ->where('entity_type', 'building');
     }
 
-    public function scopeActive(Builder $query): Builder
+    public function scopeActive(\Illuminate\Database\Eloquent\Builder $query): void
     {
-        return $query->where('is_active', true);
-    }
-
-    public function scopeForMarketingArea(Builder $query, int $marketingAreaId): Builder
-    {
-        return $query->where('marketing_area_id', $marketingAreaId);
+        $query->where('is_active', true);
     }
 }

@@ -190,7 +190,7 @@ class IvrCampaignResultController extends Controller
         $stats = $this->campaignStats($campaign);
 
         $leadsQuery = $campaign->callRecords()
-            ->with('phoneNumber.client')
+            ->with('phoneNumber.client.primaryEmail')
             ->whereIn('dtmf_outcome', self::LEAD_OUTCOMES)
             ->latest('call_time');
 
@@ -234,7 +234,7 @@ class IvrCampaignResultController extends Controller
             ]);
 
             $campaign->callRecords()
-                ->with(['import', 'phoneNumber.client.country', 'phoneNumber.client.region', 'phoneNumber.client.community'])
+                ->with(['import', 'phoneNumber.client.primaryEmail', 'phoneNumber.client.country', 'phoneNumber.client.region', 'phoneNumber.client.community'])
                 ->whereIn('dtmf_outcome', self::LEAD_OUTCOMES)
                 ->latest('call_time')
                 ->chunk(500, function ($leads) use ($handle, $campaign): void {
@@ -246,7 +246,7 @@ class IvrCampaignResultController extends Controller
                             optional($lead->call_time)->format('Y-m-d H:i:s'),
                             $client?->full_name,
                             $lead->phoneNumber?->normalized_phone,
-                            $client?->email,
+                            $client?->primary_email_address,
                             $client?->country?->name,
                             $client?->nationality,
                             $client?->community?->name,
@@ -315,7 +315,7 @@ class IvrCampaignResultController extends Controller
             ]);
 
             IvrCallRecord::query()
-                ->with(['campaign', 'import', 'phoneNumber.client.country', 'phoneNumber.client.region', 'phoneNumber.client.community'])
+                ->with(['campaign', 'import', 'phoneNumber.client.primaryEmail', 'phoneNumber.client.country', 'phoneNumber.client.region', 'phoneNumber.client.community'])
                 ->whereBetween('call_time', [$from, $to])
                 ->orderBy('call_time')
                 ->orderBy('id')
@@ -332,7 +332,7 @@ class IvrCampaignResultController extends Controller
                             optional($record->call_time)->format('Y-m-d H:i:s'),
                             $client?->full_name,
                             $record->phoneNumber?->normalized_phone,
-                            $client?->email,
+                            $client?->primary_email_address,
                             $client?->country?->name,
                             $client?->nationality,
                             $client?->community?->name,

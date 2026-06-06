@@ -14,7 +14,7 @@
                 </article>
 
                 <article class="ui-card ui-card-pad">
-                    <p class="text-sm ui-muted">Active</p>
+                    <p class="text-sm ui-muted">Active status</p>
                     <p class="mt-3 text-3xl font-semibold text-theme-primary">{{ number_format($stats['active']) }}</p>
                 </article>
 

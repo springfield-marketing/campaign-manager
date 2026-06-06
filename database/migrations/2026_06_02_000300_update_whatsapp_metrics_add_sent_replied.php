@@ -21,6 +21,27 @@ return new class extends Migration
             $table->dropColumn('clicked_count');
         });
 
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            DB::statement("
+                UPDATE whatsapp_campaigns
+                SET
+                    sent_count = (
+                        SELECT count(*)
+                        FROM whatsapp_messages
+                        WHERE whatsapp_messages.whatsapp_campaign_id = whatsapp_campaigns.id
+                          AND delivery_status = 'SENT'
+                    ),
+                    replied_count = (
+                        SELECT count(*)
+                        FROM whatsapp_messages
+                        WHERE whatsapp_messages.whatsapp_campaign_id = whatsapp_campaigns.id
+                          AND delivery_status = 'REPLIED'
+                    )
+            ");
+
+            return;
+        }
+
         // Backfill sent_count and replied_count on existing campaigns using the composite index.
         DB::statement("
             UPDATE whatsapp_campaigns wc

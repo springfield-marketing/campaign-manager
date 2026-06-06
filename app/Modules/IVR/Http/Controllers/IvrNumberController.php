@@ -2,33 +2,36 @@
 
 namespace App\Modules\IVR\Http\Controllers;
 
+use App\Enums\InteractionType;
 use App\Http\Controllers\Controller;
+use App\Models\ClientInteraction;
 use App\Models\ClientPhoneNumber;
-use App\Models\Community;
 use App\Models\ContactSuppression;
-use App\Models\Country;
+use App\Models\MarketingArea;
+use App\Models\OfficialArea;
+use App\Models\Ownership;
 use App\Models\Project;
-use App\Models\Region;
+use App\Models\Tag;
 use App\Modules\IVR\Support\NumberEligibilityService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class IvrNumberController extends Controller
 {
     public function index(Request $request): View
     {
         $numbers = $this->filteredQuery($request)
-            ->with(['client.region', 'ivrProfile', 'sources' => fn ($query) => $query->latest()->limit(5)])
+            ->with(['ivrProfile', 'sources' => fn ($query) => $query->latest()->limit(5)])
             ->paginate(25)
             ->withQueryString();
 
         return view('ivr::numbers.index', [
             'numbers' => $numbers,
-            'stats' => $this->numberStats($request),
+            'stats'   => $this->numberStats($request),
             'availableSources' => DB::table('client_sources')
                 ->where('channel', 'ivr')
                 ->where('source_type', 'raw_import')
@@ -36,10 +39,8 @@ class IvrNumberController extends Controller
                 ->distinct()
                 ->orderBy('source_name')
                 ->pluck('source_name'),
-            'regions'     => Region::orderBy('name')->get(),
-            'communities' => Community::with('region')->orderBy('name')->get(),
-            'countries'   => Country::orderBy('name')->get(),
-            'projects'    => Project::with('community')->orderBy('name')->get(),
+            'marketingAreas' => MarketingArea::active()->orderBy('emirate')->orderBy('name')->get()->groupBy('emirate'),
+            'projects'       => Project::active()->orderBy('name')->get(),
         ]);
     }
 
@@ -47,21 +48,103 @@ class IvrNumberController extends Controller
     {
         abort_unless($number->is_uae, 404);
 
-        return view('ivr::numbers.show', [
-            'number' => $number->load([
-                'ivrProfile',
-                'client.region',
-                'client.phoneNumbers' => fn ($query) => $query
-                    ->withCount(['ivrCallRecords as ivr_use_count'])
-                    ->with('ivrProfile')
-                    ->orderByDesc('is_primary')
-                    ->orderBy('priority')
-                    ->orderBy('normalized_phone'),
-                'sources' => fn ($query) => $query->latest(),
-                'ivrCallRecords' => fn ($query) => $query->with('campaign')->latest('call_time'),
-                'suppressions' => fn ($query) => $query->latest('suppressed_at'),
-            ]),
+        $number->load([
+            'ivrProfile',
+            'client.primaryEmail',
+            'client.tags',
+            'client.phoneNumbers' => fn ($query) => $query
+                ->withCount(['ivrCallRecords as ivr_use_count'])
+                ->with('ivrProfile')
+                ->orderByDesc('is_primary')
+                ->orderBy('priority')
+                ->orderBy('normalized_phone'),
+            'sources'        => fn ($query) => $query->latest(),
+            'ivrCallRecords' => fn ($query) => $query->with('campaign')->latest('call_time'),
+            'suppressions'   => fn ($query) => $query->latest('suppressed_at'),
         ]);
+
+        $ownerships = $number->client
+            ? Ownership::with(['marketingArea', 'officialArea', 'project', 'building'])
+                ->where('client_id', $number->client->id)
+                ->latest()
+                ->get()
+            : collect();
+
+        $interactions = $number->client
+            ? ClientInteraction::where('client_id', $number->client->id)
+                ->latest('created_at')
+                ->limit(30)
+                ->get()
+            : collect();
+
+        return view('ivr::numbers.show', [
+            'number'       => $number,
+            'ownerships'   => $ownerships,
+            'interactions' => $interactions,
+            'marketingAreas' => MarketingArea::active()->orderBy('emirate')->orderBy('name')->get()->groupBy('emirate'),
+            'allTags'      => Tag::orderBy('name')->get(),
+        ]);
+    }
+
+    public function updateClient(Request $request, ClientPhoneNumber $number): RedirectResponse
+    {
+        abort_unless($number->is_uae, 404);
+        abort_unless($number->client, 404);
+
+        $data = $request->validate([
+            'full_name'   => ['nullable', 'string', 'max:255'],
+            'email'       => ['nullable', 'email', 'max:255'],
+            'gender'      => ['nullable', 'string', 'max:50'],
+            'nationality' => ['nullable', 'string', 'max:100'],
+            'interest'    => ['nullable', 'string', 'max:255'],
+            'country_iso' => ['nullable', 'string', 'size:2'],
+            'emirate'     => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $email = $data['email'] ?? null;
+        unset($data['email']);
+
+        DB::transaction(function () use ($number, $data, $email): void {
+            $number->client->update($data);
+            $number->client->setPrimaryEmailAddress($email);
+        });
+
+        return redirect()->route('modules.ivr.numbers.show', $number)
+            ->with('status', 'Client details updated.');
+    }
+
+    public function updateTags(Request $request, ClientPhoneNumber $number): RedirectResponse
+    {
+        abort_unless($number->is_uae, 404);
+        abort_unless($number->client, 404);
+
+        $request->validate(['tags' => ['nullable', 'array'], 'tags.*' => ['integer', 'exists:tags,id']]);
+
+        $number->client->tags()->sync($request->input('tags', []));
+
+        return redirect()->route('modules.ivr.numbers.show', $number)
+            ->with('status', 'Tags updated.');
+    }
+
+    public function storeInteraction(Request $request, ClientPhoneNumber $number): RedirectResponse
+    {
+        abort_unless($number->is_uae, 404);
+        abort_unless($number->client, 404);
+
+        $data = $request->validate([
+            'description' => ['required', 'string', 'max:2000'],
+            'source'      => ['nullable', 'string', 'max:255'],
+        ]);
+
+        ClientInteraction::log(
+            clientId: $number->client->id,
+            type: InteractionType::Note,
+            source: $data['source'] ?? null,
+            description: $data['description'],
+        );
+
+        return redirect()->route('modules.ivr.numbers.show', $number)
+            ->with('status', 'Note logged.');
     }
 
     public function suppress(ClientPhoneNumber $number, NumberEligibilityService $eligibilityService): RedirectResponse
@@ -230,21 +313,18 @@ class IvrNumberController extends Controller
                 ->whereIn('source_name', $excludeSources));
         }
 
-        if ($request->filled('region')) {
-            $query->whereHas('client', fn ($builder) => $builder->where('region_id', $request->integer('region')));
+        if ($request->filled('emirate')) {
+            $query->whereHas('client', fn ($builder) => $builder->where('emirate', $request->string('emirate')));
         }
 
-        if ($request->filled('community')) {
-            $query->whereHas('client', fn ($builder) => $builder->where('community_id', $request->integer('community')));
-        }
-
-        if ($request->filled('country')) {
-            $query->whereHas('client', fn ($builder) => $builder->where('country_id', $request->integer('country')));
+        if ($request->filled('marketing_area')) {
+            $query->whereHas('client.ownerships', fn ($builder) => $builder
+                ->where('marketing_area_id', $request->integer('marketing_area')));
         }
 
         if ($request->filled('project')) {
-            $query->whereHas('client.communities', fn ($builder) => $builder
-                ->wherePivot('project_id', $request->integer('project')));
+            $query->whereHas('client.ownerships', fn ($builder) => $builder
+                ->where('project_id', $request->integer('project')));
         }
 
         if ($applyStatusFilter && $request->filled('status')) {

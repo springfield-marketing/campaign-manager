@@ -49,7 +49,7 @@
                                 </div>
                                 <div>
                                     <label class="ui-muted block mb-1">Email</label>
-                                    <input type="email" name="email" value="{{ old('email', $number->client->email) }}" class="ui-control w-full">
+                                    <input type="email" name="email" value="{{ old('email', $number->client->primary_email_address) }}" class="ui-control w-full">
                                     @error('email') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
                                 </div>
                                 <div>
@@ -104,7 +104,7 @@
                                 </div>
                                 <div>
                                     <dt class="ui-muted">Email</dt>
-                                    <dd class="ui-strong">{{ $number->client?->email ?: '-' }}</dd>
+                                    <dd class="ui-strong">{{ $number->client?->primary_email_address ?: '-' }}</dd>
                                 </div>
                                 <div>
                                     <dt class="ui-muted">Gender</dt>
