@@ -33,17 +33,12 @@ class AdminPanelProvider extends PanelProvider
                 'primary' => Color::Indigo,
             ])
             ->navigationGroups([
-                NavigationGroup::make('Contacts')
-                    ->icon('heroicon-o-users'),
-                NavigationGroup::make('IVR')
-                    ->icon('heroicon-o-phone'),
-                NavigationGroup::make('WhatsApp')
-                    ->icon('heroicon-o-chat-bubble-left-right'),
+                NavigationGroup::make('Contacts'),
+                NavigationGroup::make('IVR'),
+                NavigationGroup::make('WhatsApp'),
                 NavigationGroup::make('Geography')
-                    ->icon('heroicon-o-map-pin')
                     ->collapsed(),
                 NavigationGroup::make('System')
-                    ->icon('heroicon-o-cog-6-tooth')
                     ->collapsed(),
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
