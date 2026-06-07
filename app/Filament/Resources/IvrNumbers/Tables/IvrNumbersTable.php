@@ -5,9 +5,9 @@ namespace App\Filament\Resources\IvrNumbers\Tables;
 use App\Models\ClientPhoneNumber;
 use App\Models\ContactSuppression;
 use App\Models\MarketingArea;
+use App\Modules\IVR\Support\NumberEligibilityService;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
@@ -16,6 +16,7 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 class IvrNumbersTable
 {
@@ -131,7 +132,7 @@ class IvrNumbersTable
                     ->icon('heroicon-o-no-symbol')
                     ->color('danger')
                     ->visible(fn (ClientPhoneNumber $record) =>
-                        ! ContactSuppression::where('client_phone_number_id', $record->id)
+                        ! $record->suppressions()
                             ->where('channel', 'ivr')
                             ->whereNull('released_at')
                             ->exists()
@@ -142,12 +143,21 @@ class IvrNumbersTable
                             ->rows(2),
                     ])
                     ->action(function (ClientPhoneNumber $record, array $data): void {
-                        ContactSuppression::create([
-                            'client_phone_number_id' => $record->id,
-                            'channel'                => 'ivr',
-                            'suppressed_at'          => now(),
-                            'context'                => $data['reason'] ? ['reason' => $data['reason']] : null,
-                        ]);
+                        DB::transaction(function () use ($record, $data): void {
+                            ContactSuppression::firstOrCreate(
+                                [
+                                    'client_phone_number_id' => $record->id,
+                                    'channel'                => 'ivr',
+                                    'reason'                 => 'customer_unsubscribed',
+                                ],
+                                [
+                                    'suppressed_at' => now(),
+                                    'context'       => ['source' => 'manual', 'reason' => $data['reason'] ?? null],
+                                ],
+                            );
+                            $record->forceFill(['unsubscribed_at' => $record->unsubscribed_at ?? now()])->save();
+                            app(NumberEligibilityService::class)->refresh($record->refresh());
+                        });
                         Notification::make()->title('Number suppressed')->warning()->send();
                     })
                     ->requiresConfirmation()
@@ -158,16 +168,30 @@ class IvrNumbersTable
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
                     ->visible(fn (ClientPhoneNumber $record) =>
-                        ContactSuppression::where('client_phone_number_id', $record->id)
+                        $record->suppressions()
                             ->where('channel', 'ivr')
                             ->whereNull('released_at')
                             ->exists()
                     )
                     ->action(function (ClientPhoneNumber $record): void {
-                        ContactSuppression::where('client_phone_number_id', $record->id)
-                            ->where('channel', 'ivr')
-                            ->whereNull('released_at')
-                            ->update(['released_at' => now()]);
+                        DB::transaction(function () use ($record): void {
+                            ContactSuppression::where('client_phone_number_id', $record->id)
+                                ->where('channel', 'ivr')
+                                ->where('reason', 'customer_unsubscribed')
+                                ->whereNull('released_at')
+                                ->update(['released_at' => now()]);
+
+                            $hasOtherActiveSuppression = $record->suppressions()
+                                ->whereNull('released_at')
+                                ->where(fn (Builder $q) => $q->whereNull('channel')->orWhere('channel', 'ivr'))
+                                ->exists();
+
+                            if (! $hasOtherActiveSuppression) {
+                                $record->forceFill(['unsubscribed_at' => null])->save();
+                            }
+
+                            app(NumberEligibilityService::class)->refresh($record->refresh());
+                        });
                         Notification::make()->title('Number unsuppressed')->success()->send();
                     })
                     ->requiresConfirmation()
@@ -188,23 +212,37 @@ class IvrNumbersTable
             ->color('danger')
             ->requiresConfirmation()
             ->action(function (\Illuminate\Database\Eloquent\Collection $records): void {
-                $count = 0;
-                foreach ($records as $record) {
-                    $alreadySuppressed = ContactSuppression::where('client_phone_number_id', $record->id)
-                        ->where('channel', 'ivr')
-                        ->whereNull('released_at')
-                        ->exists();
+                $ids = $records->pluck('id')->all();
 
-                    if (! $alreadySuppressed) {
-                        ContactSuppression::create([
-                            'client_phone_number_id' => $record->id,
-                            'channel'                => 'ivr',
-                            'suppressed_at'          => now(),
-                        ]);
-                        $count++;
+                $alreadySuppressedIds = ContactSuppression::query()
+                    ->whereIn('client_phone_number_id', $ids)
+                    ->where('channel', 'ivr')
+                    ->whereNull('released_at')
+                    ->pluck('client_phone_number_id')
+                    ->all();
+
+                $toSuppress = $records->reject(fn ($r) => in_array($r->id, $alreadySuppressedIds, true));
+
+                $now = now();
+                DB::transaction(function () use ($toSuppress, $now): void {
+                    foreach ($toSuppress as $record) {
+                        ContactSuppression::firstOrCreate(
+                            [
+                                'client_phone_number_id' => $record->id,
+                                'channel'                => 'ivr',
+                                'reason'                 => 'customer_unsubscribed',
+                            ],
+                            ['suppressed_at' => $now, 'context' => ['source' => 'manual_bulk']],
+                        );
+                        $record->forceFill(['unsubscribed_at' => $record->unsubscribed_at ?? $now])->save();
                     }
+                });
+
+                foreach ($toSuppress as $record) {
+                    app(NumberEligibilityService::class)->refresh($record->refresh());
                 }
-                Notification::make()->title("Suppressed $count number(s)")->warning()->send();
+
+                Notification::make()->title("Suppressed {$toSuppress->count()} number(s)")->warning()->send();
             });
     }
 }
