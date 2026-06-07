@@ -11,7 +11,6 @@ use App\Filament\Resources\IvrNumbers\RelationManagers\SuppressionsRelationManag
 use App\Filament\Resources\IvrNumbers\Schemas\IvrNumberForm;
 use App\Filament\Resources\IvrNumbers\Tables\IvrNumbersTable;
 use App\Models\ClientPhoneNumber;
-use App\Models\ContactSuppression;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
@@ -56,7 +55,11 @@ class IvrNumberResource extends Resource
     {
         return parent::getEloquentQuery()
             ->where('is_uae', true)
-            ->with(['ivrProfile', 'client.primaryEmail']);
+            ->with(['ivrProfile', 'client.primaryEmail'])
+            ->withExists(['suppressions as is_ivr_suppressed' => fn (Builder $q) => $q
+                ->where('channel', 'ivr')
+                ->whereNull('released_at'),
+            ]);
     }
 
 

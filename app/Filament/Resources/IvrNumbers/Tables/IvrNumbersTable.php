@@ -71,15 +71,9 @@ class IvrNumbersTable
                     ->counts('ivrCallRecords')
                     ->sortable(),
 
-                IconColumn::make('is_suppressed')
+                IconColumn::make('is_ivr_suppressed')
                     ->label('Suppressed')
-                    ->boolean()
-                    ->getStateUsing(fn (ClientPhoneNumber $record) =>
-                        $record->suppressions()
-                            ->where('channel', 'ivr')
-                            ->whereNull('released_at')
-                            ->exists()
-                    ),
+                    ->boolean(),
             ])
             ->filters([
                 SelectFilter::make('usage_status')
@@ -131,12 +125,7 @@ class IvrNumbersTable
                     ->label('Suppress')
                     ->icon('heroicon-o-no-symbol')
                     ->color('danger')
-                    ->visible(fn (ClientPhoneNumber $record) =>
-                        ! $record->suppressions()
-                            ->where('channel', 'ivr')
-                            ->whereNull('released_at')
-                            ->exists()
-                    )
+                    ->visible(fn (ClientPhoneNumber $record) => ! $record->is_ivr_suppressed)
                     ->form([
                         Textarea::make('reason')
                             ->label('Reason (optional)')
@@ -167,12 +156,7 @@ class IvrNumbersTable
                     ->label('Unsuppress')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
-                    ->visible(fn (ClientPhoneNumber $record) =>
-                        $record->suppressions()
-                            ->where('channel', 'ivr')
-                            ->whereNull('released_at')
-                            ->exists()
-                    )
+                    ->visible(fn (ClientPhoneNumber $record) => (bool) $record->is_ivr_suppressed)
                     ->action(function (ClientPhoneNumber $record): void {
                         DB::transaction(function () use ($record): void {
                             ContactSuppression::where('client_phone_number_id', $record->id)
