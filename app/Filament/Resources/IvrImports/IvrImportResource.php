@@ -9,9 +9,11 @@ use App\Filament\Resources\IvrImports\RelationManagers\ImportErrorsRelationManag
 use App\Filament\Resources\IvrImports\Schemas\IvrImportForm;
 use App\Filament\Resources\IvrImports\Tables\IvrImportsTable;
 use App\Modules\IVR\Models\IvrImport;
+use App\Modules\IVR\Enums\IvrImportType;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class IvrImportResource extends Resource
 {
@@ -37,6 +39,12 @@ class IvrImportResource extends Resource
     public static function getSlug(?\Filament\Panel $panel = null): string
     {
         return 'ivr-imports';
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->whereIn('type', [IvrImportType::CampaignResults->value, IvrImportType::Unsubscribers->value]);
     }
 
     public static function getRelations(): array
