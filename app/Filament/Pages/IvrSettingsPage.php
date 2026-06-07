@@ -13,8 +13,6 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
-use Illuminate\Support\Facades\Storage;
-
 class IvrSettingsPage extends Page implements HasForms
 {
     use InteractsWithForms;
@@ -130,16 +128,6 @@ class IvrSettingsPage extends Page implements HasForms
         ExportCentralDatabase::dispatch($export->id);
 
         Notification::make()->title('Database export queued — check back in a few minutes.')->success()->send();
-    }
-
-    public function downloadExport(int $exportId): void
-    {
-        $export = CentralDatabaseExport::findOrFail($exportId);
-
-        if ($export->status !== CentralDatabaseExport::STATUS_COMPLETED) return;
-        if (! $export->storage_path || ! Storage::disk('local')->exists($export->storage_path)) return;
-
-        $this->redirect(route('ivr.db-export.download', $export));
     }
 
     public function getDatabaseExports(): \Illuminate\Database\Eloquent\Collection
