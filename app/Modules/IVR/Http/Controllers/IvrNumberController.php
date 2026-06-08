@@ -174,6 +174,11 @@ class IvrNumberController extends Controller
                 ->where('project_id', $request->integer('project')));
         }
 
+        if ($request->filled('tag')) {
+            $query->whereHas('client.tags', fn ($builder) => $builder
+                ->where('tags.name', $request->string('tag')));
+        }
+
         return $query->orderByRaw("COALESCE(ivr_phone_profiles.usage_status, 'active')")
             ->orderByDesc('ivr_phone_profiles.last_called_at');
     }

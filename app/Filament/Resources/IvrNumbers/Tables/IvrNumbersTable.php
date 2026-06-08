@@ -5,6 +5,7 @@ namespace App\Filament\Resources\IvrNumbers\Tables;
 use App\Models\ClientPhoneNumber;
 use App\Models\ContactSuppression;
 use App\Models\MarketingArea;
+use App\Models\Tag;
 use App\Modules\IVR\Support\NumberEligibilityService;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
@@ -66,6 +67,13 @@ class IvrNumbersTable
                     ->sortable()
                     ->placeholder('—'),
 
+                TextColumn::make('client.tags.name')
+                    ->label('Tags')
+                    ->badge()
+                    ->separator(',')
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 TextColumn::make('ivr_call_records_count')
                     ->label('Calls')
                     ->counts('ivrCallRecords')
@@ -118,6 +126,19 @@ class IvrNumbersTable
                             $s->where('channel', 'ivr')->whereNull('released_at')
                         )
                     ),
+
+                SelectFilter::make('tag')
+                    ->label('Tag')
+                    ->options(fn () => Tag::orderBy('name')->pluck('name', 'id'))
+                    ->query(fn (Builder $q, array $data) =>
+                        $q->when(
+                            filled($data['value'] ?? null),
+                            fn ($q) => $q->whereHas('client.tags', fn ($t) =>
+                                $t->where('tags.id', $data['value'])
+                            )
+                        )
+                    )
+                    ->searchable(),
             ])
             ->defaultSort('created_at', 'desc')
             ->recordActions([
