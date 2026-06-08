@@ -62,6 +62,7 @@ class RawImportProcessor
             $duplicates = 0;
             $rowNumber = 1;
             $sourceFallback = $import->source_name ?: pathinfo($import->original_file_name, PATHINFO_FILENAME);
+            $tagId = $import->tag_id;
 
             while (! $file->eof()) {
                 $row = $file->fgetcsv();
@@ -75,7 +76,7 @@ class RawImportProcessor
                 try {
                     $payload = $this->extractPayload($row, $mapping['mapped']);
                     $sourceName = ($payload['source_file'] ?? null) ?: $sourceFallback;
-                    $duplicate = $this->upsertClientFromPayload($payload, $sourceName, $import);
+                    $duplicate = $this->upsertClientFromPayload($payload, $sourceName, $import, $tagId);
 
                     $successful++;
                     $duplicates += $duplicate ? 1 : 0;
@@ -191,58 +192,70 @@ class RawImportProcessor
             throw new \RuntimeException('Name is required.');
         }
 
-        if (($payload['phone'] ?? null) === null || ($payload['phone'] ?? '') === '') {
-            throw new \RuntimeException('Phone is required.');
+        $hasPhone = ($payload['phone'] ?? '') !== '';
+        $hasEmail = ($payload['email'] ?? '') !== '';
+
+        if (! $hasPhone && ! $hasEmail) {
+            throw new \RuntimeException('At least one of phone or email is required.');
         }
 
         return $payload;
     }
 
-    private function upsertClientFromPayload(array $payload, string $sourceName, IvrImport $import): bool
+    private function upsertClientFromPayload(array $payload, string $sourceName, IvrImport $import, ?int $tagId): bool
     {
-        $normalized = $this->phoneNormalizer->normalize((string) $payload['phone']);
+        $phone = ($payload['phone'] ?? '') !== '' ? $payload['phone'] : null;
+        $normalized = $phone ? $this->phoneNormalizer->normalize($phone) : null;
 
-        $phoneNumber = ClientPhoneNumber::query()->where('normalized_phone', $normalized['normalized'])->first();
-        $duplicate   = $phoneNumber !== null;
+        $phoneNumber = $normalized
+            ? ClientPhoneNumber::query()->where('normalized_phone', $normalized['normalized'])->first()
+            : null;
+
+        $duplicate = $phoneNumber !== null;
 
         $emirate = trim((string) ($payload['emirate'] ?? ''));
 
-        // Resolve new geography FKs
         $officialAreaId  = $this->resolver->officialAreaId($emirate, $payload['official_area_name'] ?? '');
         $marketingAreaId = $this->resolver->marketingAreaId($emirate, $payload['marketing_area_name'] ?? '');
         $projectId       = $this->resolver->projectId($marketingAreaId, $payload['project_name'] ?? '');
         $buildingId      = $this->resolver->buildingId($projectId, $payload['building_name'] ?? '');
 
         $enrichPayload = array_merge($payload, [
-            'normalized_phone' => $normalized['normalized'],
+            'normalized_phone' => $normalized['normalized'] ?? null,
             'emirate'          => $emirate,
         ]);
 
         $client = $this->enricher->resolveClient($enrichPayload);
 
-        if (! $phoneNumber) {
-            $phoneNumber = ClientPhoneNumber::create([
-                'client_id'        => $client->id,
-                'raw_phone'        => $payload['phone'],
-                'normalized_phone' => $normalized['normalized'],
-                'country_code'     => $normalized['country_code'],
-                'national_number'  => $normalized['national_number'],
-                'detected_country' => $normalized['detected_country'],
-                'is_uae'           => $normalized['is_uae'],
-                'is_primary'       => true,
-                'priority'         => 1,
-                'last_source_name' => $sourceName,
-                'last_imported_at' => now(),
-            ]);
-        } else {
-            $phoneNumber->forceFill([
-                'client_id'        => $client->id,
-                'last_source_name' => $sourceName,
-                'last_imported_at' => now(),
-            ])->save();
+        // Apply the import's tag to this client without removing other tags
+        if ($tagId) {
+            $client->tags()->syncWithoutDetaching([$tagId]);
         }
 
-        // Sync ownership if we have at least a marketing area
+        if ($normalized) {
+            if (! $phoneNumber) {
+                $phoneNumber = ClientPhoneNumber::create([
+                    'client_id'        => $client->id,
+                    'raw_phone'        => $phone,
+                    'normalized_phone' => $normalized['normalized'],
+                    'country_code'     => $normalized['country_code'],
+                    'national_number'  => $normalized['national_number'],
+                    'detected_country' => $normalized['detected_country'],
+                    'is_uae'           => $normalized['is_uae'],
+                    'is_primary'       => true,
+                    'priority'         => 1,
+                    'last_source_name' => $sourceName,
+                    'last_imported_at' => now(),
+                ]);
+            } else {
+                $phoneNumber->forceFill([
+                    'client_id'        => $client->id,
+                    'last_source_name' => $sourceName,
+                    'last_imported_at' => now(),
+                ])->save();
+            }
+        }
+
         if ($marketingAreaId) {
             $this->enricher->syncOwnership(
                 client: $client,
@@ -257,7 +270,7 @@ class RawImportProcessor
 
         ClientSource::create([
             'client_id'              => $client->id,
-            'client_phone_number_id' => $phoneNumber->id,
+            'client_phone_number_id' => $phoneNumber?->id,
             'channel'                => 'ivr',
             'source_type'            => 'raw_import',
             'source_name'            => $sourceName,

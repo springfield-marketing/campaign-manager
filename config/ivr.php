@@ -12,7 +12,7 @@ return [
     ],
 
     'raw_import' => [
-        'required' => ['name', 'phone'],
+        'required' => ['name'],
         'aliases' => [
             'name'                 => ['name', 'full name', 'full_name', 'contact name'],
             'phone'                => ['phone', 'mobile', 'phone number', 'contact number'],
