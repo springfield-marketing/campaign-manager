@@ -2,6 +2,7 @@
 
 namespace App\Modules\IVR\Models;
 
+use App\Models\Tag;
 use App\Models\User;
 use App\Modules\IVR\Enums\IvrImportStatus;
 use App\Modules\IVR\Events\IvrImportProgressUpdated;
@@ -37,6 +38,7 @@ class IvrImport extends Model
         'reverted_at',
         'reverted_by',
         'revert_reason',
+        'tag_id',
     ];
 
     protected function casts(): array
@@ -57,6 +59,11 @@ class IvrImport extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    public function tag(): BelongsTo
+    {
+        return $this->belongsTo(Tag::class);
     }
 
     public function callRecords(): HasMany
