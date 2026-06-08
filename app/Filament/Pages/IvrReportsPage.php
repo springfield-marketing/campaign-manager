@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Filament\Widgets\IvrStatsWidget;
 use App\Modules\IVR\Models\IvrCallRecord;
+use App\Modules\IVR\Models\IvrCampaign;
 use App\Modules\IVR\Models\IvrSettings;
 use App\Modules\IVR\Support\IvrReportData;
 use Filament\Forms\Components\Select;
@@ -111,8 +112,8 @@ class IvrReportsPage extends Page implements HasForms, HasTable
 
         return $table
             ->query(
-                IvrCallRecord::query()
-                    ->join('ivr_campaigns', 'ivr_campaigns.id', '=', 'ivr_call_records.ivr_campaign_id')
+                IvrCampaign::query()
+                    ->join('ivr_call_records', 'ivr_call_records.ivr_campaign_id', '=', 'ivr_campaigns.id')
                     ->when($year,  fn ($q) => $q->whereYear('ivr_call_records.call_time', $year))
                     ->when($month, fn ($q) => $q->whereMonth('ivr_call_records.call_time', $month))
                     ->groupBy('ivr_campaigns.id', 'ivr_campaigns.external_campaign_id')
