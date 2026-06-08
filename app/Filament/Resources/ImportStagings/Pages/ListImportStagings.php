@@ -8,18 +8,14 @@ use App\Modules\IVR\Enums\IvrImportStatus;
 use App\Modules\IVR\Enums\IvrImportType;
 use App\Modules\IVR\Jobs\ProcessRawIvrImport;
 use App\Modules\IVR\Models\IvrImport;
-use App\Modules\IVR\Support\RawImportColumnMapper;
 use Filament\Actions\Action;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\TextInput;
-use Filament\Schemas\Components\Utilities\Get;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\HtmlString;
-use SplFileObject;
-use Throwable;
 
 class ListImportStagings extends ListRecords
 {
@@ -52,19 +48,16 @@ class ListImportStagings extends ListRecords
                         ->directory('ivr/imports/raw/tmp')
                         ->preserveFilenames()
                         ->acceptedFileTypes(['text/csv', 'text/plain', 'application/csv'])
-                        ->maxSize(51200)
-                        ->live()
-                        ->helperText('Required: name + phone, or name + email. Name-only rows are staged for review.'),
+                        ->maxSize(51200),
 
                     TextInput::make('source_name')
                         ->label('Source Name')
                         ->placeholder('e.g. Al Reeman 2026')
                         ->maxLength(255),
 
-                    Placeholder::make('preview')
-                        ->label('File Preview')
-                        ->content(fn (Get $get) => self::buildPreview($get('file')))
-                        ->visible(fn (Get $get) => (bool) $get('file'))
+                    Placeholder::make('format_guide')
+                        ->label('Expected CSV columns')
+                        ->content(new HtmlString(self::formatGuideHtml()))
                         ->columnSpanFull(),
                 ])
                 ->action(function (array $data): void {
@@ -108,154 +101,84 @@ class ListImportStagings extends ListRecords
                     ProcessRawIvrImport::dispatch($import->id)->onQueue('imports');
 
                     Notification::make()
-                        ->title('Import queued.')
-                        ->body('Name-only rows will appear in this table as "Needs Review".')
+                        ->title('Import queued — watch progress in the table above.')
+                        ->body('Name-only rows will appear below as "Needs Review" once the import completes.')
                         ->success()
                         ->send();
                 })
                 ->modalHeading('Upload Contacts CSV')
-                ->modalDescription('Upload a contacts CSV. A preview of your data will appear once the file is selected — review it before confirming.')
-                ->modalSubmitActionLabel('Confirm & Import')
-                ->modalWidth('5xl'),
+                ->modalSubmitActionLabel('Upload & Import')
+                ->modalWidth('2xl'),
         ];
     }
 
-    private static function buildPreview(mixed $filename): HtmlString
+    private static function formatGuideHtml(): string
     {
-        if (! $filename) {
-            return new HtmlString('');
+        $required = [
+            ['name',  'Contact full name', true],
+            ['phone', 'Phone number (any format)', false],
+            ['email', 'Email address', false],
+        ];
+
+        $optional = [
+            ['emirate',              'Dubai / Abu Dhabi / Sharjah …'],
+            ['official_area_name',   'DLD area name'],
+            ['marketing_area_name',  'Community / marketing area'],
+            ['project_name',         'Development or project name'],
+            ['building_name',        'Tower or building name'],
+            ['unit_reference',       'Unit / apartment number'],
+            ['relationship_type',    'owner · tenant · investor · buyer_interest …  (becomes a tag)'],
+            ['confidence_level',     'high · medium · low'],
+            ['country_iso',          '2-letter ISO code, e.g. AE'],
+            ['source',               'Source file label (used if no source name is set above)'],
+        ];
+
+        $reqRows = '';
+        foreach ($required as [$col, $desc, $req]) {
+            $badge = $req
+                ? '<span style="color:#16a34a;font-size:10px;font-weight:700">required</span>'
+                : '<span style="color:#2563eb;font-size:10px">at least one</span>';
+            $reqRows .= "<tr>
+                <td style='padding:3px 10px 3px 0;font-family:monospace;font-size:12px;white-space:nowrap;color:#111827'>{$col}</td>
+                <td style='padding:3px 10px 3px 0;font-size:12px;color:#374151'>{$desc}</td>
+                <td style='padding:3px 0;font-size:11px'>{$badge}</td>
+            </tr>";
         }
 
-        $filename = is_array($filename) ? ($filename[0] ?? null) : $filename;
-
-        if (! $filename) {
-            return new HtmlString('');
+        $optRows = '';
+        foreach ($optional as [$col, $desc]) {
+            $optRows .= "<tr>
+                <td style='padding:2px 10px 2px 0;font-family:monospace;font-size:12px;white-space:nowrap;color:#111827'>{$col}</td>
+                <td style='padding:2px 0;font-size:12px;color:#6b7280'>{$desc}</td>
+            </tr>";
         }
 
-        $path = storage_path('app/private/ivr/imports/raw/tmp/'.basename($filename));
+        return "
+        <div style='font-size:13px;line-height:1.5'>
+            <p style='margin-bottom:8px;color:#374151'>
+                <strong>name</strong> is always required. You must also provide
+                <strong>phone</strong>, <strong>email</strong>, or both.
+                Rows with only a name are staged for manual review below.
+            </p>
 
-        if (! file_exists($path)) {
-            return new HtmlString('<p class="text-sm text-gray-500 italic">Waiting for file to finish uploading…</p>');
-        }
+            <table style='border-collapse:collapse;margin-bottom:10px'>
+                <thead><tr>
+                    <th style='padding:3px 10px 3px 0;text-align:left;font-size:11px;color:#9ca3af;font-weight:600'>Column</th>
+                    <th style='padding:3px 10px 3px 0;text-align:left;font-size:11px;color:#9ca3af;font-weight:600'>Description</th>
+                    <th></th>
+                </tr></thead>
+                <tbody>{$reqRows}</tbody>
+            </table>
 
-        try {
-            $file = new SplFileObject($path);
-            $file->setFlags(SplFileObject::READ_CSV | SplFileObject::DROP_NEW_LINE);
-            $file->setCsvControl(',', '"', '\\');
+            <p style='margin-bottom:6px;color:#6b7280;font-size:12px;font-weight:600'>Optional columns (any order, column header must match exactly):</p>
+            <table style='border-collapse:collapse'>
+                <tbody>{$optRows}</tbody>
+            </table>
 
-            // Read header
-            $header = null;
-            while (! $file->eof() && $header === null) {
-                $row = $file->fgetcsv();
-                if (is_array($row) && array_filter($row) !== []) {
-                    $row     = array_map(fn ($v) => trim((string) $v), $row);
-                    $row[0]  = ltrim($row[0], "\xEF\xBB\xBF");
-                    $header  = $row;
-                }
-            }
-
-            if (! $header) {
-                return new HtmlString('<p class="text-sm text-red-500">Could not read a header row from this file.</p>');
-            }
-
-            // Map columns using existing alias config
-            $mapper  = app(RawImportColumnMapper::class);
-            $mapping = $mapper->map($header);
-            $colMap  = $mapping['mapped'];   // ['name' => 0, 'phone' => 2, ...]
-            $reverse = array_flip($colMap);  // [0 => 'name', 2 => 'phone', ...]
-            $missing = $mapping['missing'];  // required columns not found
-
-            // Scan the full file for stats, collect preview rows
-            $previewRows = [];
-            $total       = 0;
-            $withPhone   = 0;
-            $withEmail   = 0;
-            $nameOnly    = 0;
-            $phoneIdx    = $colMap['phone'] ?? null;
-            $emailIdx    = $colMap['email'] ?? null;
-
-            while (! $file->eof()) {
-                $row = $file->fgetcsv();
-                if (! is_array($row) || ($row === [null] && $file->eof())) break;
-                if (array_filter($row) === []) continue;
-
-                $total++;
-                $hasPhone = $phoneIdx !== null && trim($row[$phoneIdx] ?? '') !== '';
-                $hasEmail = $emailIdx !== null && trim($row[$emailIdx] ?? '') !== '';
-
-                if ($hasPhone) $withPhone++;
-                elseif ($hasEmail) $withEmail++;
-                else $nameOnly++;
-
-                if (count($previewRows) < 12) {
-                    $previewRows[] = $row;
-                }
-            }
-
-            // ── Column-mapping header ──────────────────────────────────────
-            $thCells = '';
-            foreach ($header as $i => $col) {
-                $canonical = $reverse[$i] ?? null;
-                if ($canonical) {
-                    $isRequired = in_array($canonical, config('ivr.raw_import.required', ['name']), true);
-                    $badge = $isRequired
-                        ? '<span style="color:#16a34a;font-size:10px">✓ '.$canonical.'</span>'
-                        : '<span style="color:#2563eb;font-size:10px">→ '.$canonical.'</span>';
-                    $thCells .= '<th style="padding:4px 8px;text-align:left;border-bottom:1px solid #e5e7eb;white-space:nowrap;font-weight:600">'.e($col).'<br>'.$badge.'</th>';
-                } else {
-                    $thCells .= '<th style="padding:4px 8px;text-align:left;border-bottom:1px solid #e5e7eb;white-space:nowrap;color:#9ca3af;font-weight:400">'.e($col).'<br><span style="font-size:10px">ignored</span></th>';
-                }
-            }
-
-            // ── Preview rows ───────────────────────────────────────────────
-            $trRows = '';
-            foreach ($previewRows as $row) {
-                $tds = '';
-                foreach ($header as $i => $_) {
-                    $val  = trim($row[$i] ?? '');
-                    $tds .= '<td style="padding:3px 8px;border-bottom:1px solid #f3f4f6;font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'.e($val !== '' ? $val : '—').'</td>';
-                }
-                $trRows .= '<tr>'.$tds.'</tr>';
-            }
-
-            if ($total > 12) {
-                $span    = count($header);
-                $trRows .= '<tr><td colspan="'.$span.'" style="padding:6px 8px;font-size:11px;color:#9ca3af;text-align:center">… and '.number_format($total - 12).' more rows</td></tr>';
-            }
-
-            // ── Stats bar ──────────────────────────────────────────────────
-            $namePct   = $total > 0 ? round($withPhone / $total * 100) : 0;
-            $emailPct  = $total > 0 ? round($withEmail / $total * 100) : 0;
-            $stagePct  = $total > 0 ? round($nameOnly / $total * 100) : 0;
-
-            $statsHtml = '
-            <div style="display:flex;flex-wrap:wrap;gap:16px;margin-top:10px;font-size:13px">
-                <span><strong>'.number_format($total).'</strong> total rows</span>
-                <span style="color:#16a34a"><strong>'.number_format($withPhone).'</strong> with phone ('.$namePct.'%)</span>
-                <span style="color:#2563eb"><strong>'.number_format($withEmail).'</strong> email-only ('.$emailPct.'%)</span>
-                '.($nameOnly > 0
-                    ? '<span style="color:#d97706"><strong>'.number_format($nameOnly).'</strong> name-only → staged for review ('.$stagePct.'%)</span>'
-                    : '').'
-            </div>';
-
-            $warningHtml = '';
-            if (! empty($missing)) {
-                $warningHtml = '<p style="margin-top:8px;font-size:13px;color:#dc2626">⚠ Missing required columns: '.e(implode(', ', $missing)).'. Import will fail.</p>';
-            }
-
-            $html = '
-            <div style="overflow-x:auto;border:1px solid #e5e7eb;border-radius:6px;margin-top:4px">
-                <table style="min-width:100%;border-collapse:collapse;font-size:12px">
-                    <thead style="background:#f9fafb"><tr>'.$thCells.'</tr></thead>
-                    <tbody>'.$trRows.'</tbody>
-                </table>
-            </div>
-            '.$statsHtml.$warningHtml;
-
-            return new HtmlString($html);
-
-        } catch (Throwable $e) {
-            return new HtmlString('<p style="font-size:13px;color:#dc2626">Could not parse file: '.e($e->getMessage()).'</p>');
-        }
+            <p style='margin-top:10px;font-size:12px;color:#6b7280'>
+                Column order does not matter. Extra columns are ignored.
+                The <strong>relationship_type</strong> column is automatically converted to a tag on each contact.
+            </p>
+        </div>";
     }
 }
