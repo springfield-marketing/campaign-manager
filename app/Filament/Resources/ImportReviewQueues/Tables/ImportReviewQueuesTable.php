@@ -10,6 +10,7 @@ use App\Models\OfficialArea;
 use App\Models\Project;
 use App\Support\ImportStagingProcessor;
 use App\Modules\IVR\Support\PhoneNormalizer;
+use Illuminate\Support\Facades\DB;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
@@ -108,9 +109,9 @@ class ImportReviewQueuesTable
                 SelectFilter::make('batch_id')
                     ->label('Batch')
                     ->options(fn () =>
-                        ImportReviewQueue::select('batch_id')
-                            ->distinct()
-                            ->orderByDesc('created_at')
+                        ImportReviewQueue::select('batch_id', DB::raw('max(created_at) as latest_at'))
+                            ->groupBy('batch_id')
+                            ->orderByDesc('latest_at')
                             ->pluck('batch_id', 'batch_id')
                             ->mapWithKeys(fn ($id) => [$id => substr($id, 0, 8).'…'])
                             ->all()
