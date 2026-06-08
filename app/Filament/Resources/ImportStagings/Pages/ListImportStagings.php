@@ -61,14 +61,16 @@ class ListImportStagings extends ListRecords
                         ->columnSpanFull(),
                 ])
                 ->action(function (array $data): void {
-                    $originalName = is_array($data['file']) ? ($data['file'][0] ?? null) : $data['file'];
+                    // Filament FileUpload returns the full relative path from the disk root
+                    // (e.g. "ivr/imports/raw/tmp/file.csv"), not just the filename.
+                    $tmpPath      = is_array($data['file']) ? ($data['file'][0] ?? '') : ($data['file'] ?? '');
+                    $originalName = basename($tmpPath);
 
-                    if (! $originalName) {
+                    if (! $originalName || ! $tmpPath) {
                         Notification::make()->title('No file selected.')->danger()->send();
                         return;
                     }
 
-                    $tmpPath   = 'ivr/imports/raw/tmp/'.$originalName;
                     $finalPath = 'ivr/imports/raw/'.$originalName;
 
                     // Block only if a non-failed import with the same filename already exists.
