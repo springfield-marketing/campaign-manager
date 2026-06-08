@@ -2,11 +2,12 @@
 
 namespace App\Filament\Resources\ImportStagings\Tables;
 
+use App\Models\ImportStaging;
 use Filament\Actions\DeleteAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 class ImportStagingsTable
 {
@@ -16,19 +17,20 @@ class ImportStagingsTable
             ->columns([
                 TextColumn::make('batch_id')
                     ->label('Batch')
-                    ->formatStateUsing(fn (string $state) => substr($state, 0, 8).'…')
+                    ->formatStateUsing(fn (string $state) => self::batchLabel($state))
                     ->copyable()
                     ->copyableState(fn (string $state) => $state)
                     ->tooltip(fn (string $state) => $state),
 
                 TextColumn::make('status')
                     ->badge()
-                    ->color(fn (string $state) => match($state) {
+                    ->color(fn (string $state) => match ($state) {
                         'matched'      => 'success',
                         'needs_review' => 'warning',
                         'rejected'     => 'danger',
                         default        => 'gray',
                     })
+                    ->formatStateUsing(fn (string $state) => ucwords(str_replace('_', ' ', $state)))
                     ->sortable(),
 
                 TextColumn::make('name')
@@ -39,6 +41,12 @@ class ImportStagingsTable
                     ->searchable()
                     ->copyable()
                     ->placeholder('—'),
+
+                TextColumn::make('email')
+                    ->searchable()
+                    ->copyable()
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('emirate')
                     ->badge()
@@ -80,19 +88,24 @@ class ImportStagingsTable
 
                 SelectFilter::make('emirate')
                     ->options([
-                        'Dubai'     => 'Dubai',
-                        'Abu Dhabi' => 'Abu Dhabi',
-                        'Sharjah'   => 'Sharjah',
+                        'Dubai'          => 'Dubai',
+                        'Abu Dhabi'      => 'Abu Dhabi',
+                        'Sharjah'        => 'Sharjah',
+                        'Ajman'          => 'Ajman',
+                        'Ras Al Khaimah' => 'Ras Al Khaimah',
+                        'Fujairah'       => 'Fujairah',
+                        'Umm Al Quwain'  => 'Umm Al Quwain',
                     ]),
 
                 SelectFilter::make('batch_id')
-                    ->label('Batch')
+                    ->label('Batch / Import')
                     ->options(fn () =>
-                        \App\Models\ImportStaging::select('batch_id')
-                            ->distinct()
-                            ->orderByDesc('created_at')
+                        // GROUP BY + MAX avoids the PostgreSQL DISTINCT+ORDER BY restriction
+                        ImportStaging::select('batch_id', DB::raw('max(created_at) as latest_at'))
+                            ->groupBy('batch_id')
+                            ->orderByDesc('latest_at')
                             ->pluck('batch_id', 'batch_id')
-                            ->mapWithKeys(fn ($id) => [$id => substr($id, 0, 8).'…'])
+                            ->mapWithKeys(fn ($id) => [$id => self::batchLabel($id)])
                             ->all()
                     )
                     ->searchable(),
@@ -100,5 +113,15 @@ class ImportStagingsTable
             ->defaultSort('created_at', 'desc')
             ->recordActions([DeleteAction::make()])
             ->toolbarActions([]);
+    }
+
+    private static function batchLabel(string $batchId): string
+    {
+        // "raw-import-42" → "Import #42"
+        if (preg_match('/^raw-import-(\d+)$/', $batchId, $m)) {
+            return 'Import #'.$m[1];
+        }
+
+        return substr($batchId, 0, 12).(strlen($batchId) > 12 ? '…' : '');
     }
 }

@@ -27,30 +27,13 @@ class ImportStagingResource extends Resource
         return ImportStagingsTable::configure($table);
     }
 
-    public static function getNavigationIcon(): string
-    {
-        return 'heroicon-o-inbox-arrow-down';
-    }
-
-    public static function getNavigationGroup(): ?string
-    {
-        return 'Imports';
-    }
-
-    public static function getNavigationSort(): ?int
-    {
-        return 10;
-    }
-
-    public static function getModelLabel(): string
-    {
-        return 'Staged Row';
-    }
-
-    public static function getPluralModelLabel(): string
-    {
-        return 'Import Staging';
-    }
+    public static function getNavigationIcon(): string { return 'heroicon-o-users'; }
+    public static function getNavigationGroup(): ?string { return 'Contacts'; }
+    public static function getNavigationSort(): ?int { return 5; }
+    public static function getModelLabel(): string { return 'Staged Row'; }
+    public static function getPluralModelLabel(): string { return 'Raw Contact Imports'; }
+    public static function getNavigationLabel(): string { return 'Raw Contact Imports'; }
+    public static function getSlug(?\Filament\Panel $panel = null): string { return 'import-stagings'; }
 
 
     public static function getRelations(): array
