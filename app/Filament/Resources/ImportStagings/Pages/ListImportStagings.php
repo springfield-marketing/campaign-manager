@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\ImportStagings\Pages;
 
 use App\Filament\Resources\ImportStagings\ImportStagingResource;
+use App\Filament\Widgets\RawContactImportProgressWidget;
 use App\Modules\IVR\Enums\IvrImportStatus;
 use App\Modules\IVR\Enums\IvrImportType;
 use App\Modules\IVR\Jobs\ProcessRawIvrImport;
@@ -23,6 +24,18 @@ use Throwable;
 class ListImportStagings extends ListRecords
 {
     protected static string $resource = ImportStagingResource::class;
+
+    protected function getHeaderWidgets(): array
+    {
+        return [
+            RawContactImportProgressWidget::class,
+        ];
+    }
+
+    public function getHeaderWidgetsColumns(): int|array
+    {
+        return 1;
+    }
 
     protected function getHeaderActions(): array
     {
