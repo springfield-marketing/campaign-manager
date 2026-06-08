@@ -196,6 +196,9 @@
                                         <span class="ui-muted"><span class="font-medium text-green-600" x-text="item.successful_rows">{{ $import->successful_rows }}</span> imported</span>
                                         <span class="ui-muted"><span class="font-medium text-theme-secondary" x-text="item.duplicate_rows">{{ $import->duplicate_rows }}</span> duplicates</span>
                                         <span class="ui-muted"><span class="font-medium text-red-600" x-text="item.failed_rows">{{ $import->failed_rows }}</span> failed</span>
+                                        @if (($import->summary['staged_rows'] ?? 0) > 0)
+                                            <span class="ui-muted"><span class="font-medium text-yellow-600">{{ $import->summary['staged_rows'] }}</span> staged for review</span>
+                                        @endif
                                     </div>
                                 </div>
                             </div>

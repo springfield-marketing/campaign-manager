@@ -5,6 +5,7 @@ namespace App\Modules\IVR\Support;
 use App\Models\Client;
 use App\Models\ClientPhoneNumber;
 use App\Models\ClientSource;
+use App\Models\ImportStaging;
 use App\Modules\IVR\Enums\IvrImportStatus;
 use App\Modules\IVR\Models\IvrImport;
 use App\Support\LocationResolver;
@@ -60,9 +61,11 @@ class RawImportProcessor
             $successful = 0;
             $failed = 0;
             $duplicates = 0;
+            $staged = 0;
             $rowNumber = 1;
             $sourceFallback = $import->source_name ?: pathinfo($import->original_file_name, PATHINFO_FILENAME);
             $tagId = $import->tag_id;
+            $batchId = 'raw-import-'.$import->id;
 
             while (! $file->eof()) {
                 $row = $file->fgetcsv();
@@ -76,10 +79,19 @@ class RawImportProcessor
                 try {
                     $payload = $this->extractPayload($row, $mapping['mapped']);
                     $sourceName = ($payload['source_file'] ?? null) ?: $sourceFallback;
-                    $duplicate = $this->upsertClientFromPayload($payload, $sourceName, $import, $tagId);
 
-                    $successful++;
-                    $duplicates += $duplicate ? 1 : 0;
+                    $hasPhone = ($payload['phone'] ?? '') !== '';
+                    $hasEmail = ($payload['email'] ?? '') !== '';
+
+                    if (! $hasPhone && ! $hasEmail) {
+                        // Name-only row — park in staging for later review
+                        $this->stageForReview($payload, $batchId, $sourceName);
+                        $staged++;
+                    } else {
+                        $duplicate = $this->upsertClientFromPayload($payload, $sourceName, $import, $tagId);
+                        $successful++;
+                        $duplicates += $duplicate ? 1 : 0;
+                    }
                 } catch (Throwable $throwable) {
                     $failed++;
 
@@ -119,6 +131,8 @@ class RawImportProcessor
                 'summary' => [
                     'required_columns' => config('ivr.raw_import.required'),
                     'mapped_columns' => array_keys($mapping['mapped']),
+                    'staged_rows' => $staged,
+                    'staging_batch_id' => $staged > 0 ? $batchId : null,
                 ],
             ]);
             $import->broadcastProgress();
@@ -192,14 +206,39 @@ class RawImportProcessor
             throw new \RuntimeException('Name is required.');
         }
 
-        $hasPhone = ($payload['phone'] ?? '') !== '';
-        $hasEmail = ($payload['email'] ?? '') !== '';
-
-        if (! $hasPhone && ! $hasEmail) {
-            throw new \RuntimeException('At least one of phone or email is required.');
-        }
-
         return $payload;
+    }
+
+    private function stageForReview(array $payload, string $batchId, string $sourceName): void
+    {
+        $emirate = trim((string) ($payload['emirate'] ?? ''));
+        $officialAreaId  = $this->resolver->officialAreaId($emirate, $payload['official_area_name'] ?? '');
+        $marketingAreaId = $this->resolver->marketingAreaId($emirate, $payload['marketing_area_name'] ?? '');
+        $projectId       = $this->resolver->projectId($marketingAreaId, $payload['project_name'] ?? '');
+        $buildingId      = $this->resolver->buildingId($projectId, $payload['building_name'] ?? '');
+
+        ImportStaging::create([
+            'batch_id'           => $batchId,
+            'name'               => $payload['name'] ?? null,
+            'phone'              => null,
+            'email'              => null,
+            'country_iso'        => $payload['country_iso'] ?? null,
+            'emirate'            => $emirate ?: null,
+            'raw_official_area'  => $payload['official_area_name'] ?? null,
+            'raw_marketing_area' => $payload['marketing_area_name'] ?? null,
+            'raw_project_name'   => $payload['project_name'] ?? null,
+            'raw_building_name'  => $payload['building_name'] ?? null,
+            'raw_unit_reference' => $payload['unit_reference'] ?? null,
+            'official_area_id'   => $officialAreaId,
+            'marketing_area_id'  => $marketingAreaId,
+            'project_id'         => $projectId,
+            'building_id'        => $buildingId,
+            'relationship_type'  => $payload['relationship_type'] ?? null,
+            'confidence_level'   => $payload['confidence_level'] ?? null,
+            'source'             => $sourceName,
+            'status'             => ImportStaging::STATUS_NEEDS_REVIEW,
+            'status_reason'      => 'Name only — no phone or email in source data.',
+        ]);
     }
 
     private function upsertClientFromPayload(array $payload, string $sourceName, IvrImport $import, ?int $tagId): bool
