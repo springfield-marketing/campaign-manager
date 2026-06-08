@@ -44,7 +44,7 @@
                 <section class="ui-card ui-card-pad">
                     <h3 class="ui-title">Import contacts</h3>
                     <p class="mt-2 text-sm ui-muted">
-                        Required columns are name and phone. Other columns may be present or omitted, and column order can vary.
+                        Required column is <strong>name</strong> plus at least one of <strong>phone</strong> or <strong>email</strong>. Other columns may be present or omitted, and column order can vary.
                     </p>
 
                     <div class="mt-4 grid gap-3 rounded border border-[var(--line)] bg-theme-subtle p-4 text-sm md:grid-cols-2">
@@ -75,7 +75,7 @@
 
                     <form method="POST" action="{{ route('modules.ivr.imports.store') }}" enctype="multipart/form-data" class="mt-6 space-y-4">
                         @csrf
-                        <div class="grid gap-4 md:grid-cols-2">
+                        <div class="grid gap-4 md:grid-cols-3">
                             <div>
                                 <x-input-label for="file" :value="__('CSV file')" />
                                 <input id="file" name="file" type="file" class="ui-control mt-1 block w-full">
@@ -84,8 +84,31 @@
 
                             <div>
                                 <x-input-label for="source_name" :value="__('Source name')" />
-                                <x-text-input id="source_name" name="source_name" type="text" class="mt-1 block w-full" placeholder="e.g. June 2026 — Facebook" />
+                                <x-text-input id="source_name" name="source_name" type="text" class="mt-1 block w-full" placeholder="e.g. Al Reeman 2026" value="{{ old('source_name') }}" />
                                 <x-input-error :messages="$errors->get('source_name')" class="mt-2" />
+                            </div>
+
+                            <div x-data="{ open: false, value: '{{ old('tag_name') }}' }">
+                                <x-input-label for="tag_name" :value="__('Tag (optional)')" />
+                                <div class="relative mt-1">
+                                    <input
+                                        id="tag_name"
+                                        name="tag_name"
+                                        type="text"
+                                        list="tag_suggestions"
+                                        class="ui-control block w-full"
+                                        placeholder="e.g. Owner"
+                                        x-model="value"
+                                        autocomplete="off"
+                                    >
+                                    <datalist id="tag_suggestions">
+                                        @foreach ($tags as $tag)
+                                            <option value="{{ $tag->name }}">
+                                        @endforeach
+                                    </datalist>
+                                </div>
+                                <p class="mt-1 text-xs ui-muted">Type an existing tag or create a new one. Every contact in this import will receive this tag.</p>
+                                <x-input-error :messages="$errors->get('tag_name')" class="mt-2" />
                             </div>
                         </div>
 

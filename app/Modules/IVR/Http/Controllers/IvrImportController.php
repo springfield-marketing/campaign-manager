@@ -3,6 +3,7 @@
 namespace App\Modules\IVR\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\Tag;
 use App\Modules\IVR\Enums\IvrImportStatus;
 use App\Modules\IVR\Enums\IvrImportType;
 use App\Modules\IVR\Jobs\DeleteRawIvrImport;
@@ -24,6 +25,7 @@ class IvrImportController extends Controller
                 ->where('type', IvrImportType::RawContacts)
                 ->latest()
                 ->paginate(10),
+            'tags' => Tag::orderBy('name')->get(),
         ]);
     }
 
@@ -31,14 +33,22 @@ class IvrImportController extends Controller
     {
         $validated = $request->validate(
             [
-                'file' => ['required', 'file', 'mimes:csv,txt', 'max:51200'],
+                'file'        => ['required', 'file', 'mimes:csv,txt', 'max:51200'],
                 'source_name' => ['nullable', 'string', 'max:255'],
+                'tag_name'    => ['nullable', 'string', 'max:100'],
             ],
             [
                 'file.uploaded' => 'The file could not be uploaded because it is larger than the current PHP upload limit. Increase upload_max_filesize and post_max_size, then try again.',
-                'file.max' => 'The file must be 50 MB or smaller.',
+                'file.max'      => 'The file must be 50 MB or smaller.',
             ],
         );
+
+        // Resolve or create the tag by name
+        $tagId = null;
+        if (! empty($validated['tag_name'])) {
+            $tag = Tag::firstOrCreate(['name' => trim($validated['tag_name'])]);
+            $tagId = $tag->id;
+        }
 
         $originalFileName = $validated['file']->getClientOriginalName();
 
@@ -57,13 +67,14 @@ class IvrImportController extends Controller
         $storedPath = $validated['file']->store('ivr/imports/raw', 'local');
 
         $import = IvrImport::create([
-            'type' => IvrImportType::RawContacts,
-            'status' => IvrImportStatus::Pending,
+            'type'               => IvrImportType::RawContacts,
+            'status'             => IvrImportStatus::Pending,
             'original_file_name' => $originalFileName,
-            'stored_file_name' => basename($storedPath),
-            'storage_path' => $storedPath,
-            'source_name' => $validated['source_name'] ?: null,
-            'uploaded_by' => $request->user()?->id,
+            'stored_file_name'   => basename($storedPath),
+            'storage_path'       => $storedPath,
+            'source_name'        => $validated['source_name'] ?: null,
+            'uploaded_by'        => $request->user()?->id,
+            'tag_id'             => $tagId,
         ]);
 
         $import->broadcastProgress();
