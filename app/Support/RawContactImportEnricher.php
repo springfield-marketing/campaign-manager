@@ -24,21 +24,31 @@ class RawContactImportEnricher
     /**
      * Upsert a client record from the resolved payload.
      *
+     * Pass $existingPhoneNumber if you already looked it up (avoids a second query).
+     *
      * @param  array<string, mixed>  $payload
      */
-    public function resolveClient(array $payload): Client
+    public function resolveClient(array $payload, ?ClientPhoneNumber $existingPhoneNumber = null): Client
     {
-        $normalizedPhone = $payload['normalized_phone'] ?? null;
         $email = trim((string) ($payload['email'] ?? ''));
 
-        // Try to link to an existing phone number's client first
-        if ($normalizedPhone) {
-            $phoneRecord = ClientPhoneNumber::where('normalized_phone', $normalizedPhone)
+        // If the caller already found the phone record, use it directly
+        if ($existingPhoneNumber?->client_id) {
+            $client = Client::findOrFail($existingPhoneNumber->client_id);
+            if ($email !== '') {
+                $client->setPrimaryEmailAddress($email);
+            }
+            return $client;
+        }
+
+        // No phone record provided — fall through to name+location lookup
+        $normalizedPhone = $payload['normalized_phone'] ?? null;
+        if ($normalizedPhone && ! $existingPhoneNumber) {
+            $found = ClientPhoneNumber::where('normalized_phone', $normalizedPhone)
                 ->whereNotNull('client_id')
                 ->first();
-
-            if ($phoneRecord?->client_id) {
-                return Client::findOrFail($phoneRecord->client_id);
+            if ($found?->client_id) {
+                return Client::findOrFail($found->client_id);
             }
         }
 

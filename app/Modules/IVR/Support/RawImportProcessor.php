@@ -7,6 +7,7 @@ use App\Models\ClientPhoneNumber;
 use App\Models\ClientSource;
 use App\Models\ImportStaging;
 use App\Models\Tag;
+use Illuminate\Support\Facades\DB;
 use App\Modules\IVR\Enums\IvrImportStatus;
 use App\Modules\IVR\Models\IvrImport;
 use App\Support\LocationResolver;
@@ -24,6 +25,9 @@ class RawImportProcessor
 
     /** @var array<string, Tag> Cached tags keyed by name to avoid a query per row */
     private array $tagCache = [];
+
+    /** @var array<int, array<string, mixed>> Buffered ClientSource rows for bulk insert */
+    private array $sourceBuffer = [];
 
     public function __construct(
         private readonly RawImportColumnMapper $mapper,
@@ -70,6 +74,7 @@ class RawImportProcessor
             $sourceFallback = $import->source_name ?: pathinfo($import->original_file_name, PATHINFO_FILENAME);
             $batchId = 'raw-import-'.$import->id;
             $this->tagCache = [];
+            $this->sourceBuffer = [];
 
             while (! $file->eof()) {
                 $row = $file->fgetcsv();
@@ -114,6 +119,7 @@ class RawImportProcessor
                 }
 
                 if ($processed % 250 === 0) {
+                    $this->flushSourceBuffer();
                     $import->update([
                         'processed_rows' => $processed,
                         'successful_rows' => $successful,
@@ -123,6 +129,8 @@ class RawImportProcessor
                     $import->broadcastProgress();
                 }
             }
+
+            $this->flushSourceBuffer();
 
             $import->update([
                 'status' => $failed > 0 ? IvrImportStatus::CompletedWithErrors : IvrImportStatus::Completed,
@@ -245,6 +253,16 @@ class RawImportProcessor
         ]);
     }
 
+    private function flushSourceBuffer(): void
+    {
+        if ($this->sourceBuffer === []) {
+            return;
+        }
+
+        DB::table('client_sources')->insert($this->sourceBuffer);
+        $this->sourceBuffer = [];
+    }
+
     private function applyRelationshipTag(Client $client, ?string $relationshipType): void
     {
         $normalized = strtolower(trim((string) $relationshipType));
@@ -286,7 +304,7 @@ class RawImportProcessor
             'emirate'          => $emirate,
         ]);
 
-        $client = $this->enricher->resolveClient($enrichPayload);
+        $client = $this->enricher->resolveClient($enrichPayload, $phoneNumber);
 
         $this->applyRelationshipTag($client, $payload['relationship_type'] ?? null);
 
@@ -326,7 +344,8 @@ class RawImportProcessor
             );
         }
 
-        ClientSource::create([
+        $now = now()->toDateTimeString();
+        $this->sourceBuffer[] = [
             'client_id'              => $client->id,
             'client_phone_number_id' => $phoneNumber?->id,
             'channel'                => 'ivr',
@@ -334,8 +353,10 @@ class RawImportProcessor
             'source_name'            => $sourceName,
             'source_file_name'       => $import->original_file_name,
             'source_reference'       => (string) $import->id,
-            'metadata'               => ['duplicate' => $duplicate],
-        ]);
+            'metadata'               => json_encode(['duplicate' => $duplicate]),
+            'created_at'             => $now,
+            'updated_at'             => $now,
+        ];
 
         return $duplicate;
     }

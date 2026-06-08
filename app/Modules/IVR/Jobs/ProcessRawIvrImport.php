@@ -13,9 +13,9 @@ class ProcessRawIvrImport implements ShouldQueue
 {
     use Queueable;
 
-    public int $timeout = 1800;
+    public int $timeout = 7200; // 2 hours — large CSVs (250k+ rows) can take over 30 min
 
-    public int $tries = 3;
+    public int $tries = 1; // retrying a partially-complete import just adds duplicate work
 
     public bool $failOnTimeout = true;
 
