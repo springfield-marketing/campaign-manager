@@ -6,7 +6,7 @@ use App\Models\Building;
 use App\Models\MarketingArea;
 use App\Models\OfficialArea;
 use App\Models\Project;
-use Filament\Forms\Components\Section;
+use Filament\Schemas\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
