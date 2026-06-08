@@ -6,6 +6,7 @@ use App\Models\Client;
 use App\Models\ClientPhoneNumber;
 use App\Models\ClientSource;
 use App\Models\ImportStaging;
+use App\Models\Tag;
 use App\Modules\IVR\Enums\IvrImportStatus;
 use App\Modules\IVR\Models\IvrImport;
 use App\Support\LocationResolver;
@@ -20,6 +21,9 @@ class RawImportProcessor
 
     private LocationResolver $resolver;
     private RawContactImportEnricher $enricher;
+
+    /** @var array<string, Tag> Cached tags keyed by name to avoid a query per row */
+    private array $tagCache = [];
 
     public function __construct(
         private readonly RawImportColumnMapper $mapper,
@@ -64,8 +68,8 @@ class RawImportProcessor
             $staged = 0;
             $rowNumber = 1;
             $sourceFallback = $import->source_name ?: pathinfo($import->original_file_name, PATHINFO_FILENAME);
-            $tagId = $import->tag_id;
             $batchId = 'raw-import-'.$import->id;
+            $this->tagCache = [];
 
             while (! $file->eof()) {
                 $row = $file->fgetcsv();
@@ -88,7 +92,7 @@ class RawImportProcessor
                         $this->stageForReview($payload, $batchId, $sourceName);
                         $staged++;
                     } else {
-                        $duplicate = $this->upsertClientFromPayload($payload, $sourceName, $import, $tagId);
+                        $duplicate = $this->upsertClientFromPayload($payload, $sourceName, $import);
                         $successful++;
                         $duplicates += $duplicate ? 1 : 0;
                     }
@@ -241,7 +245,25 @@ class RawImportProcessor
         ]);
     }
 
-    private function upsertClientFromPayload(array $payload, string $sourceName, IvrImport $import, ?int $tagId): bool
+    private function applyRelationshipTag(Client $client, ?string $relationshipType): void
+    {
+        $normalized = strtolower(trim((string) $relationshipType));
+
+        if ($normalized === '' || $normalized === 'unknown') {
+            return;
+        }
+
+        // "buyer_interest" → "Buyer Interest", "owner" → "Owner"
+        $tagName = ucwords(str_replace('_', ' ', $normalized));
+
+        if (! isset($this->tagCache[$tagName])) {
+            $this->tagCache[$tagName] = Tag::firstOrCreate(['name' => $tagName]);
+        }
+
+        $client->tags()->syncWithoutDetaching([$this->tagCache[$tagName]->id]);
+    }
+
+    private function upsertClientFromPayload(array $payload, string $sourceName, IvrImport $import): bool
     {
         $phone = ($payload['phone'] ?? '') !== '' ? $payload['phone'] : null;
         $normalized = $phone ? $this->phoneNormalizer->normalize($phone) : null;
@@ -266,10 +288,7 @@ class RawImportProcessor
 
         $client = $this->enricher->resolveClient($enrichPayload);
 
-        // Apply the import's tag to this client without removing other tags
-        if ($tagId) {
-            $client->tags()->syncWithoutDetaching([$tagId]);
-        }
+        $this->applyRelationshipTag($client, $payload['relationship_type'] ?? null);
 
         if ($normalized) {
             if (! $phoneNumber) {

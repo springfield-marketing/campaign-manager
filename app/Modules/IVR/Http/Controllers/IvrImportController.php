@@ -3,7 +3,6 @@
 namespace App\Modules\IVR\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Models\Tag;
 use App\Modules\IVR\Enums\IvrImportStatus;
 use App\Modules\IVR\Enums\IvrImportType;
 use App\Modules\IVR\Jobs\DeleteRawIvrImport;
@@ -25,7 +24,6 @@ class IvrImportController extends Controller
                 ->where('type', IvrImportType::RawContacts)
                 ->latest()
                 ->paginate(10),
-            'tags' => Tag::orderBy('name')->get(),
         ]);
     }
 
@@ -35,20 +33,12 @@ class IvrImportController extends Controller
             [
                 'file'        => ['required', 'file', 'mimes:csv,txt', 'max:51200'],
                 'source_name' => ['nullable', 'string', 'max:255'],
-                'tag_name'    => ['nullable', 'string', 'max:100'],
             ],
             [
                 'file.uploaded' => 'The file could not be uploaded because it is larger than the current PHP upload limit. Increase upload_max_filesize and post_max_size, then try again.',
                 'file.max'      => 'The file must be 50 MB or smaller.',
             ],
         );
-
-        // Resolve or create the tag by name
-        $tagId = null;
-        if (! empty($validated['tag_name'])) {
-            $tag = Tag::firstOrCreate(['name' => trim($validated['tag_name'])]);
-            $tagId = $tag->id;
-        }
 
         $originalFileName = $validated['file']->getClientOriginalName();
 
@@ -74,7 +64,6 @@ class IvrImportController extends Controller
             'storage_path'       => $storedPath,
             'source_name'        => $validated['source_name'] ?: null,
             'uploaded_by'        => $request->user()?->id,
-            'tag_id'             => $tagId,
         ]);
 
         $import->broadcastProgress();

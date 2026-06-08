@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\ImportStagings\Pages;
 
 use App\Filament\Resources\ImportStagings\ImportStagingResource;
-use App\Models\Tag;
 use App\Modules\IVR\Enums\IvrImportStatus;
 use App\Modules\IVR\Enums\IvrImportType;
 use App\Modules\IVR\Jobs\ProcessRawIvrImport;
@@ -49,12 +48,6 @@ class ListImportStagings extends ListRecords
                         ->placeholder('e.g. Al Reeman 2026')
                         ->maxLength(255),
 
-                    TextInput::make('tag_name')
-                        ->label('Tag (optional)')
-                        ->placeholder('e.g. Owner')
-                        ->helperText('Every contact in this file will receive this tag. Creates the tag if it does not exist.')
-                        ->maxLength(100),
-
                     Placeholder::make('preview')
                         ->label('File Preview')
                         ->content(fn (Get $get) => self::buildPreview($get('file')))
@@ -88,11 +81,6 @@ class ListImportStagings extends ListRecords
 
                     Storage::disk('local')->move($tmpPath, $finalPath);
 
-                    $tagId = null;
-                    if (! empty($data['tag_name'])) {
-                        $tagId = Tag::firstOrCreate(['name' => trim($data['tag_name'])])->id;
-                    }
-
                     $import = IvrImport::create([
                         'type'               => IvrImportType::RawContacts,
                         'status'             => IvrImportStatus::Pending,
@@ -101,7 +89,6 @@ class ListImportStagings extends ListRecords
                         'storage_path'       => $finalPath,
                         'source_name'        => $data['source_name'] ?: null,
                         'uploaded_by'        => auth()->id(),
-                        'tag_id'             => $tagId,
                     ]);
 
                     $import->broadcastProgress();
