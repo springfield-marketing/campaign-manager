@@ -71,15 +71,21 @@ class ListImportStagings extends ListRecords
                     $tmpPath   = 'ivr/imports/raw/tmp/'.$originalName;
                     $finalPath = 'ivr/imports/raw/'.$originalName;
 
-                    if (IvrImport::query()
+                    // Block only if a non-failed import with the same filename already exists.
+                    // Failed imports can be re-uploaded (new file overwrites the old one on disk).
+                    $blocked = IvrImport::query()
                         ->where('type', IvrImportType::RawContacts->value)
                         ->where('original_file_name', $originalName)
                         ->whereNull('reverted_at')
-                        ->exists()
-                    ) {
+                        ->whereNotIn('status', [
+                            IvrImportStatus::Failed->value,
+                        ])
+                        ->exists();
+
+                    if ($blocked) {
                         Notification::make()
-                            ->title("An import named \"{$originalName}\" already exists.")
-                            ->body('Rename the file if this is a new upload.')
+                            ->title("This file has already been imported.")
+                            ->body('If you want to re-import, use the Try Again button on the existing import card.')
                             ->danger()
                             ->send();
                         return;
