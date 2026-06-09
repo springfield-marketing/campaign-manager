@@ -8,7 +8,7 @@ use App\Models\ImportStaging;
 use App\Models\Ownership;
 use Filament\Actions\DeleteAction;
 use Filament\Notifications\Notification;
-use Filament\Tables\Actions\BulkAction;
+use Filament\Actions\BulkAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
