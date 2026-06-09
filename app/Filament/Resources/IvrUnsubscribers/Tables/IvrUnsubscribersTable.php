@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\IvrUnsubscribers\Tables;
 
+use App\Filament\Filters\PhoneSearchFilter;
 use App\Models\ClientPhoneNumber;
 use App\Models\ContactSuppression;
 use App\Modules\IVR\Enums\IvrImportStatus;
@@ -10,6 +11,7 @@ use App\Modules\IVR\Jobs\ProcessUnsubscriberImport;
 use App\Modules\IVR\Models\IvrImport;
 use App\Modules\IVR\Support\NumberEligibilityService;
 use App\Modules\IVR\Support\PhoneNormalizer;
+use App\Support\IvrSuppressionDisplay;
 use Filament\Actions\Action;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\TextInput;
@@ -37,39 +39,37 @@ class IvrUnsubscribersTable
                     ->placeholder('—'),
 
                 TextColumn::make('suppressed_at')
-                    ->label('Suppressed At')
+                    ->label('Marked At')
                     ->dateTime('d M Y H:i')
                     ->sortable()
                     ->placeholder('—'),
 
                 TextColumn::make('source')
                     ->label('Source')
-                    ->getStateUsing(fn (ContactSuppression $record): string => self::resolveSource($record))
+                    ->getStateUsing(fn (ContactSuppression $record): string => IvrSuppressionDisplay::sourceLabel($record))
                     ->placeholder('—'),
 
                 TextColumn::make('reason')
                     ->label('Reason')
                     ->badge()
-                    ->formatStateUsing(fn (string $state) => ucwords(str_replace('_', ' ', $state)))
+                    ->formatStateUsing(fn (?string $state) => IvrSuppressionDisplay::reasonLabel($state))
                     ->color('warning'),
             ])
             ->defaultSort('suppressed_at', 'desc')
             ->filters([
-                Filter::make('phone')
-                    ->form([TextInput::make('phone')->label('Search phone')->placeholder('+971...')])
-                    ->query(fn (Builder $q, array $data) =>
-                        $q->when(filled($data['phone']), fn ($q) =>
-                            $q->whereHas('phoneNumber', fn ($q) =>
-                                $q->where('normalized_phone', 'like', '%'.$data['phone'].'%')
-                                  ->orWhere('raw_phone', 'like', '%'.$data['phone'].'%')
-                            )
-                        )
-                    ),
+                PhoneSearchFilter::make('phone', fn (Builder $query, array $candidates) =>
+                    $query->whereHas('phoneNumber', function (Builder $q) use ($candidates): void {
+                        foreach ($candidates as $candidate) {
+                            $q->orWhere('normalized_phone', 'like', '%'.$candidate.'%')
+                              ->orWhere('raw_phone', 'like', '%'.$candidate.'%');
+                        }
+                    })
+                ),
 
                 Filter::make('name')
                     ->form([TextInput::make('name')->label('Search name')])
-                    ->query(fn (Builder $q, array $data) =>
-                        $q->when(filled($data['name']), fn ($q) =>
+                    ->query(fn (Builder $query, array $data) =>
+                        $query->when(filled($data['name']), fn ($q) =>
                             $q->whereHas('phoneNumber.client', fn ($q) =>
                                 $q->where('full_name', 'like', '%'.$data['name'].'%')
                             )
@@ -78,7 +78,7 @@ class IvrUnsubscribersTable
             ])
             ->headerActions([
                 Action::make('upload_csv')
-                    ->label('Upload CSV')
+                    ->label('Upload Do Not Call CSV')
                     ->icon('heroicon-o-arrow-up-tray')
                     ->color('primary')
                     ->form([
@@ -87,13 +87,14 @@ class IvrUnsubscribersTable
                             ->required()
                             ->disk('local')
                             ->directory('ivr/imports/unsubscribers/tmp')
+                            ->preserveFilenames()
                             ->acceptedFileTypes(['text/csv', 'text/plain', 'application/csv'])
                             ->maxSize(10240),
                     ])
                     ->action(function (array $data): void {
-                        $tmpRelative = 'ivr/imports/unsubscribers/tmp/' . $data['file'];
-                        $originalName = $data['file'];
-                        $finalRelative = 'ivr/imports/unsubscribers/' . $originalName;
+                        $tmpRelative   = $data['file'];
+                        $originalName  = basename($tmpRelative);
+                        $finalRelative = 'ivr/imports/unsubscribers/'.$originalName;
 
                         \Illuminate\Support\Facades\Storage::disk('local')->move($tmpRelative, $finalRelative);
 
@@ -110,14 +111,14 @@ class IvrUnsubscribersTable
                         $import->broadcastProgress();
                         ProcessUnsubscriberImport::dispatch($import->id);
 
-                        Notification::make()->title('Unsubscriber import queued')->success()->send();
+                        Notification::make()->title('Do Not Call import queued')->success()->send();
                     })
-                    ->modalHeading('Upload Unsubscribers CSV')
+                    ->modalHeading('Upload IVR Do Not Call CSV')
                     ->modalDescription('Upload a CSV with two columns in order: phone number, then name. Header row is optional.')
                     ->modalSubmitActionLabel('Upload & Queue'),
 
                 Action::make('add_single')
-                    ->label('Add Number')
+                    ->label('Add Do Not Call Number')
                     ->icon('heroicon-o-plus')
                     ->color('warning')
                     ->form([
@@ -133,7 +134,7 @@ class IvrUnsubscribersTable
                         try {
                             $normalized = $normalizer->normalize($data['phone'])['normalized'];
                         } catch (\InvalidArgumentException $e) {
-                            Notification::make()->title('Invalid phone: ' . $e->getMessage())->danger()->send();
+                            Notification::make()->title('Invalid phone: '.$e->getMessage())->danger()->send();
                             return;
                         }
 
@@ -142,7 +143,7 @@ class IvrUnsubscribersTable
                         if (! $number) {
                             Notification::make()
                                 ->title("Number {$normalized} is not in the database.")
-                                ->body('Only numbers that have been imported can be manually suppressed.')
+                                ->body('Only numbers that have been imported can be added to the IVR Do Not Call list.')
                                 ->danger()
                                 ->send();
                             return;
@@ -155,7 +156,7 @@ class IvrUnsubscribersTable
                             ->exists();
 
                         if ($exists) {
-                            Notification::make()->title("Number {$normalized} is already suppressed.")->warning()->send();
+                            Notification::make()->title("Number {$normalized} is already Do Not Call.")->warning()->send();
                             return;
                         }
 
@@ -169,18 +170,18 @@ class IvrUnsubscribersTable
 
                         app(NumberEligibilityService::class)->refresh($number->refresh());
 
-                        Notification::make()->title("Number {$normalized} added to IVR unsubscribers.")->success()->send();
+                        Notification::make()->title("Number {$normalized} added to IVR Do Not Call.")->success()->send();
                     })
-                    ->modalHeading('Suppress a Single Number'),
+                    ->modalHeading('Add a number to IVR Do Not Call'),
             ])
             ->recordActions([
                 Action::make('remove')
-                    ->label('Remove')
-                    ->icon('heroicon-o-x-circle')
-                    ->color('danger')
+                    ->label('Make Callable')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
                     ->requiresConfirmation()
-                    ->modalHeading('Remove unsubscriber?')
-                    ->modalDescription('This will release the suppression and restore the number to active eligibility.')
+                    ->modalHeading('Make this number callable again?')
+                    ->modalDescription('This removes the active IVR Do Not Call entry and refreshes IVR eligibility.')
                     ->action(function (ContactSuppression $record): void {
                         $phoneNumber = $record->phoneNumber;
 
@@ -188,8 +189,7 @@ class IvrUnsubscribersTable
 
                         if ($phoneNumber) {
                             $stillSuppressed = ContactSuppression::where('client_phone_number_id', $phoneNumber->id)
-                                ->whereNull('released_at')
-                                ->where(fn ($q) => $q->whereNull('channel')->orWhere('channel', 'ivr'))
+                                ->activeIvr()
                                 ->exists();
 
                             if (! $stillSuppressed) {
@@ -199,21 +199,9 @@ class IvrUnsubscribersTable
                             app(NumberEligibilityService::class)->refresh($phoneNumber->refresh());
                         }
 
-                        Notification::make()->title('Unsubscriber removed.')->success()->send();
+                        Notification::make()->title('Number can be called again.')->success()->send();
                     }),
             ])
             ->toolbarActions([]);
-    }
-
-    private static function resolveSource(ContactSuppression $record): string
-    {
-        $ctx = $record->context ?? [];
-
-        if (($ctx['source'] ?? null) === 'manual') return 'Manual entry';
-        if ($ctx['source_file'] ?? null) return $ctx['source_file'];
-        if ($ctx['campaign_id'] ?? null) return 'Campaign: ' . $ctx['campaign_id'];
-        if ($record->reason === 'customer_unsubscribed') return 'Campaign result';
-
-        return '—';
     }
 }
