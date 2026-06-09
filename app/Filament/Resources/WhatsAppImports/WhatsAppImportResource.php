@@ -5,6 +5,7 @@ namespace App\Filament\Resources\WhatsAppImports;
 use App\Filament\Resources\WhatsAppImports\Pages\CreateWhatsAppImport;
 use App\Filament\Resources\WhatsAppImports\Pages\EditWhatsAppImport;
 use App\Filament\Resources\WhatsAppImports\Pages\ListWhatsAppImports;
+use App\Filament\Resources\WhatsAppImports\RelationManagers\ImportErrorsRelationManager;
 use App\Filament\Resources\WhatsAppImports\Schemas\WhatsAppImportForm;
 use App\Filament\Resources\WhatsAppImports\Tables\WhatsAppImportsTable;
 use App\Modules\WhatsApp\Models\WhatsAppImport;
@@ -46,7 +47,7 @@ class WhatsAppImportResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            ImportErrorsRelationManager::class,
         ];
     }
 
