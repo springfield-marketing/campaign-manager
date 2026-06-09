@@ -289,7 +289,19 @@ class CampaignResultsProcessor
 
     private function upsertCallRecord(IvrCampaign $campaign, array $payload, IvrImport $import): bool
     {
-        $normalized = $this->phoneNormalizer->normalize((string) $payload['Customer']);
+        $rawCustomer = (string) $payload['Customer'];
+
+        // Excel saves long phone numbers in scientific notation (e.g. 9.71552E+11).
+        // This truncates precision and cannot be recovered — the CSV must be re-exported
+        // with the phone column formatted as Text before saving.
+        if (preg_match('/^[\d.]+[Ee][+\-]?\d+$/i', $rawCustomer)) {
+            throw new \RuntimeException(
+                "Phone number '{$rawCustomer}' is in scientific notation. " .
+                "Excel truncated the number when saving as CSV — re-export with the phone column formatted as Text."
+            );
+        }
+
+        $normalized = $this->phoneNormalizer->normalize($rawCustomer);
         $phoneNumber = ClientPhoneNumber::query()->where('normalized_phone', $normalized['normalized'])->first();
 
         if (! $phoneNumber) {

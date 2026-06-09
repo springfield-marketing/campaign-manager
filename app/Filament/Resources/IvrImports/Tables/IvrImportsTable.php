@@ -199,6 +199,23 @@ class IvrImportsTable
                     ->modalSubmitActionLabel('Upload & Queue'),
             ])
             ->recordActions([
+                Action::make('view_errors')
+                    ->label(fn (IvrImport $record) => 'Errors (' . $record->failed_rows . ')')
+                    ->icon('heroicon-o-exclamation-triangle')
+                    ->color('danger')
+                    ->visible(fn (IvrImport $record) => ($record->failed_rows ?? 0) > 0)
+                    ->form(fn (IvrImport $record): array => [
+                        Textarea::make('error_details')
+                            ->label("Showing first 20 of {$record->failed_rows} failed row(s)")
+                            ->default(self::formatErrors($record))
+                            ->rows(22)
+                            ->disabled(),
+                    ])
+                    ->modalHeading(fn (IvrImport $record) => "Import Errors — {$record->original_file_name}")
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Close')
+                    ->modalWidth('4xl'),
+
                 Action::make('reprocess')
                     ->label(fn (IvrImport $record) => $record->status === IvrImportStatus::Processing->value ? 'Unlock & Re-process' : 'Re-process')
                     ->icon('heroicon-o-arrow-path')
@@ -283,5 +300,30 @@ class IvrImportsTable
                     ),
             ])
             ->defaultSort('created_at', 'desc');
+    }
+
+    private static function formatErrors(IvrImport $record): string
+    {
+        $errors = $record->errors()->orderBy('row_number')->limit(20)->get();
+        $lines  = [];
+
+        foreach ($errors as $e) {
+            $payload = is_string($e->row_payload) ? json_decode($e->row_payload, true) : ($e->row_payload ?? []);
+            $preview = is_array($payload)
+                ? implode(' | ', array_slice(array_values(array_filter($payload, fn ($v) => (string) $v !== '')), 0, 6))
+                : '';
+
+            $lines[] = "Row {$e->row_number}: {$e->error_message}";
+            if ($preview) {
+                $lines[] = "  → {$preview}";
+            }
+            $lines[] = '';
+        }
+
+        if ($record->failed_rows > 20) {
+            $lines[] = '... and ' . ($record->failed_rows - 20) . ' more rows with similar errors.';
+        }
+
+        return trim(implode("\n", $lines));
     }
 }
