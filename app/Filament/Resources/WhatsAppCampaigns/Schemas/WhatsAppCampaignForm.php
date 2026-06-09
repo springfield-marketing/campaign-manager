@@ -13,7 +13,7 @@ class WhatsAppCampaignForm
     {
         return $schema->components([
             Section::make('Campaign Details')
-                ->columns(2)
+                ->columns(3)
                 ->schema([
                     TextInput::make('name')
                         ->label('Campaign Name')
