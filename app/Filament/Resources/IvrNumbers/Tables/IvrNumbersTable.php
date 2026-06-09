@@ -2,22 +2,21 @@
 
 namespace App\Filament\Resources\IvrNumbers\Tables;
 
+use App\Filament\Filters\PhoneSearchFilter;
 use App\Models\ClientPhoneNumber;
-use App\Models\ContactSuppression;
 use App\Models\MarketingArea;
 use App\Models\Tag;
-use App\Modules\IVR\Support\NumberEligibilityService;
+use App\Modules\IVR\Support\IvrSuppressionService;
+use App\Support\IvrSuppressionDisplay;
 use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\DB;
 
 class IvrNumbersTable
 {
@@ -45,19 +44,15 @@ class IvrNumbersTable
                     ->badge()
                     ->placeholder('—'),
 
-                TextColumn::make('ivrProfile.usage_status')
-                    ->label('Status')
+                TextColumn::make('effective_calling_status')
+                    ->label('Calling Status')
                     ->badge()
-                    ->color(fn (?string $state) => match($state) {
-                        'active'   => 'success',
-                        'cooldown' => 'warning',
-                        'dead'     => 'danger',
-                        default    => 'gray',
-                    })
-                    ->formatStateUsing(fn (?string $state) => $state ?? 'active'),
+                    ->color(fn (?string $state) => IvrSuppressionDisplay::statusColor($state))
+                    ->formatStateUsing(fn (?string $state) => IvrSuppressionDisplay::statusLabel($state))
+                    ->getStateUsing(fn (ClientPhoneNumber $record): string => $record->effectiveCallingStatus()),
 
                 TextColumn::make('ivrProfile.cooldown_until')
-                    ->label('Cooldown Until')
+                    ->label('Rest Until')
                     ->dateTime('d M Y')
                     ->placeholder('—'),
 
@@ -80,127 +75,169 @@ class IvrNumbersTable
                     ->sortable(),
 
                 IconColumn::make('is_ivr_suppressed')
-                    ->label('Suppressed')
+                    ->label('Do Not Call')
                     ->boolean(),
+
+                TextColumn::make('active_suppression_reason')
+                    ->label('Do Not Call Reason')
+                    ->getStateUsing(fn (ClientPhoneNumber $record): string => self::activeSuppressionReason($record))
+                    ->badge()
+                    ->color('danger')
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                PhoneSearchFilter::make('phone', fn (Builder $query, array $candidates) =>
+                    $query->where(function (Builder $q) use ($candidates): void {
+                        foreach ($candidates as $candidate) {
+                            $q->orWhere('client_phone_numbers.normalized_phone', 'like', '%'.$candidate.'%')
+                              ->orWhere('client_phone_numbers.raw_phone', 'like', '%'.$candidate.'%');
+                        }
+                    })
+                ),
+
                 SelectFilter::make('usage_status')
-                    ->label('IVR Status')
+                    ->label('Calling Status')
                     ->options([
-                        'active'   => 'Active',
-                        'cooldown' => 'Cooldown',
-                        'dead'     => 'Dead',
+                        'active'   => 'Ready to Call',
+                        'inactive' => 'Resting',
+                        'dead'     => 'Not Callable',
                     ])
-                    ->query(fn (Builder $q, array $data) =>
-                        $q->when(
-                            filled($data['value'] ?? null),
-                            fn ($q) => $q->whereHas('ivrProfile', fn ($p) => $p->where('usage_status', $data['value']))
-                        )
-                    ),
+                    ->query(fn (Builder $query, array $data): Builder => match ($data['value'] ?? null) {
+                        'active'   => $query->readyToCall(),
+                        'inactive' => $query->resting(),
+                        'dead'     => $query->notCallable(),
+                        default    => $query,
+                    }),
 
-                SelectFilter::make('marketing_area')
-                    ->label('Marketing Area')
-                    ->options(fn () => MarketingArea::active()->orderBy('emirate')->orderBy('name')->pluck('name', 'id'))
-                    ->query(fn (Builder $q, array $data) =>
-                        $q->when(
+                SelectFilter::make('emirate')
+                    ->label('Emirate')
+                    ->options(fn () => ClientPhoneNumber::query()
+                        ->join('clients', 'clients.id', '=', 'client_phone_numbers.client_id')
+                        ->whereNotNull('clients.emirate')
+                        ->whereRaw("trim(clients.emirate) <> ''")
+                        ->distinct()
+                        ->orderBy('clients.emirate')
+                        ->pluck('clients.emirate', 'clients.emirate')
+                        ->all()
+                    )
+                    ->query(fn (Builder $query, array $data) =>
+                        $query->when(
                             filled($data['value'] ?? null),
-                            fn ($q) => $q->whereHas('client.ownerships', fn ($o) =>
-                                $o->where('marketing_area_id', $data['value'])
+                            fn (Builder $query): Builder => $query->whereExists(fn ($client) =>
+                                $client->selectRaw('1')
+                                    ->from('clients')
+                                    ->whereColumn('clients.id', 'client_phone_numbers.client_id')
+                                    ->where('clients.emirate', $data['value'])
                             )
                         )
                     )
                     ->searchable(),
 
-                Filter::make('suppressed')
-                    ->label('Suppressed Only')
-                    ->query(fn (Builder $q) =>
-                        $q->whereHas('suppressions', fn ($s) =>
-                            $s->where('channel', 'ivr')->whereNull('released_at')
+                SelectFilter::make('communities')
+                    ->label('Communities')
+                    ->multiple()
+                    ->searchable()
+                    ->preload()
+                    ->options(fn () => MarketingArea::active()
+                        ->orderBy('emirate')
+                        ->orderBy('name')
+                        ->get()
+                        ->mapWithKeys(fn (MarketingArea $area) => [
+                            $area->id => "{$area->emirate} - {$area->name}",
+                        ])
+                        ->all()
+                    )
+                    ->query(fn (Builder $query, array $data): Builder =>
+                        $query->when(
+                            filled($data['values'] ?? []),
+                            fn (Builder $query): Builder => $query->whereExists(fn ($ownership) =>
+                                $ownership->selectRaw('1')
+                                    ->from('ownerships')
+                                    ->whereColumn('ownerships.client_id', 'client_phone_numbers.client_id')
+                                    ->whereIn('ownerships.marketing_area_id', $data['values'])
+                            )
                         )
                     ),
 
-                Filter::make('not_suppressed')
-                    ->label('Active (not suppressed)')
-                    ->query(fn (Builder $q) =>
-                        $q->whereDoesntHave('suppressions', fn ($s) =>
-                            $s->where('channel', 'ivr')->whereNull('released_at')
+                SelectFilter::make('relationship_types')
+                    ->label('Relationship')
+                    ->multiple()
+                    ->options(self::relationshipTypeOptions())
+                    ->searchable()
+                    ->query(fn (Builder $query, array $data): Builder =>
+                        $query->when(
+                            filled($data['values'] ?? []),
+                            fn (Builder $query): Builder => $query->whereExists(fn ($ownership) =>
+                                $ownership->selectRaw('1')
+                                    ->from('ownerships')
+                                    ->whereColumn('ownerships.client_id', 'client_phone_numbers.client_id')
+                                    ->whereIn('ownerships.relationship_type', $data['values'])
+                            )
                         )
                     ),
 
-                SelectFilter::make('tag')
-                    ->label('Tag')
+                SelectFilter::make('tags')
+                    ->label('Tags')
+                    ->multiple()
+                    ->searchable()
+                    ->preload()
                     ->options(fn () => Tag::orderBy('name')->pluck('name', 'id'))
-                    ->query(fn (Builder $q, array $data) =>
-                        $q->when(
-                            filled($data['value'] ?? null),
-                            fn ($q) => $q->whereHas('client.tags', fn ($t) =>
-                                $t->where('tags.id', $data['value'])
+                    ->query(fn (Builder $query, array $data): Builder =>
+                        $query->when(
+                            filled($data['values'] ?? []),
+                            fn (Builder $query): Builder => $query->whereExists(fn ($tag) =>
+                                $tag->selectRaw('1')
+                                    ->from('client_tags')
+                                    ->whereColumn('client_tags.client_id', 'client_phone_numbers.client_id')
+                                    ->whereIn('client_tags.tag_id', $data['values'])
                             )
                         )
-                    )
-                    ->searchable(),
+                    ),
+
+                SelectFilter::make('campaign_history')
+                    ->label('Campaign History')
+                    ->options([
+                        'called' => 'Previously called',
+                        'new'    => 'Never called',
+                    ])
+                    ->query(fn (Builder $query, array $data): Builder => match ($data['value'] ?? null) {
+                        'called' => $query->whereHas('ivrCallRecords'),
+                        'new'    => $query->whereDoesntHave('ivrCallRecords'),
+                        default  => $query,
+                    }),
             ])
             ->defaultSort('created_at', 'desc')
             ->recordActions([
                 Action::make('suppress')
-                    ->label('Suppress')
+                    ->label('Mark Do Not Call')
                     ->icon('heroicon-o-no-symbol')
                     ->color('danger')
                     ->visible(fn (ClientPhoneNumber $record) => ! $record->is_ivr_suppressed)
                     ->form([
                         Textarea::make('reason')
-                            ->label('Reason (optional)')
+                            ->label('Reason')
+                            ->placeholder('Requested opt out, wrong audience, complaint, etc.')
                             ->rows(2),
                     ])
                     ->action(function (ClientPhoneNumber $record, array $data): void {
-                        DB::transaction(function () use ($record, $data): void {
-                            ContactSuppression::firstOrCreate(
-                                [
-                                    'client_phone_number_id' => $record->id,
-                                    'channel'                => 'ivr',
-                                    'reason'                 => 'customer_unsubscribed',
-                                ],
-                                [
-                                    'suppressed_at' => now(),
-                                    'context'       => ['source' => 'manual', 'reason' => $data['reason'] ?? null],
-                                ],
-                            );
-                            $record->forceFill(['unsubscribed_at' => $record->unsubscribed_at ?? now()])->save();
-                            app(NumberEligibilityService::class)->refresh($record->refresh());
-                        });
-                        Notification::make()->title('Number suppressed')->warning()->send();
+                        app(IvrSuppressionService::class)->suppress($record, $data['reason'] ?? null);
+                        Notification::make()->title('Number marked Do Not Call')->warning()->send();
                     })
                     ->requiresConfirmation()
-                    ->modalHeading('Suppress for IVR'),
+                    ->modalHeading('Mark this number Do Not Call for IVR'),
 
                 Action::make('unsuppress')
-                    ->label('Unsuppress')
+                    ->label('Make Callable')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
                     ->visible(fn (ClientPhoneNumber $record) => (bool) $record->is_ivr_suppressed)
                     ->action(function (ClientPhoneNumber $record): void {
-                        DB::transaction(function () use ($record): void {
-                            ContactSuppression::where('client_phone_number_id', $record->id)
-                                ->where('channel', 'ivr')
-                                ->where('reason', 'customer_unsubscribed')
-                                ->whereNull('released_at')
-                                ->update(['released_at' => now()]);
-
-                            $hasOtherActiveSuppression = $record->suppressions()
-                                ->whereNull('released_at')
-                                ->where(fn (Builder $q) => $q->whereNull('channel')->orWhere('channel', 'ivr'))
-                                ->exists();
-
-                            if (! $hasOtherActiveSuppression) {
-                                $record->forceFill(['unsubscribed_at' => null])->save();
-                            }
-
-                            app(NumberEligibilityService::class)->refresh($record->refresh());
-                        });
-                        Notification::make()->title('Number unsuppressed')->success()->send();
+                        app(IvrSuppressionService::class)->unsuppress($record);
+                        Notification::make()->title('Number can be called again')->success()->send();
                     })
                     ->requiresConfirmation()
-                    ->modalHeading('Unsuppress this number?'),
+                    ->modalHeading('Make this number callable again?'),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
@@ -212,42 +249,34 @@ class IvrNumbersTable
     private static function bulkSuppressAction(): \Filament\Actions\BulkAction
     {
         return \Filament\Actions\BulkAction::make('bulk_suppress')
-            ->label('Suppress selected')
+            ->label('Mark selected Do Not Call')
             ->icon('heroicon-o-no-symbol')
             ->color('danger')
             ->requiresConfirmation()
             ->action(function (\Illuminate\Database\Eloquent\Collection $records): void {
-                $ids = $records->pluck('id')->all();
-
-                $alreadySuppressedIds = ContactSuppression::query()
-                    ->whereIn('client_phone_number_id', $ids)
-                    ->where('channel', 'ivr')
-                    ->whereNull('released_at')
-                    ->pluck('client_phone_number_id')
-                    ->all();
-
-                $toSuppress = $records->reject(fn ($r) => in_array($r->id, $alreadySuppressedIds, true));
-
-                $now = now();
-                DB::transaction(function () use ($toSuppress, $now): void {
-                    foreach ($toSuppress as $record) {
-                        ContactSuppression::firstOrCreate(
-                            [
-                                'client_phone_number_id' => $record->id,
-                                'channel'                => 'ivr',
-                                'reason'                 => 'customer_unsubscribed',
-                            ],
-                            ['suppressed_at' => $now, 'context' => ['source' => 'manual_bulk']],
-                        );
-                        $record->forceFill(['unsubscribed_at' => $record->unsubscribed_at ?? $now])->save();
-                    }
-                });
-
-                foreach ($toSuppress as $record) {
-                    app(NumberEligibilityService::class)->refresh($record->refresh());
-                }
-
-                Notification::make()->title("Suppressed {$toSuppress->count()} number(s)")->warning()->send();
+                $count = app(IvrSuppressionService::class)->bulkSuppress($records);
+                Notification::make()->title("Marked {$count} number(s) Do Not Call")->warning()->send();
             });
+    }
+
+    private static function activeSuppressionReason(ClientPhoneNumber $record): string
+    {
+        $suppression = $record->suppressions()->activeIvr()->latest('suppressed_at')->first();
+
+        return $suppression ? IvrSuppressionDisplay::reasonLabel($suppression->reason) : '—';
+    }
+
+    private static function relationshipTypeOptions(): array
+    {
+        return [
+            'owner'            => 'Owner',
+            'resident'         => 'Resident',
+            'tenant'           => 'Tenant',
+            'buyer_interest'   => 'Buyer Interest',
+            'seller_interest'  => 'Seller Interest',
+            'investor'         => 'Investor',
+            'past_owner'       => 'Past Owner',
+            'unknown'          => 'Unknown',
+        ];
     }
 }

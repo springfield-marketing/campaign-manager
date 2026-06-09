@@ -2,6 +2,9 @@
 
 namespace App\Filament\Resources\Clients\RelationManagers;
 
+use App\Filament\Resources\IvrNumbers\IvrNumberResource;
+use App\Models\ClientPhoneNumber;
+use App\Support\IvrSuppressionDisplay;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
@@ -59,24 +62,63 @@ class PhoneNumbersRelationManager extends RelationManager
                     ->placeholder('—'),
 
                 TextColumn::make('usage_status')
-                    ->label('IVR Status')
+                    ->label('Calling Status')
                     ->badge()
-                    ->color(fn (?string $state) => match($state) {
-                        'active'   => 'success',
-                        'cooldown' => 'warning',
-                        'dead'     => 'danger',
-                        default    => 'gray',
-                    })
-                    ->placeholder('active'),
+                    ->color(fn (?string $state) => IvrSuppressionDisplay::statusColor($state))
+                    ->formatStateUsing(fn (?string $state) => IvrSuppressionDisplay::statusLabel($state))
+                    ->placeholder('Ready to Call'),
+
+                TextColumn::make('ivr_do_not_call_reason')
+                    ->label('IVR Do Not Call Reason')
+                    ->getStateUsing(fn (ClientPhoneNumber $record): string => self::activeIvrDoNotCallReason($record))
+                    ->badge()
+                    ->color('danger')
+                    ->placeholder('—'),
 
                 TextColumn::make('last_imported_at')
                     ->label('Last Import')
                     ->dateTime('d M Y')
                     ->sortable()
                     ->placeholder('—'),
+
+                TextColumn::make('ivrProfile.last_called_at')
+                    ->label('Last IVR Call')
+                    ->dateTime('d M Y')
+                    ->sortable()
+                    ->placeholder('Never'),
+
+                TextColumn::make('ivr_call_records_count')
+                    ->label('IVR Calls')
+                    ->counts('ivrCallRecords')
+                    ->sortable()
+                    ->default(0),
             ])
             ->defaultSort('is_primary', 'desc')
             ->headerActions([CreateAction::make()])
-            ->recordActions([EditAction::make(), DeleteAction::make()]);
+            ->recordActions([
+                EditAction::make(),
+                \Filament\Actions\Action::make('ivr_history')
+                    ->label('IVR History')
+                    ->icon('heroicon-o-clock')
+                    ->color('gray')
+                    ->url(fn (ClientPhoneNumber $record): string =>
+                        IvrNumberResource::getUrl('edit', ['record' => $record])
+                    )
+                    ->visible(fn (ClientPhoneNumber $record): bool => ($record->ivr_call_records_count ?? 0) > 0),
+                DeleteAction::make(),
+            ]);
+    }
+
+    private static function activeIvrDoNotCallReason(ClientPhoneNumber $record): string
+    {
+        $suppression = $record->suppressions()
+            ->whereNull('released_at')
+            ->where(fn ($query) => $query->whereNull('channel')->orWhere('channel', 'ivr'))
+            ->latest('suppressed_at')
+            ->first();
+
+        return $suppression
+            ? IvrSuppressionDisplay::reasonLabel($suppression->reason)
+            : '—';
     }
 }
