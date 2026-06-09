@@ -2,8 +2,10 @@
 
 namespace App\Filament\Resources\IvrNumbers\Pages;
 
+use App\Filament\Resources\Clients\ClientResource;
 use App\Filament\Resources\IvrNumbers\IvrNumberResource;
 use App\Models\ClientPhoneNumber;
+use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 
@@ -11,9 +13,30 @@ class EditIvrNumber extends EditRecord
 {
     protected static string $resource = IvrNumberResource::class;
 
+    public function getTitle(): string|\Illuminate\Contracts\Support\Htmlable
+    {
+        $record = $this->getRecord();
+        return $record->client?->full_name ?? $record->normalized_phone;
+    }
+
+    public function getSubheading(): string|\Illuminate\Contracts\Support\Htmlable|null
+    {
+        $record = $this->getRecord();
+        return $record->client?->full_name ? $record->normalized_phone : null;
+    }
+
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('view_contact')
+                ->label('View Full Contact')
+                ->icon('heroicon-o-arrow-top-right-on-square')
+                ->color('gray')
+                ->url(fn (): string => ClientResource::getUrl('edit', [
+                    'record' => $this->getRecord()->client_id,
+                ]))
+                ->visible(fn (): bool => $this->getRecord()->client_id !== null),
+
             DeleteAction::make(),
         ];
     }
@@ -54,7 +77,6 @@ class EditIvrNumber extends EditRecord
             }
         }
 
-        // Strip virtual client fields — they are not columns on client_phone_numbers
         unset(
             $data['client_full_name'],
             $data['client_email'],

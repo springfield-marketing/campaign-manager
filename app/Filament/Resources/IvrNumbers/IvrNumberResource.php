@@ -59,7 +59,7 @@ class IvrNumberResource extends Resource
             ->where('is_uae', true)
             ->where('normalized_phone', 'like', '+9715%')
             ->whereRaw('LENGTH(normalized_phone) = 13')
-            ->with(['ivrProfile', 'client.primaryEmail'])
+            ->with(['ivrProfile', 'client.primaryEmail', 'client.tags'])
             ->withExists(['suppressions as is_ivr_suppressed' => fn (Builder $q) => $q->activeIvr()]);
     }
 
