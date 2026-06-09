@@ -5,6 +5,7 @@ namespace App\Filament\Resources\WhatsAppNumbers;
 use App\Filament\Resources\WhatsAppNumbers\Pages\CreateWhatsAppNumber;
 use App\Filament\Resources\WhatsAppNumbers\Pages\EditWhatsAppNumber;
 use App\Filament\Resources\WhatsAppNumbers\Pages\ListWhatsAppNumbers;
+use App\Filament\Resources\WhatsAppNumbers\RelationManagers\WhatsAppMessagesRelationManager;
 use App\Filament\Resources\WhatsAppNumbers\Schemas\WhatsAppNumberForm;
 use App\Filament\Resources\WhatsAppNumbers\Tables\WhatsAppNumbersTable;
 use App\Models\ClientPhoneNumber;
@@ -37,7 +38,9 @@ class WhatsAppNumberResource extends Resource
 
     public static function getRelations(): array
     {
-        return [];
+        return [
+            WhatsAppMessagesRelationManager::class,
+        ];
     }
 
     public static function getEloquentQuery(): Builder
@@ -54,7 +57,7 @@ class WhatsAppNumberResource extends Resource
             ->withExists(['suppressions as is_whatsapp_suppressed' => fn ($q) =>
                 $q->where('channel', 'whatsapp')->whereNull('released_at')
             ])
-            ->with(['whatsAppProfile', 'client.primaryEmail']);
+            ->with(['whatsAppProfile', 'client.primaryEmail', 'client.tags']);
     }
 
     public static function getPages(): array
