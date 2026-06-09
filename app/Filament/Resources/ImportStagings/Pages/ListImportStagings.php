@@ -99,7 +99,7 @@ class ListImportStagings extends ListRecords
                         ->directory('ivr/imports/raw/tmp')
                         ->preserveFilenames()
                         ->acceptedFileTypes(['text/csv', 'text/plain', 'application/csv'])
-                        ->maxSize(51200),
+                        ->maxSize(262144),
 
                     TextInput::make('source_name')
                         ->label('Source Name')
