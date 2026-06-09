@@ -51,20 +51,14 @@ class IvrCampaignResultController extends Controller
                 'Name',
                 'Phone',
                 'Email',
-                'Detected Country',
-                'Nationality',
                 'Emirate',
-                'Gender',
-                'Interest',
-                'Call Status',
                 'DTMF Outcome',
                 'Duration',
-                'Duration Seconds',
-                'Source File',
+                'Source',
             ]);
 
             $campaign->callRecords()
-                ->with(['import', 'phoneNumber.client.primaryEmail'])
+                ->with(['phoneNumber.client.primaryEmail', 'phoneNumber.firstSource'])
                 ->whereIn('dtmf_outcome', self::LEAD_OUTCOMES)
                 ->latest('call_time')
                 ->chunk(500, function ($leads) use ($handle, $campaign): void {
@@ -77,16 +71,10 @@ class IvrCampaignResultController extends Controller
                             $client?->full_name,
                             $lead->phoneNumber?->normalized_phone,
                             $client?->primaryEmail?->email,
-                            $lead->phoneNumber?->detected_country,
-                            $client?->nationality,
                             $client?->emirate,
-                            $client?->gender,
-                            $client?->interest,
-                            $lead->call_status,
                             $lead->dtmf_outcome,
                             gmdate('H:i:s', (int) $lead->total_duration_seconds),
-                            $lead->total_duration_seconds,
-                            $lead->import?->original_file_name,
+                            $lead->phoneNumber?->firstSource?->source_name,
                         ]);
                     }
                 });
