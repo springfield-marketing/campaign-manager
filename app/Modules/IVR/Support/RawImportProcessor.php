@@ -109,9 +109,23 @@ class RawImportProcessor
 
     public function process(IvrImport $import): void
     {
+        ini_set('memory_limit', '1024M');
+
         if (class_exists(Telescope::class)) {
             Telescope::stopRecording();
         }
+
+        $batchId = 'raw-import-' . $import->id;
+
+        // Purge any data from a previous run so reprocessing is idempotent
+        DB::table('client_sources')
+            ->where('source_reference', (string) $import->id)
+            ->where('channel', 'ivr')
+            ->where('source_type', 'raw_import')
+            ->delete();
+        DB::table('import_staging')
+            ->where('batch_id', $batchId)
+            ->delete();
 
         $import->update([
             'status' => IvrImportStatus::Processing,
@@ -146,7 +160,6 @@ class RawImportProcessor
             $staged = 0;
             $rowNumber = 1;
             $sourceFallback = $import->source_name ?: pathinfo($import->original_file_name, PATHINFO_FILENAME);
-            $batchId = 'raw-import-'.$import->id;
             $this->tagCache = [];
             $this->sourceBuffer = [];
             $this->seenPhones = [];
