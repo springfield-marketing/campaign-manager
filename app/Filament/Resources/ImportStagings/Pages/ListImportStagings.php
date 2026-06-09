@@ -4,16 +4,20 @@ namespace App\Filament\Resources\ImportStagings\Pages;
 
 use App\Filament\Resources\ImportStagings\ImportStagingResource;
 use App\Filament\Widgets\RawContactImportProgressWidget;
+use App\Models\ImportStaging;
 use App\Modules\IVR\Enums\IvrImportStatus;
 use App\Modules\IVR\Enums\IvrImportType;
 use App\Modules\IVR\Jobs\ProcessRawIvrImport;
+use App\Modules\IVR\Jobs\PromoteStagingContactsJob;
 use App\Modules\IVR\Models\IvrImport;
 use Filament\Actions\Action;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\HtmlString;
 
@@ -36,6 +40,53 @@ class ListImportStagings extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('promote_all')
+                ->label('Promote All Needs Review')
+                ->icon('heroicon-o-user-group')
+                ->color('success')
+                ->form(function (): array {
+                    $batches = ImportStaging::query()
+                        ->where('status', ImportStaging::STATUS_NEEDS_REVIEW)
+                        ->select('batch_id', DB::raw('count(*) as cnt'))
+                        ->groupBy('batch_id')
+                        ->orderByDesc('cnt')
+                        ->get()
+                        ->mapWithKeys(fn ($row) => [
+                            $row->batch_id => self::batchLabel($row->batch_id) . " ({$row->cnt} rows)",
+                        ])
+                        ->all();
+
+                    return [
+                        Select::make('batch_id')
+                            ->label('Import batch')
+                            ->options(array_merge(['__all__' => 'All batches'], $batches))
+                            ->default(array_key_first($batches) ?? '__all__')
+                            ->required(),
+                    ];
+                })
+                ->action(function (array $data): void {
+                    $batchId = $data['batch_id'] === '__all__' ? null : $data['batch_id'];
+                    $count   = ImportStaging::where('status', ImportStaging::STATUS_NEEDS_REVIEW)
+                        ->when($batchId, fn ($q) => $q->where('batch_id', $batchId))
+                        ->count();
+
+                    if ($count === 0) {
+                        Notification::make()->warning()->title('No rows to promote.')->send();
+                        return;
+                    }
+
+                    PromoteStagingContactsJob::dispatch($batchId)->onQueue('imports');
+
+                    Notification::make()
+                        ->success()
+                        ->title("Queued — promoting {$count} staged rows to contacts.")
+                        ->body('This runs in the background. Refresh to see rows change to Matched.')
+                        ->send();
+                })
+                ->modalHeading('Promote Staged Rows to Contacts')
+                ->modalSubmitActionLabel('Promote')
+                ->visible(fn () => ImportStaging::where('status', ImportStaging::STATUS_NEEDS_REVIEW)->exists()),
+
             Action::make('upload_contacts')
                 ->label('Upload Contacts')
                 ->icon('heroicon-o-arrow-up-tray')
@@ -118,6 +169,15 @@ class ListImportStagings extends ListRecords
                 ->modalSubmitActionLabel('Upload & Import')
                 ->modalWidth('2xl'),
         ];
+    }
+
+    private static function batchLabel(string $batchId): string
+    {
+        if (preg_match('/^raw-import-(\d+)$/', $batchId, $m)) {
+            return 'Import #' . $m[1];
+        }
+
+        return substr($batchId, 0, 16) . (strlen($batchId) > 16 ? '…' : '');
     }
 
     private static function formatGuideHtml(): string

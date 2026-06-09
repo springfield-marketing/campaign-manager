@@ -1,0 +1,110 @@
+<?php
+
+namespace App\Modules\IVR\Jobs;
+
+use App\Models\Client;
+use App\Models\ClientSource;
+use App\Models\ImportStaging;
+use App\Models\Ownership;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+
+class PromoteStagingContactsJob implements ShouldQueue
+{
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    public int $timeout = 3600;
+
+    private const CHUNK_SIZE = 200;
+
+    public function __construct(public readonly ?string $batchId = null) {}
+
+    public function handle(): void
+    {
+        $query = ImportStaging::query()
+            ->where('status', ImportStaging::STATUS_NEEDS_REVIEW)
+            ->when($this->batchId, fn ($q) => $q->where('batch_id', $this->batchId));
+
+        $total = $query->count();
+        $promoted = 0;
+
+        Log::channel('ivr')->info('Starting staging promotion.', [
+            'batch_id' => $this->batchId,
+            'total' => $total,
+        ]);
+
+        $query->orderBy('id')->chunk(self::CHUNK_SIZE, function ($rows) use (&$promoted): void {
+            DB::transaction(function () use ($rows, &$promoted): void {
+                $sourceRows = [];
+                $now = now()->toDateTimeString();
+
+                foreach ($rows as $staged) {
+                    $client = Client::firstOrCreate(
+                        array_filter([
+                            'full_name' => $staged->name ?: null,
+                            'emirate'   => $staged->emirate ?: null,
+                        ]),
+                        ['country_iso' => $staged->country_iso ?: null],
+                    );
+
+                    if ($staged->marketing_area_id && $staged->emirate) {
+                        Ownership::updateOrCreate(
+                            [
+                                'client_id'         => $client->id,
+                                'emirate'           => $staged->emirate,
+                                'marketing_area_id' => $staged->marketing_area_id,
+                                'project_id'        => $staged->project_id,
+                                'building_id'       => $staged->building_id,
+                                'unit_reference'    => $staged->raw_unit_reference ?: null,
+                                'relationship_type' => $staged->relationship_type ?: 'owner',
+                            ],
+                            [
+                                'official_area_id' => $staged->official_area_id,
+                                'confidence_level' => $staged->confidence_level,
+                                'source'           => $staged->source,
+                            ],
+                        );
+                    }
+
+                    $sourceRows[] = [
+                        'client_id'              => $client->id,
+                        'client_phone_number_id' => null,
+                        'channel'                => 'ivr',
+                        'source_type'            => 'staging_promoted',
+                        'source_name'            => $staged->source,
+                        'source_file_name'       => null,
+                        'source_reference'       => $staged->batch_id,
+                        'metadata'               => json_encode([
+                            'raw_name'             => $staged->name,
+                            'raw_emirate'          => $staged->emirate,
+                            'raw_marketing_area'   => $staged->raw_marketing_area,
+                            'raw_project'          => $staged->raw_project_name,
+                            'raw_building'         => $staged->raw_building_name,
+                            'raw_unit'             => $staged->raw_unit_reference,
+                            'raw_relationship_type' => $staged->relationship_type,
+                        ]),
+                        'created_at'             => $now,
+                        'updated_at'             => $now,
+                    ];
+
+                    $staged->update(['status' => ImportStaging::STATUS_MATCHED]);
+                    $promoted++;
+                }
+
+                if ($sourceRows !== []) {
+                    DB::table('client_sources')->insertOrIgnore($sourceRows);
+                }
+            });
+        });
+
+        Log::channel('ivr')->info('Staging promotion complete.', [
+            'batch_id' => $this->batchId,
+            'promoted' => $promoted,
+        ]);
+    }
+}

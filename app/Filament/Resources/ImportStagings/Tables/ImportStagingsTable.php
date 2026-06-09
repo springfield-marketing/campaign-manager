@@ -2,11 +2,17 @@
 
 namespace App\Filament\Resources\ImportStagings\Tables;
 
+use App\Models\Client;
+use App\Models\ClientSource;
 use App\Models\ImportStaging;
+use App\Models\Ownership;
 use Filament\Actions\DeleteAction;
+use Filament\Notifications\Notification;
+use Filament\Tables\Actions\BulkAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
 class ImportStagingsTable
@@ -112,6 +118,92 @@ class ImportStagingsTable
             ])
             ->defaultSort('created_at', 'desc')
             ->recordActions([DeleteAction::make()])
+            ->bulkActions([
+                BulkAction::make('promote_selected')
+                    ->label('Create Contacts')
+                    ->icon('heroicon-o-user-plus')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->modalHeading('Create Contacts from Selected Rows')
+                    ->modalDescription('Creates a client + ownership record for each selected staged row. Rows already matched are skipped.')
+                    ->modalSubmitActionLabel('Create Contacts')
+                    ->action(function (Collection $records): void {
+                        $promoted = 0;
+                        $skipped  = 0;
+
+                        DB::transaction(function () use ($records, &$promoted, &$skipped): void {
+                            $sourceRows = [];
+                            $now = now()->toDateTimeString();
+
+                            foreach ($records as $staged) {
+                                if ($staged->status === ImportStaging::STATUS_MATCHED) {
+                                    $skipped++;
+                                    continue;
+                                }
+
+                                $client = Client::firstOrCreate(
+                                    array_filter([
+                                        'full_name' => $staged->name ?: null,
+                                        'emirate'   => $staged->emirate ?: null,
+                                    ]),
+                                    ['country_iso' => $staged->country_iso ?: null],
+                                );
+
+                                if ($staged->marketing_area_id && $staged->emirate) {
+                                    Ownership::updateOrCreate(
+                                        [
+                                            'client_id'         => $client->id,
+                                            'emirate'           => $staged->emirate,
+                                            'marketing_area_id' => $staged->marketing_area_id,
+                                            'project_id'        => $staged->project_id,
+                                            'building_id'       => $staged->building_id,
+                                            'unit_reference'    => $staged->raw_unit_reference ?: null,
+                                            'relationship_type' => $staged->relationship_type ?: 'owner',
+                                        ],
+                                        [
+                                            'official_area_id' => $staged->official_area_id,
+                                            'confidence_level' => $staged->confidence_level,
+                                            'source'           => $staged->source,
+                                        ],
+                                    );
+                                }
+
+                                $sourceRows[] = [
+                                    'client_id'              => $client->id,
+                                    'client_phone_number_id' => null,
+                                    'channel'                => 'ivr',
+                                    'source_type'            => 'staging_promoted',
+                                    'source_name'            => $staged->source,
+                                    'source_file_name'       => null,
+                                    'source_reference'       => $staged->batch_id,
+                                    'metadata'               => json_encode([
+                                        'raw_name'              => $staged->name,
+                                        'raw_emirate'           => $staged->emirate,
+                                        'raw_marketing_area'    => $staged->raw_marketing_area,
+                                        'raw_project'           => $staged->raw_project_name,
+                                        'raw_building'          => $staged->raw_building_name,
+                                        'raw_unit'              => $staged->raw_unit_reference,
+                                        'raw_relationship_type' => $staged->relationship_type,
+                                    ]),
+                                    'created_at'             => $now,
+                                    'updated_at'             => $now,
+                                ];
+
+                                $staged->update(['status' => ImportStaging::STATUS_MATCHED]);
+                                $promoted++;
+                            }
+
+                            if ($sourceRows !== []) {
+                                DB::table('client_sources')->insertOrIgnore($sourceRows);
+                            }
+                        });
+
+                        Notification::make()
+                            ->success()
+                            ->title("{$promoted} contact(s) created" . ($skipped ? ", {$skipped} already matched skipped" : ''))
+                            ->send();
+                    }),
+            ])
             ->toolbarActions([]);
     }
 
