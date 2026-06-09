@@ -18,7 +18,17 @@ class NumberEligibilityService
 
     public function refresh(ClientPhoneNumber $phoneNumber): void
     {
-        $lastCall = $phoneNumber->ivrCallRecords()->latest('call_time')->first();
+        $inactiveAfterUses = (int) config('ivr.eligibility.inactive_after_uses', 3);
+        $deadAfterUses = (int) config('ivr.eligibility.dead_after_uses', 5);
+
+        // One query for last call + recent statuses, one for total count.
+        $recentRecords = $phoneNumber->ivrCallRecords()
+            ->latest('call_time')
+            ->limit($deadAfterUses)
+            ->get(['call_time', 'call_status', 'dtmf_outcome']);
+
+        $lastCall = $recentRecords->first();
+        $recentStatuses = $recentRecords->pluck('call_status');
         $useCount = $phoneNumber->ivrCallRecords()->count();
 
         $cooldownUntil = null;
@@ -30,13 +40,6 @@ class NumberEligibilityService
         }
 
         $isSuppressed = $phoneNumber->unsubscribed_at !== null;
-        $inactiveAfterUses = (int) config('ivr.eligibility.inactive_after_uses', 3);
-        $deadAfterUses = (int) config('ivr.eligibility.dead_after_uses', 5);
-
-        $recentStatuses = $phoneNumber->ivrCallRecords()
-            ->latest('call_time')
-            ->limit($deadAfterUses)
-            ->pluck('call_status');
 
         $consecutiveMisses = 0;
         foreach ($recentStatuses as $callStatus) {

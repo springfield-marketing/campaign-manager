@@ -52,6 +52,7 @@ class CampaignResultsProcessor
             $summary = [];
             $header = null;
             $headerRowNumber = 0;
+            $campaign = null;
             $processed = 0;
             $successful = 0;
             $failed = 0;
@@ -95,7 +96,8 @@ class CampaignResultsProcessor
 
                 try {
                     $payload = $this->mapRow($header, $row);
-                    $campaign = $this->upsertCampaign($summary, $payload, $import);
+                    // Upsert campaign once on the first row; reuse for all subsequent rows.
+                    $campaign ??= $this->upsertCampaign($summary, $payload, $import);
                     $duplicate = $this->upsertCallRecord($campaign, $payload, $import);
 
                     $successful++;
