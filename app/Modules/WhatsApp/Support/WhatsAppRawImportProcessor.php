@@ -231,7 +231,7 @@ class WhatsAppRawImportProcessor
             'emirate'          => $emirate,
         ]);
 
-        $client = $this->enricher->resolveClient($enrichPayload);
+        $client = $this->enricher->resolveClient($enrichPayload, $phoneNumber);
 
         if (! $phoneNumber) {
             $phoneNumber = ClientPhoneNumber::create([
@@ -269,6 +269,8 @@ class WhatsAppRawImportProcessor
             );
         }
 
+        $blankToNull = fn (?string $v): ?string => ($t = trim((string) $v)) !== '' ? $t : null;
+
         ClientSource::create([
             'client_id'              => $client->id,
             'client_phone_number_id' => $phoneNumber->id,
@@ -277,7 +279,20 @@ class WhatsAppRawImportProcessor
             'source_name'            => $sourceName,
             'source_file_name'       => $import->original_file_name,
             'source_reference'       => (string) $import->id,
-            'metadata'               => ['duplicate' => $duplicate],
+            'metadata'               => [
+                'duplicate'             => $duplicate,
+                'raw_name'              => $blankToNull($payload['name'] ?? null),
+                'raw_emirate'           => $blankToNull($payload['emirate'] ?? null),
+                'raw_nationality'       => $blankToNull($payload['nationality'] ?? null),
+                'raw_gender'            => $blankToNull($payload['gender'] ?? null),
+                'raw_interest'          => $blankToNull($payload['interest'] ?? null),
+                'raw_official_area'     => $blankToNull($payload['official_area_name'] ?? null),
+                'raw_marketing_area'    => $blankToNull($payload['marketing_area_name'] ?? null),
+                'raw_project'           => $blankToNull($payload['project_name'] ?? null),
+                'raw_building'          => $blankToNull($payload['building_name'] ?? null),
+                'raw_unit'              => $blankToNull($payload['unit_reference'] ?? null),
+                'raw_relationship_type' => $blankToNull($payload['relationship_type'] ?? null),
+            ],
         ]);
 
         return $duplicate;

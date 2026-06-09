@@ -35,6 +35,7 @@ class RawContactImportEnricher
         // If the caller already found the phone record, use it directly
         if ($existingPhoneNumber?->client_id) {
             $client = Client::findOrFail($existingPhoneNumber->client_id);
+            $this->enrichClientBlanks($client, $payload);
             if ($email !== '') {
                 $client->setPrimaryEmailAddress($email);
             }
@@ -48,7 +49,12 @@ class RawContactImportEnricher
                 ->whereNotNull('client_id')
                 ->first();
             if ($found?->client_id) {
-                return Client::findOrFail($found->client_id);
+                $client = Client::findOrFail($found->client_id);
+                $this->enrichClientBlanks($client, $payload);
+                if ($email !== '') {
+                    $client->setPrimaryEmailAddress($email);
+                }
+                return $client;
             }
         }
 
@@ -117,6 +123,37 @@ class RawContactImportEnricher
                 'source'           => $sourceName,
             ]
         );
+    }
+
+    private function enrichClientBlanks(Client $client, array $payload): void
+    {
+        $updates = [];
+
+        if (blank($client->full_name) && $name = $this->blankToNull($payload['name'] ?? null)) {
+            $updates['full_name'] = $name;
+        }
+        if (blank($client->emirate) && $emirate = $this->blankToNull($payload['emirate'] ?? null)) {
+            $updates['emirate'] = $emirate;
+        }
+        if (blank($client->nationality) && $val = $this->blankToNull($payload['nationality'] ?? null)) {
+            $updates['nationality'] = $val;
+        }
+        if (blank($client->gender) && $val = $this->blankToNull($payload['gender'] ?? null)) {
+            $updates['gender'] = $val;
+        }
+        if (blank($client->interest) && $val = $this->blankToNull($payload['interest'] ?? null)) {
+            $updates['interest'] = $val;
+        }
+        if (blank($client->country_iso)) {
+            $iso = strtoupper(substr(trim((string) ($payload['country_iso'] ?? '')), 0, 2)) ?: null;
+            if ($iso) {
+                $updates['country_iso'] = $iso;
+            }
+        }
+
+        if ($updates !== []) {
+            $client->fill($updates)->save();
+        }
     }
 
     private function normalizeRelationshipType(?string $value): string
