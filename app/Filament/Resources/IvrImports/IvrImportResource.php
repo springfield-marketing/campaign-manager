@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\IvrImports;
 
-use App\Filament\Resources\IvrImports\Pages\CreateIvrImport;
 use App\Filament\Resources\IvrImports\Pages\EditIvrImport;
 use App\Filament\Resources\IvrImports\Pages\ListIvrImports;
 use App\Filament\Resources\IvrImports\RelationManagers\ImportErrorsRelationManager;
@@ -33,6 +32,7 @@ class IvrImportResource extends Resource
     public static function getNavigationIcon(): string { return 'heroicon-o-inbox-arrow-down'; }
     public static function getNavigationGroup(): ?string { return 'IVR'; }
     public static function getNavigationSort(): ?int { return 10; }
+    public static function getNavigationLabel(): string { return 'Imports'; }
     public static function getModelLabel(): string { return 'IVR Import'; }
     public static function getPluralModelLabel(): string { return 'IVR Imports'; }
 
@@ -58,8 +58,7 @@ class IvrImportResource extends Resource
     {
         return [
             'index' => ListIvrImports::route('/'),
-            'create' => CreateIvrImport::route('/create'),
-            'edit' => EditIvrImport::route('/{record}/edit'),
+            'edit'  => EditIvrImport::route('/{record}/edit'),
         ];
     }
 }

@@ -17,8 +17,9 @@ class IvrUnsubscriberResource extends Resource
     public static function getNavigationIcon(): string { return 'heroicon-o-no-symbol'; }
     public static function getNavigationGroup(): ?string { return 'IVR'; }
     public static function getNavigationSort(): ?int { return 50; }
-    public static function getModelLabel(): string { return 'IVR Unsubscriber'; }
-    public static function getPluralModelLabel(): string { return 'IVR Unsubscribers'; }
+    public static function getNavigationLabel(): string { return 'DNC List'; }
+    public static function getModelLabel(): string { return 'IVR Do Not Call Number'; }
+    public static function getPluralModelLabel(): string { return 'IVR Do Not Call List'; }
 
     public static function getSlug(?\Filament\Panel $panel = null): string
     {

@@ -30,6 +30,7 @@ class IvrScriptResource extends Resource
     public static function getNavigationIcon(): string { return 'heroicon-o-musical-note'; }
     public static function getNavigationGroup(): ?string { return 'IVR'; }
     public static function getNavigationSort(): ?int { return 30; }
+    public static function getNavigationLabel(): string { return 'Scripts'; }
     public static function getModelLabel(): string { return 'IVR Script'; }
     public static function getPluralModelLabel(): string { return 'IVR Scripts'; }
 

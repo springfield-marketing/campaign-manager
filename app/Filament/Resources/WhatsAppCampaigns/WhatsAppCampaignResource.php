@@ -31,6 +31,7 @@ class WhatsAppCampaignResource extends Resource
     public static function getNavigationIcon(): string { return 'heroicon-o-megaphone'; }
     public static function getNavigationGroup(): ?string { return 'WhatsApp'; }
     public static function getNavigationSort(): ?int { return 20; }
+    public static function getNavigationLabel(): string { return 'Campaigns'; }
     public static function getModelLabel(): string { return 'WhatsApp Campaign'; }
     public static function getPluralModelLabel(): string { return 'WhatsApp Campaigns'; }
     public static function getSlug(?\Filament\Panel $panel = null): string { return 'whatsapp-campaigns'; }

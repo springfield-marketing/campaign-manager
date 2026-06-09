@@ -31,6 +31,7 @@ class IvrCampaignResource extends Resource
     public static function getNavigationIcon(): string { return 'heroicon-o-megaphone'; }
     public static function getNavigationGroup(): ?string { return 'IVR'; }
     public static function getNavigationSort(): ?int { return 20; }
+    public static function getNavigationLabel(): string { return 'Campaigns'; }
     public static function getModelLabel(): string { return 'IVR Campaign'; }
     public static function getPluralModelLabel(): string { return 'IVR Campaigns'; }
 

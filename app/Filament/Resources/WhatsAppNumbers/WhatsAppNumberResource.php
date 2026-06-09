@@ -32,6 +32,7 @@ class WhatsAppNumberResource extends Resource
     public static function getNavigationIcon(): string { return 'heroicon-o-chat-bubble-left-right'; }
     public static function getNavigationGroup(): ?string { return 'WhatsApp'; }
     public static function getNavigationSort(): ?int { return 30; }
+    public static function getNavigationLabel(): string { return 'Numbers'; }
     public static function getModelLabel(): string { return 'WhatsApp Number'; }
     public static function getPluralModelLabel(): string { return 'WhatsApp Numbers'; }
     public static function getSlug(?\Filament\Panel $panel = null): string { return 'whatsapp-numbers'; }

@@ -29,7 +29,7 @@ class IvrReportsPage extends Page implements HasForms, HasTable
     public static function getNavigationIcon(): string { return 'heroicon-o-chart-bar'; }
     public static function getNavigationGroup(): ?string { return 'IVR'; }
     public static function getNavigationSort(): ?int { return 80; }
-    public static function getNavigationLabel(): string { return 'IVR Reports'; }
+    public static function getNavigationLabel(): string { return 'Reports'; }
     public function getTitle(): string { return 'IVR Reports'; }
     public static function getSlug(?\Filament\Panel $panel = null): string { return 'ivr-reports'; }
 

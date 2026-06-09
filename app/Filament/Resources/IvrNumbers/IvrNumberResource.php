@@ -19,6 +19,7 @@ use Filament\Tables\Table;
 class IvrNumberResource extends Resource
 {
     protected static ?string $model = ClientPhoneNumber::class;
+    protected static ?string $recordTitleAttribute = 'normalized_phone';
 
 
     public static function form(Schema $schema): Schema
@@ -34,6 +35,7 @@ class IvrNumberResource extends Resource
     public static function getNavigationIcon(): string { return 'heroicon-o-phone'; }
     public static function getNavigationGroup(): ?string { return 'IVR'; }
     public static function getNavigationSort(): ?int { return 40; }
+    public static function getNavigationLabel(): string { return 'Numbers'; }
     public static function getModelLabel(): string { return 'IVR Number'; }
     public static function getPluralModelLabel(): string { return 'IVR Numbers'; }
 
@@ -55,11 +57,10 @@ class IvrNumberResource extends Resource
     {
         return parent::getEloquentQuery()
             ->where('is_uae', true)
+            ->where('normalized_phone', 'like', '+9715%')
+            ->whereRaw('LENGTH(normalized_phone) = 13')
             ->with(['ivrProfile', 'client.primaryEmail'])
-            ->withExists(['suppressions as is_ivr_suppressed' => fn (Builder $q) => $q
-                ->where('channel', 'ivr')
-                ->whereNull('released_at'),
-            ]);
+            ->withExists(['suppressions as is_ivr_suppressed' => fn (Builder $q) => $q->activeIvr()]);
     }
 
 

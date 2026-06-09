@@ -11,6 +11,7 @@ use App\Modules\WhatsApp\Models\WhatsAppImport;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class WhatsAppImportResource extends Resource
 {
@@ -30,9 +31,16 @@ class WhatsAppImportResource extends Resource
     public static function getNavigationIcon(): string { return 'heroicon-o-inbox-arrow-down'; }
     public static function getNavigationGroup(): ?string { return 'WhatsApp'; }
     public static function getNavigationSort(): ?int { return 10; }
+    public static function getNavigationLabel(): string { return 'Imports'; }
     public static function getModelLabel(): string { return 'WhatsApp Import'; }
     public static function getPluralModelLabel(): string { return 'WhatsApp Imports'; }
     public static function getSlug(?\Filament\Panel $panel = null): string { return 'whatsapp-imports'; }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->whereIn('type', ['campaign_results', 'unsubscribers']);
+    }
 
 
     public static function getRelations(): array

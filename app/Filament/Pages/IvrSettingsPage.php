@@ -22,7 +22,7 @@ class IvrSettingsPage extends Page implements HasForms
     public static function getNavigationIcon(): string { return 'heroicon-o-cog-6-tooth'; }
     public static function getNavigationGroup(): ?string { return 'IVR'; }
     public static function getNavigationSort(): ?int { return 90; }
-    public static function getNavigationLabel(): string { return 'IVR Settings'; }
+    public static function getNavigationLabel(): string { return 'Settings'; }
     public function getTitle(): string { return 'IVR Settings'; }
     public static function getSlug(?\Filament\Panel $panel = null): string { return 'ivr-settings'; }
 

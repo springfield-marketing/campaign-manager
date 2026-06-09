@@ -32,7 +32,7 @@ class ImportStagingResource extends Resource
     public static function getNavigationSort(): ?int { return 5; }
     public static function getModelLabel(): string { return 'Staged Row'; }
     public static function getPluralModelLabel(): string { return 'Raw Contact Imports'; }
-    public static function getNavigationLabel(): string { return 'Raw Contact Imports'; }
+    public static function getNavigationLabel(): string { return 'Imports'; }
     public static function getSlug(?\Filament\Panel $panel = null): string { return 'import-stagings'; }
 
 
