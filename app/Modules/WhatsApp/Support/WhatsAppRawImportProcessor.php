@@ -10,6 +10,7 @@ use App\Modules\WhatsApp\Models\WhatsAppImport;
 use App\Support\LocationResolver;
 use App\Support\RawContactImportEnricher;
 use Illuminate\Support\Facades\Log;
+use Laravel\Telescope\Telescope;
 use SplFileObject;
 use Throwable;
 
@@ -28,6 +29,12 @@ class WhatsAppRawImportProcessor
 
     public function process(WhatsAppImport $import): void
     {
+        ini_set('memory_limit', '512M');
+
+        if (class_exists(Telescope::class)) {
+            Telescope::stopRecording();
+        }
+
         $import->update([
             'status'    => WhatsAppImportStatus::Processing,
             'started_at' => now(),
@@ -139,6 +146,10 @@ class WhatsAppRawImportProcessor
                 'import_id' => $import->id,
                 'message'   => $e->getMessage(),
             ]);
+        } finally {
+            if (class_exists(Telescope::class)) {
+                Telescope::startRecording();
+            }
         }
     }
 
@@ -231,6 +242,7 @@ class WhatsAppRawImportProcessor
                 'national_number'  => $normalized['national_number'],
                 'detected_country' => $normalized['detected_country'],
                 'is_uae'           => $normalized['is_uae'],
+                'is_whatsapp'      => true,
                 'is_primary'       => true,
                 'priority'         => 1,
                 'last_source_name' => $sourceName,
@@ -239,6 +251,7 @@ class WhatsAppRawImportProcessor
         } else {
             $phoneNumber->forceFill([
                 'client_id'        => $client->id,
+                'is_whatsapp'      => true,
                 'last_source_name' => $sourceName,
                 'last_imported_at' => now(),
             ])->save();

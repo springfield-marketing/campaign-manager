@@ -12,6 +12,7 @@ use App\Modules\WhatsApp\Models\WhatsAppImport;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Laravel\Telescope\Telescope;
 use SplFileObject;
 use Throwable;
 
@@ -26,6 +27,12 @@ class WhatsAppCampaignResultsProcessor
 
     public function process(WhatsAppImport $import): void
     {
+        ini_set('memory_limit', '512M');
+
+        if (class_exists(Telescope::class)) {
+            Telescope::stopRecording();
+        }
+
         $import->update([
             'status' => WhatsAppImportStatus::Processing->value,
             'started_at' => now(),
@@ -185,6 +192,10 @@ class WhatsAppCampaignResultsProcessor
                 'import_id' => $import->id,
                 'message' => $throwable->getMessage(),
             ]);
+        } finally {
+            if (class_exists(Telescope::class)) {
+                Telescope::startRecording();
+            }
         }
     }
 

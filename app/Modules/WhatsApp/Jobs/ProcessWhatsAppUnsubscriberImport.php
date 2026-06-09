@@ -13,7 +13,7 @@ class ProcessWhatsAppUnsubscriberImport implements ShouldQueue
 {
     use Queueable;
 
-    public int $timeout = 600;
+    public int $timeout = 3600;
     public int $tries   = 1;
     public bool $failOnTimeout = true;
 

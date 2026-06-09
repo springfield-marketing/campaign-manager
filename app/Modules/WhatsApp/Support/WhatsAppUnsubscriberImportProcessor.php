@@ -8,6 +8,7 @@ use App\Models\ContactSuppression;
 use App\Modules\WhatsApp\Enums\WhatsAppImportStatus;
 use App\Modules\WhatsApp\Models\WhatsAppImport;
 use Illuminate\Support\Facades\Log;
+use Laravel\Telescope\Telescope;
 use SplFileObject;
 use Throwable;
 
@@ -19,6 +20,12 @@ class WhatsAppUnsubscriberImportProcessor
 
     public function process(WhatsAppImport $import): void
     {
+        ini_set('memory_limit', '512M');
+
+        if (class_exists(Telescope::class)) {
+            Telescope::stopRecording();
+        }
+
         $import->update([
             'status'        => WhatsAppImportStatus::Processing->value,
             'started_at'    => now(),
@@ -160,6 +167,10 @@ class WhatsAppUnsubscriberImportProcessor
                 'import_id' => $import->id,
                 'message'   => $e->getMessage(),
             ]);
+        } finally {
+            if (class_exists(Telescope::class)) {
+                Telescope::startRecording();
+            }
         }
     }
 
