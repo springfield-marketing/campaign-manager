@@ -13,6 +13,7 @@ use App\Modules\IVR\Models\IvrImport;
 use App\Modules\IVR\Support\IvrSummaryService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
+use Laravel\Telescope\Telescope;
 use SplFileObject;
 use Throwable;
 
@@ -28,6 +29,12 @@ class CampaignResultsProcessor
 
     public function process(IvrImport $import): void
     {
+        ini_set('memory_limit', '512M');
+
+        if (class_exists(Telescope::class)) {
+            Telescope::stopRecording();
+        }
+
         $import->update([
             'status' => IvrImportStatus::Processing,
             'started_at' => now(),
@@ -181,6 +188,10 @@ class CampaignResultsProcessor
                 'import_id' => $import->id,
                 'message' => $throwable->getMessage(),
             ]);
+        } finally {
+            if (class_exists(Telescope::class)) {
+                Telescope::startRecording();
+            }
         }
     }
 
