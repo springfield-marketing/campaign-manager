@@ -2,24 +2,21 @@
 
 namespace App\Filament\Pages;
 
-use App\Filament\Widgets\IvrStatsWidget;
-use App\Modules\IVR\Models\IvrCallRecord;
 use App\Modules\IVR\Models\IvrCampaign;
 use App\Modules\IVR\Models\IvrSettings;
-use App\Modules\IVR\Support\IvrReportData;
+use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Pages\Page;
-use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Actions as SchemaActions;
 use Filament\Schemas\Schema;
 use Filament\Support\Contracts\TranslatableContentDriver;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
 class IvrReportsPage extends Page implements HasForms, HasTable
@@ -47,7 +44,7 @@ class IvrReportsPage extends Page implements HasForms, HasTable
 
     public function form(Schema $schema): Schema
     {
-        return $schema->components([
+        return $schema->columns(['default' => 1, 'sm' => 3])->components([
             TextInput::make('year')
                 ->label('Year')
                 ->numeric()
@@ -66,6 +63,13 @@ class IvrReportsPage extends Page implements HasForms, HasTable
                 ])
                 ->default(now()->month)
                 ->selectablePlaceholder(false),
+
+            SchemaActions::make([
+                Action::make('apply')
+                    ->label('Apply')
+                    ->color('primary')
+                    ->action('apply'),
+            ])->verticallyAlignEnd(),
         ]);
     }
 
@@ -81,17 +85,16 @@ class IvrReportsPage extends Page implements HasForms, HasTable
         $this->resetTable();
     }
 
-    public function getMonthlyBudget(): ?array
+    public function getHeaderWidgets(): array
     {
-        $isCurrentMonth = $this->month !== null
+        return [];
+    }
+
+    public function isCurrentMonth(): bool
+    {
+        return $this->month !== null
             && $this->year === now()->year
             && $this->month === now()->month;
-
-        if (! $isCurrentMonth) return null;
-
-        $data = app(IvrReportData::class)->forPeriod($this->year, $this->month);
-
-        return $data['monthlyBudget'];
     }
 
     protected function table(Table $table): Table
@@ -176,18 +179,6 @@ class IvrReportsPage extends Page implements HasForms, HasTable
             ->recordAction(null)
             ->recordUrl(null)
             ->paginated([20, 50, 100]);
-    }
-
-    public function getHeaderWidgets(): array
-    {
-        return [
-            IvrStatsWidget::make(['year' => $this->year, 'month' => $this->month]),
-        ];
-    }
-
-    public function getHeaderWidgetsColumns(): int|array
-    {
-        return 1;
     }
 
     public function makeFilamentTranslatableContentDriver(): ?TranslatableContentDriver
