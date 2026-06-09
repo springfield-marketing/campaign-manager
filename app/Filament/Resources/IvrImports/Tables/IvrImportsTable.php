@@ -22,16 +22,6 @@ use Illuminate\Support\Facades\Storage;
 
 class IvrImportsTable
 {
-    private static function typeLabel(string $type): string
-    {
-        return match ($type) {
-            'raw_contacts'     => 'Raw Contacts',
-            'campaign_results' => 'Campaign Results',
-            'unsubscribers'    => 'Unsubscribers',
-            default            => ucwords(str_replace('_', ' ', $type)),
-        };
-    }
-
     public static function configure(Table $table): Table
     {
         return $table
@@ -45,7 +35,7 @@ class IvrImportsTable
                         'unsubscribers'    => 'warning',
                         default            => 'gray',
                     })
-                    ->formatStateUsing(fn (string $state) => self::typeLabel($state)),
+                    ->formatStateUsing(fn (string $state) => IvrImportType::tryFrom($state)?->getLabel() ?? ucwords(str_replace('_', ' ', $state))),
 
                 TextColumn::make('original_file_name')
                     ->label('File')
@@ -77,7 +67,7 @@ class IvrImportsTable
                         'failed', 'delete_failed', 'revert_failed' => 'danger',
                         default                 => 'gray',
                     })
-                    ->formatStateUsing(fn (string $state) => ucwords(str_replace('_', ' ', $state))),
+                    ->formatStateUsing(fn (string $state) => IvrImportStatus::tryFrom($state)?->getLabel() ?? ucwords(str_replace('_', ' ', $state))),
 
                 TextColumn::make('total_rows')
                     ->label('Total')
@@ -107,17 +97,10 @@ class IvrImportsTable
             ])
             ->filters([
                 SelectFilter::make('type')
-                    ->options([
-                        'campaign_results' => 'Campaign Results',
-                        'unsubscribers'    => 'Unsubscribers',
-                    ]),
+                    ->options(IvrImportType::class),
 
                 SelectFilter::make('status')
-                    ->options(array_column(
-                        array_map(fn ($c) => ['value' => $c->value, 'label' => ucwords(str_replace('_', ' ', $c->value))],
-                        IvrImportStatus::cases()),
-                        'label', 'value'
-                    )),
+                    ->options(IvrImportStatus::class),
             ])
             ->headerActions([
                 // ── Campaign results upload ────────────────────────────────
@@ -143,8 +126,8 @@ class IvrImportsTable
                             ->searchable(),
                     ])
                     ->action(function (array $data): void {
-                        $originalName  = $data['file'];
-                        $tmpRelative   = 'ivr/imports/results/tmp/' . $originalName;
+                        $tmpRelative   = $data['file'];
+                        $originalName  = basename($tmpRelative);
                         $finalRelative = 'ivr/imports/results/' . $originalName;
 
                         if (IvrImport::where('type', IvrImportType::CampaignResults->value)->where('original_file_name', $originalName)->whereNull('reverted_at')->exists()) {
@@ -176,12 +159,12 @@ class IvrImportsTable
                     ->modalSubmitActionLabel('Upload & Queue'),
 
                 Action::make('upload_unsubscribers')
-                    ->label('Upload Unsubscribers')
+                    ->label('Upload Do Not Call CSV')
                     ->icon('heroicon-o-no-symbol')
                     ->color('warning')
                     ->form([
                         FileUpload::make('file')
-                            ->label('Unsubscribers CSV')
+                            ->label('Do Not Call CSV')
                             ->required()
                             ->disk('local')
                             ->directory('ivr/imports/unsubscribers/tmp')
@@ -190,8 +173,8 @@ class IvrImportsTable
                             ->maxSize(10240),
                     ])
                     ->action(function (array $data): void {
-                        $originalName = $data['file'];
-                        $tmpRelative = 'ivr/imports/unsubscribers/tmp/' . $originalName;
+                        $tmpRelative   = $data['file'];
+                        $originalName  = basename($tmpRelative);
                         $finalRelative = 'ivr/imports/unsubscribers/' . $originalName;
 
                         Storage::disk('local')->move($tmpRelative, $finalRelative);
@@ -209,15 +192,15 @@ class IvrImportsTable
                         $import->broadcastProgress();
                         ProcessUnsubscriberImport::dispatch($import->id)->onQueue('imports');
 
-                        Notification::make()->title('Unsubscriber import queued — status will update automatically')->success()->send();
+                        Notification::make()->title('Do Not Call import queued — status will update automatically')->success()->send();
                     })
-                    ->modalHeading('Upload IVR Unsubscribers CSV')
+                    ->modalHeading('Upload IVR Do Not Call CSV')
                     ->modalDescription('Upload a CSV with phone number in the first column and optional name in the second column.')
                     ->modalSubmitActionLabel('Upload & Queue'),
             ])
             ->recordActions([
                 Action::make('reprocess')
-                    ->label('Re-process')
+                    ->label(fn (IvrImport $record) => $record->status === IvrImportStatus::Processing->value ? 'Unlock & Re-process' : 'Re-process')
                     ->icon('heroicon-o-arrow-path')
                     ->color('warning')
                     ->visible(fn (IvrImport $record) =>
@@ -225,13 +208,17 @@ class IvrImportsTable
                             IvrImportStatus::Completed->value,
                             IvrImportStatus::CompletedWithErrors->value,
                             IvrImportStatus::Failed->value,
+                            IvrImportStatus::Processing->value,
                         ])
                         && $record->storage_path
                         && file_exists(storage_path('app/private/' . $record->storage_path))
                     )
                     ->requiresConfirmation()
-                    ->modalHeading('Re-process this import?')
-                    ->modalDescription('The import will be reset to pending and re-queued. Existing records will be updated or counted as duplicates.')
+                    ->modalHeading(fn (IvrImport $record) => $record->status === IvrImportStatus::Processing->value ? 'Unlock stuck import?' : 'Re-process this import?')
+                    ->modalDescription(fn (IvrImport $record) => $record->status === IvrImportStatus::Processing->value
+                        ? 'This import appears stuck (the job timed out before it could update its status). It will be reset and re-queued from the beginning. Existing records will be updated or counted as duplicates.'
+                        : 'The import will be reset to pending and re-queued. Existing records will be updated or counted as duplicates.'
+                    )
                     ->action(function (IvrImport $record): void {
                         $record->update([
                             'status'          => IvrImportStatus::Pending->value,
