@@ -31,14 +31,39 @@ class WhatsAppPhoneNormalizer
             throw new \InvalidArgumentException('Phone number is empty.');
         }
 
+        $parsed = null;
+
         try {
-            // Default region AE so UAE local numbers (05x / 5x) parse correctly
-            $parsed = $this->util->parse($input, 'AE');
+            // Default region AE so UAE local numbers (05x / 5x) parse without a country code
+            $candidate = $this->util->parse($input, 'AE');
+            if ($this->util->isValidNumber($candidate)) {
+                $parsed = $candidate;
+            }
         } catch (NumberParseException $e) {
-            throw new \InvalidArgumentException("Cannot parse phone number \"{$input}\": {$e->getMessage()}");
+            // fall through to retry
         }
 
-        if (! $this->util->isValidNumber($parsed)) {
+        // Numbers stored without a leading + (e.g. 966501234567, 447911234567) are not
+        // recognised by the AE-region parse. Prepend + and retry using no default region
+        // so libphonenumber reads the country code directly from the digits.
+        if ($parsed === null
+            && ! str_starts_with($input, '+')
+            && ! str_starts_with($input, '00')
+        ) {
+            $digitsOnly = preg_replace('/\D/', '', $input);
+            if (strlen($digitsOnly) >= 10) {
+                try {
+                    $retried = $this->util->parse('+' . $digitsOnly, 'ZZ');
+                    if ($this->util->isValidNumber($retried)) {
+                        $parsed = $retried;
+                    }
+                } catch (NumberParseException $e) {
+                    // ignore — original error thrown below
+                }
+            }
+        }
+
+        if ($parsed === null) {
             throw new \InvalidArgumentException("Phone number \"{$input}\" is not a valid number.");
         }
 
