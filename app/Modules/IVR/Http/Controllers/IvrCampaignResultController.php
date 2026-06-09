@@ -51,10 +51,8 @@ class IvrCampaignResultController extends Controller
                 'Name',
                 'Phone',
                 'Email',
-                'Country',
+                'Detected Country',
                 'Nationality',
-                'Community',
-                'Resident',
                 'Emirate',
                 'Gender',
                 'Interest',
@@ -66,7 +64,7 @@ class IvrCampaignResultController extends Controller
             ]);
 
             $campaign->callRecords()
-                ->with(['import', 'phoneNumber.client.primaryEmail', 'phoneNumber.client.country', 'phoneNumber.client.region', 'phoneNumber.client.community'])
+                ->with(['import', 'phoneNumber.client.primaryEmail'])
                 ->whereIn('dtmf_outcome', self::LEAD_OUTCOMES)
                 ->latest('call_time')
                 ->chunk(500, function ($leads) use ($handle, $campaign): void {
@@ -78,12 +76,10 @@ class IvrCampaignResultController extends Controller
                             optional($lead->call_time)->format('Y-m-d H:i:s'),
                             $client?->full_name,
                             $lead->phoneNumber?->normalized_phone,
-                            $client?->primary_email_address,
-                            $client?->country?->name,
+                            $client?->primaryEmail?->email,
+                            $lead->phoneNumber?->detected_country,
                             $client?->nationality,
-                            $client?->community?->name,
-                            $client?->resident,
-                            $client?->region?->name,
+                            $client?->emirate,
                             $client?->gender,
                             $client?->interest,
                             $lead->call_status,
