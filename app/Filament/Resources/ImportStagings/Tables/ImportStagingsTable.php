@@ -90,7 +90,8 @@ class ImportStagingsTable
                         'matched'      => 'Matched',
                         'needs_review' => 'Needs Review',
                         'rejected'     => 'Rejected',
-                    ]),
+                    ])
+                    ->default('needs_review'),
 
                 SelectFilter::make('emirate')
                     ->options([
