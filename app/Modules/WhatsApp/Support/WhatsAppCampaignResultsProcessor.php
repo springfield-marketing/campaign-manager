@@ -33,6 +33,11 @@ class WhatsAppCampaignResultsProcessor
             Telescope::stopRecording();
         }
 
+        // Purge any rows from a previous run of this import so reprocessing is idempotent.
+        // Scoped to whatsapp_import_id — other imports for the same campaign are untouched.
+        DB::table('whatsapp_messages')->where('whatsapp_import_id', $import->id)->delete();
+        DB::table('whatsapp_import_errors')->where('whatsapp_import_id', $import->id)->delete();
+
         $import->update([
             'status' => WhatsAppImportStatus::Processing->value,
             'started_at' => now(),
