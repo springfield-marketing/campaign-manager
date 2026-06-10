@@ -18,7 +18,8 @@ class PromoteStagingContactsJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public int $timeout = 3600;
+    public int $timeout = 7200;
+    public int $tries = 1;
 
     private const CHUNK_SIZE = 200;
 
