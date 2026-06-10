@@ -17,14 +17,36 @@ class WhatsAppPhoneNormalizer
     }
 
     /**
-     * Parse and validate any phone number.
+     * Parse and strictly validate any phone number.
      * UAE local formats (05x, 5x, 971x) are detected without a leading +.
      * All other numbers must include a country code (e.g. +44, +1).
+     *
+     * Use normalizeLenient() for numbers sourced from external platforms (e.g. WhatsApp
+     * campaign exports) where the platform has already validated the number and
+     * libphonenumber's database may not recognise newer or regional prefixes.
      *
      * @return array{normalized:string, country_code:string, national_number:string, detected_country:string, is_uae:bool}
      * @throws \InvalidArgumentException
      */
     public function normalize(string $value): array
+    {
+        return $this->parseNumber($value, lenient: false);
+    }
+
+    /**
+     * Parse with relaxed validation: accepts numbers that parse successfully
+     * even if libphonenumber's isValidNumber() returns false (e.g. newer prefixes
+     * not yet in the database). Still rejects unparseable input.
+     *
+     * @return array{normalized:string, country_code:string, national_number:string, detected_country:string, is_uae:bool}
+     * @throws \InvalidArgumentException
+     */
+    public function normalizeLenient(string $value): array
+    {
+        return $this->parseNumber($value, lenient: true);
+    }
+
+    private function parseNumber(string $value, bool $lenient): array
     {
         $input = trim($value);
 
@@ -65,6 +87,12 @@ class WhatsAppPhoneNormalizer
                     $secondError = $e;
                 }
             }
+        }
+
+        // In lenient mode accept a parsed-but-not-strictly-valid number — the platform
+        // that provided it (e.g. WhatsApp) has already validated it on its end.
+        if ($parsed === null && $lenient && $parsedCandidate !== null) {
+            $parsed = $parsedCandidate;
         }
 
         if ($parsed === null) {
