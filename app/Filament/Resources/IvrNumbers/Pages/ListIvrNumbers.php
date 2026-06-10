@@ -99,7 +99,14 @@ class ListIvrNumbers extends ListRecords
                     $query = self::activeExportQuery($query);
 
                     if ($limit) {
-                        $query->inRandomOrder()->limit($limit);
+                        // PostgreSQL forbids ORDER BY RANDOM() on a SELECT DISTINCT query
+                        // unless RANDOM() is in the select list. Wrap as a subquery so the
+                        // outer query can safely apply random ordering + limit.
+                        $query = DB::query()
+                            ->fromSub($query->reorder(), 'filtered')
+                            ->select('normalized_phone')
+                            ->inRandomOrder()
+                            ->limit($limit);
                     }
 
                     $limitSuffix = $limit ? "_limit{$limit}" : '';
