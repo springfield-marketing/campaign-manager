@@ -100,9 +100,7 @@ class WhatsAppCampaignResultsProcessor
 
                     $campaign = $campaignsByName[$campaignName];
 
-                    // Use lenient normalisation — numbers in campaign exports were already
-                    // validated by WhatsApp and may use prefixes not yet in libphonenumber's DB.
-                    $normalized = $this->phoneNormalizer->normalizeLenient((string) $payload['PhoneNumber']);
+                    $normalized = $this->phoneNormalizer->normalize((string) $payload['PhoneNumber']);
                     $normalizedPhone = $normalized['normalized'];
 
                     if (! isset($phoneIdCache[$normalizedPhone])) {
