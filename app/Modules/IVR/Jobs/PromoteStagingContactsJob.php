@@ -41,7 +41,7 @@ class PromoteStagingContactsJob implements ShouldQueue
             'total' => $total,
         ]);
 
-        $query->orderBy('id')->chunk(self::CHUNK_SIZE, function ($rows) use (&$promoted, &$promotedClientIds): void {
+        $query->chunkById(self::CHUNK_SIZE, function ($rows) use (&$promoted, &$promotedClientIds): void {
             DB::transaction(function () use ($rows, &$promoted, &$promotedClientIds): void {
                 $sourceRows = [];
                 $now = now()->toDateTimeString();
