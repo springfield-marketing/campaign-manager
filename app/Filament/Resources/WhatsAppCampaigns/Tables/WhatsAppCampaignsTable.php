@@ -16,6 +16,11 @@ class WhatsAppCampaignsTable
                     ->searchable()
                     ->sortable(),
 
+                TextColumn::make('platform')
+                    ->searchable()
+                    ->sortable()
+                    ->placeholder('—'),
+
                 TextColumn::make('total_messages')
                     ->label('Total')
                     ->numeric()

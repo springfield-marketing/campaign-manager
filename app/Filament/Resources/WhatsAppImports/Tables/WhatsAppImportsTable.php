@@ -112,6 +112,11 @@ class WhatsAppImportsTable
                             ->preserveFilenames()
                             ->acceptedFileTypes(['text/csv', 'text/plain', 'application/csv'])
                             ->maxSize(51200),
+
+                        \Filament\Forms\Components\TextInput::make('platform')
+                            ->label('Platform')
+                            ->placeholder('e.g. WATI, Zoko, Twilio')
+                            ->maxLength(255),
                     ])
                     ->action(function (array $data): void {
                         $originalName  = $data['file'];
@@ -145,6 +150,7 @@ class WhatsAppImportsTable
                             'original_file_name'  => $originalName,
                             'stored_file_name'    => $originalName,
                             'storage_path'        => $finalRelative,
+                            'source_name'         => $data['platform'] ?: null,
                             'uploaded_by'         => auth()->id(),
                         ]);
 

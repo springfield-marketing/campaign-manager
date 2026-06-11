@@ -11,6 +11,7 @@ class WhatsAppCampaign extends Model
 
     protected $fillable = [
         'name',
+        'platform',
         'total_messages',
         'sent_count',
         'delivered_count',

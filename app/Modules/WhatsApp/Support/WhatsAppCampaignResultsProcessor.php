@@ -95,7 +95,7 @@ class WhatsAppCampaignResultsProcessor
                     $campaignName = (string) $payload['CampaignName'];
 
                     if (! isset($campaignsByName[$campaignName])) {
-                        $campaignsByName[$campaignName] = $this->findOrCreateCampaign($payload);
+                        $campaignsByName[$campaignName] = $this->findOrCreateCampaign($payload, $import->source_name);
                     }
 
                     $campaign = $campaignsByName[$campaignName];
@@ -253,11 +253,14 @@ class WhatsAppCampaignResultsProcessor
     /**
      * @param  array<string, string|null>  $payload
      */
-    private function findOrCreateCampaign(array $payload): WhatsAppCampaign
+    private function findOrCreateCampaign(array $payload, ?string $platform): WhatsAppCampaign
     {
         return WhatsAppCampaign::firstOrCreate(
             ['name' => (string) $payload['CampaignName']],
-            ['started_at' => $this->parseScheduledAt($payload['ScheduleAt'] ?? null)],
+            [
+                'platform'   => $platform,
+                'started_at' => $this->parseScheduledAt($payload['ScheduleAt'] ?? null),
+            ],
         );
     }
 
