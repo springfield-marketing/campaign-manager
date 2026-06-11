@@ -126,7 +126,10 @@ class ImportedContactsRelationManager extends RelationManager
                     ]),
             ])
             ->defaultSort('created_at', 'desc')
+            ->recordAction(null)
+            ->recordUrl(null)
             ->recordActions([])
+            ->headerActions([])
             ->toolbarActions([]);
     }
 }
