@@ -361,19 +361,21 @@ class WhatsAppCampaignResultsProcessor
             ->selectRaw("sum(case when delivery_status = 'READ'      then 1 else 0 end) as read_count")
             ->selectRaw("sum(case when delivery_status = 'REPLIED'   then 1 else 0 end) as replied_count")
             ->selectRaw("sum(case when delivery_status = 'FAILED'    then 1 else 0 end) as failed_count")
+            ->selectRaw("sum(case when delivery_status = 'STOPPED'   then 1 else 0 end) as unsubscribed_count")
             ->selectRaw('min(scheduled_at) as first_scheduled_at')
             ->selectRaw('max(scheduled_at) as last_scheduled_at')
             ->first();
 
         $campaign->forceFill([
-            'total_messages'  => (int) ($row->total_messages ?? 0),
-            'sent_count'      => (int) ($row->sent_count ?? 0),
-            'delivered_count' => (int) ($row->delivered_count ?? 0),
-            'read_count'      => (int) ($row->read_count ?? 0),
-            'replied_count'   => (int) ($row->replied_count ?? 0),
-            'failed_count'    => (int) ($row->failed_count ?? 0),
-            'started_at'      => $row->first_scheduled_at ?? $campaign->started_at,
-            'completed_at'    => $row->last_scheduled_at ?? $campaign->completed_at,
+            'total_messages'    => (int) ($row->total_messages ?? 0),
+            'sent_count'        => (int) ($row->sent_count ?? 0),
+            'delivered_count'   => (int) ($row->delivered_count ?? 0),
+            'read_count'        => (int) ($row->read_count ?? 0),
+            'replied_count'     => (int) ($row->replied_count ?? 0),
+            'failed_count'      => (int) ($row->failed_count ?? 0),
+            'unsubscribed_count' => (int) ($row->unsubscribed_count ?? 0),
+            'started_at'        => $row->first_scheduled_at ?? $campaign->started_at,
+            'completed_at'      => $row->last_scheduled_at ?? $campaign->completed_at,
         ])->save();
     }
 
