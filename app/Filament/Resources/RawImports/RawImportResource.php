@@ -22,6 +22,11 @@ class RawImportResource extends Resource
     public static function getModelLabel(): string { return 'Raw Import'; }
     public static function getPluralModelLabel(): string { return 'Raw Imports'; }
 
+    public static function getIndexUrl(array $parameters = [], bool $isAbsolute = true, ?string $panel = null, ?\Illuminate\Database\Eloquent\Model $tenant = null, bool $shouldGuessMissingParameters = false): string
+    {
+        return url('/admin/import-stagings');
+    }
+
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()->where('type', 'raw_contacts');
