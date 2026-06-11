@@ -5,6 +5,7 @@ namespace App\Filament\Resources\WhatsAppNumbers;
 use App\Filament\Resources\WhatsAppNumbers\Pages\CreateWhatsAppNumber;
 use App\Filament\Resources\WhatsAppNumbers\Pages\EditWhatsAppNumber;
 use App\Filament\Resources\WhatsAppNumbers\Pages\ListWhatsAppNumbers;
+use App\Filament\Resources\WhatsAppNumbers\RelationManagers\SuppressionsRelationManager;
 use App\Filament\Resources\WhatsAppNumbers\RelationManagers\WhatsAppMessagesRelationManager;
 use App\Filament\Resources\WhatsAppNumbers\Schemas\WhatsAppNumberForm;
 use App\Filament\Resources\WhatsAppNumbers\Tables\WhatsAppNumbersTable;
@@ -40,6 +41,7 @@ class WhatsAppNumberResource extends Resource
     {
         return [
             WhatsAppMessagesRelationManager::class,
+            SuppressionsRelationManager::class,
         ];
     }
 
