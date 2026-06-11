@@ -14,6 +14,7 @@ class Client extends Model
 
     protected $fillable = [
         'full_name',
+        'alternate_names',
         'country_iso',
         'emirate',
         'nationality',
@@ -35,7 +36,8 @@ class Client extends Model
     protected function casts(): array
     {
         return [
-            'metadata' => 'array',
+            'alternate_names' => 'array',
+            'metadata'        => 'array',
         ];
     }
 

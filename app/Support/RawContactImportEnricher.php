@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\Client;
 use App\Models\ClientPhoneNumber;
 use App\Models\Ownership;
+use App\Support\NameNormalizer;
 
 /**
  * Creates or updates a Client + Ownership row from a fully-resolved import payload.
@@ -129,8 +130,20 @@ class RawContactImportEnricher
     {
         $updates = [];
 
-        if (blank($client->full_name) && $name = $this->blankToNull($payload['name'] ?? null)) {
-            $updates['full_name'] = $name;
+        $importedName = NameNormalizer::normalize($this->blankToNull($payload['name'] ?? null) ?? '');
+        if ($importedName !== '') {
+            if (blank($client->full_name)) {
+                // Blank stored name — always fill it in
+                $updates['full_name'] = $importedName;
+            } elseif (mb_strtolower($client->full_name) === mb_strtolower($importedName)) {
+                // Same name, different case — upgrade to the normalised version
+                $updates['full_name'] = $importedName;
+            } elseif (self::isStubName($client->full_name)) {
+                // Stored name is a placeholder — replace with the real one
+                $updates['full_name'] = $importedName;
+            }
+            // Genuinely different names: leave full_name untouched.
+            // The imported name is preserved in client_sources.metadata.raw_name.
         }
         if (blank($client->emirate) && $emirate = $this->blankToNull($payload['emirate'] ?? null)) {
             $updates['emirate'] = $emirate;
@@ -154,6 +167,32 @@ class RawContactImportEnricher
         if ($updates !== []) {
             $client->fill($updates)->save();
         }
+    }
+
+    /**
+     * Returns true when the stored name looks like a placeholder or garbage value
+     * that should always be overwritten by a real imported name.
+     */
+    public static function isStubName(string $name): bool
+    {
+        $trimmed = trim($name);
+
+        // Explicit DND / Do Not Call placeholders
+        if (in_array(strtoupper($trimmed), ['DND', 'DO NOT CALL', 'DO NOT DISTURB', 'N/A', '-', '.'], strict: true)) {
+            return true;
+        }
+
+        // Very short (1–2 real characters, possibly with punctuation)
+        if (mb_strlen(preg_replace('/[\s.\-_]/u', '', $trimmed) ?? '') <= 2) {
+            return true;
+        }
+
+        // Ends with a bare dot/space (e.g. "Ahmed .") — truncated or partial
+        if (preg_match('/\.\s*$/', $trimmed)) {
+            return true;
+        }
+
+        return false;
     }
 
     private function normalizeRelationshipType(?string $value): string

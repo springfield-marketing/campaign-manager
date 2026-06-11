@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use App\Modules\IVR\Enums\IvrImportStatus;
 use App\Modules\IVR\Models\IvrImport;
 use App\Support\LocationResolver;
+use App\Support\NameNormalizer;
 use App\Support\RawContactImportEnricher;
 use Illuminate\Support\Facades\Log;
 use Laravel\Telescope\Telescope;
@@ -310,6 +311,8 @@ class RawImportProcessor
         if (($payload['name'] ?? null) === null || ($payload['name'] ?? '') === '') {
             throw new \RuntimeException('Name is required.');
         }
+
+        $payload['name'] = NameNormalizer::normalize($payload['name']);
 
         return $payload;
     }
@@ -923,10 +926,12 @@ class RawImportProcessor
     }
 
     /**
-     * For items matched to an existing client via phone number, fill any blank
-     * client fields (name, emirate, nationality, gender, interest, country_iso)
-     * from the current import row. Existing non-null values are never overwritten.
-     * Uses one bulk UPDATE per field to avoid N+1 queries.
+     * For items matched to an existing client via phone number:
+     * - Fills any blank/stub fields from the import row (one bulk UPDATE per field).
+     * - Detects genuine conflicts (stored non-blank non-stub value differs from import after
+     *   normalization) and records them in $items[$index]['field_conflicts'] so insertSources()
+     *   can persist them in client_sources.metadata.
+     * - Appends genuinely different names to clients.alternate_names.
      *
      * @param  array<int, array<string, mixed>>  $items
      */
@@ -947,11 +952,83 @@ class RawImportProcessor
 
         $clients = Client::query()
             ->whereIn('id', array_keys($enrichMap))
-            ->get(['id', 'full_name', 'emirate', 'nationality', 'gender', 'interest', 'country_iso'])
+            ->get(['id', 'full_name', 'alternate_names', 'emirate', 'nationality', 'gender', 'interest', 'country_iso'])
             ->keyBy('id');
 
+        $now = now()->toDateTimeString();
+
+        // --- Per-item conflict detection (loops all items, not just the enrichMap first-per-client) ---
+        $newAlternateNames = []; // [client_id => [normalised_name, ...]]
+
+        foreach ($items as $index => $item) {
+            if (! ($item['existing_client'] ?? false) || ! $item['client_id']) {
+                continue;
+            }
+
+            $client = $clients->get($item['client_id']);
+            if (! $client) {
+                continue;
+            }
+
+            $importedName = NameNormalizer::normalize(trim((string) ($item['payload']['name'] ?? '')));
+            $storedName   = NameNormalizer::normalize((string) ($client->full_name ?? ''));
+
+            $fieldConflicts = [];
+
+            // Name conflict: stored is real (non-blank, non-stub) but differs after normalization
+            if (
+                $importedName !== ''
+                && $storedName !== ''
+                && $storedName !== $importedName
+                && ! RawContactImportEnricher::isStubName((string) $client->full_name)
+            ) {
+                $fieldConflicts['full_name'] = [
+                    'stored'   => $client->full_name,
+                    'imported' => $importedName,
+                ];
+                $newAlternateNames[$item['client_id']][] = $importedName;
+            }
+
+            // Other field conflicts: both sides non-blank and different
+            foreach ([
+                'emirate'     => $item['emirate'] ?: null,
+                'nationality' => $this->blankToNull($item['payload']['nationality'] ?? null),
+                'gender'      => $this->blankToNull($item['payload']['gender'] ?? null),
+                'interest'    => $this->blankToNull($item['payload']['interest'] ?? null),
+                'country_iso' => strtoupper(substr(trim((string) ($item['payload']['country_iso'] ?? '')), 0, 2)) ?: null,
+            ] as $field => $importedValue) {
+                $storedValue = $client->$field;
+                if (
+                    $importedValue !== null
+                    && $storedValue !== null && $storedValue !== ''
+                    && $importedValue !== $storedValue
+                ) {
+                    $fieldConflicts[$field] = [
+                        'stored'   => $storedValue,
+                        'imported' => $importedValue,
+                    ];
+                }
+            }
+
+            if ($fieldConflicts !== []) {
+                $items[$index]['field_conflicts'] = $fieldConflicts;
+            }
+        }
+
+        // --- Merge new alternate names onto clients ---
+        foreach ($newAlternateNames as $clientId => $names) {
+            $existing = $clients->get($clientId)?->alternate_names ?? [];
+            $merged   = array_values(array_unique(array_merge($existing, $names)));
+
+            DB::table('clients')->where('id', $clientId)->update([
+                'alternate_names' => json_encode($merged),
+                'updated_at'      => $now,
+            ]);
+        }
+
+        // --- Fill blank and stub fields (one bulk UPDATE per field) ---
         $fieldResolvers = [
-            'full_name'   => fn ($item) => trim((string) ($item['payload']['name'] ?? '')) ?: null,
+            'full_name'   => fn ($item) => NameNormalizer::normalize(trim((string) ($item['payload']['name'] ?? ''))),
             'emirate'     => fn ($item) => $item['emirate'] ?: null,
             'nationality' => fn ($item) => $this->blankToNull($item['payload']['nationality'] ?? null),
             'gender'      => fn ($item) => $this->blankToNull($item['payload']['gender'] ?? null),
@@ -959,38 +1036,63 @@ class RawImportProcessor
             'country_iso' => fn ($item) => strtoupper(substr(trim((string) ($item['payload']['country_iso'] ?? '')), 0, 2)) ?: null,
         ];
 
-        $now = now()->toDateTimeString();
-
         foreach ($fieldResolvers as $field => $getValue) {
-            $updates = [];
+            $blankFills = []; // client_id => value  (stored null/empty)
+            $stubFills  = []; // client_id => value  (stored stub name, full_name only)
 
             foreach ($clients as $clientId => $client) {
-                if ($client->$field !== null && $client->$field !== '') {
+                $stored  = $client->$field;
+                $isBlank = $stored === null || $stored === '';
+                $isStub  = $field === 'full_name' && ! $isBlank
+                    && RawContactImportEnricher::isStubName((string) $stored);
+
+                if (! $isBlank && ! $isStub) {
                     continue;
                 }
+
                 $value = $getValue($enrichMap[$clientId]);
-                if ($value !== null && $value !== '') {
-                    $updates[$clientId] = $value;
+                if ($value === null || $value === '') {
+                    continue;
+                }
+
+                if ($isBlank) {
+                    $blankFills[$clientId] = $value;
+                } else {
+                    $stubFills[$clientId] = $value;
                 }
             }
 
-            if ($updates === []) {
-                continue;
+            // Bulk UPDATE for blank fields (guarded by IS NULL OR = '' in SQL)
+            if ($blankFills !== []) {
+                $cases    = implode(' ', array_map(fn () => 'WHEN ? THEN ?', $blankFills));
+                $bindings = [];
+                foreach ($blankFills as $id => $value) {
+                    $bindings[] = $id;
+                    $bindings[] = $value;
+                }
+                $ids = implode(',', array_fill(0, count($blankFills), '?'));
+
+                DB::statement(
+                    "UPDATE clients SET {$field} = CASE id {$cases} END, updated_at = ? WHERE id IN ({$ids}) AND ({$field} IS NULL OR {$field} = '')",
+                    [...$bindings, $now, ...array_keys($blankFills)],
+                );
             }
 
-            // Single UPDATE using CASE id WHEN … THEN … END — one query per field
-            $cases = implode(' ', array_map(fn () => 'WHEN ? THEN ?', $updates));
-            $caseBindings = [];
-            foreach ($updates as $id => $value) {
-                $caseBindings[] = $id;
-                $caseBindings[] = $value;
-            }
-            $idPlaceholders = implode(',', array_fill(0, count($updates), '?'));
+            // Bulk UPDATE for stub name replacement (full_name only, no null guard needed)
+            if ($stubFills !== []) {
+                $cases    = implode(' ', array_map(fn () => 'WHEN ? THEN ?', $stubFills));
+                $bindings = [];
+                foreach ($stubFills as $id => $value) {
+                    $bindings[] = $id;
+                    $bindings[] = $value;
+                }
+                $ids = implode(',', array_fill(0, count($stubFills), '?'));
 
-            DB::statement(
-                "UPDATE clients SET {$field} = CASE id {$cases} END, updated_at = ? WHERE id IN ({$idPlaceholders}) AND ({$field} IS NULL OR {$field} = '')",
-                [...$caseBindings, $now, ...array_keys($updates)],
-            );
+                DB::statement(
+                    "UPDATE clients SET full_name = CASE id {$cases} END, updated_at = ? WHERE id IN ({$ids})",
+                    [...$bindings, $now, ...array_keys($stubFills)],
+                );
+            }
         }
     }
 
@@ -1012,18 +1114,19 @@ class RawImportProcessor
                 'source_file_name' => $import->original_file_name,
                 'source_reference' => (string) $import->id,
                 'metadata' => json_encode([
-                    'duplicate'            => (bool) $item['duplicate'],
-                    'raw_name'             => $this->blankToNull($item['payload']['name'] ?? null),
-                    'raw_emirate'          => $this->blankToNull($item['payload']['emirate'] ?? null),
-                    'raw_nationality'      => $this->blankToNull($item['payload']['nationality'] ?? null),
-                    'raw_gender'           => $this->blankToNull($item['payload']['gender'] ?? null),
-                    'raw_interest'         => $this->blankToNull($item['payload']['interest'] ?? null),
-                    'raw_official_area'    => $this->blankToNull($item['payload']['official_area_name'] ?? null),
-                    'raw_marketing_area'   => $this->blankToNull($item['payload']['marketing_area_name'] ?? null),
-                    'raw_project'          => $this->blankToNull($item['payload']['project_name'] ?? null),
-                    'raw_building'         => $this->blankToNull($item['payload']['building_name'] ?? null),
-                    'raw_unit'             => $this->blankToNull($item['payload']['unit_reference'] ?? null),
+                    'duplicate'             => (bool) $item['duplicate'],
+                    'raw_name'              => $this->blankToNull($item['payload']['name'] ?? null),
+                    'raw_emirate'           => $this->blankToNull($item['payload']['emirate'] ?? null),
+                    'raw_nationality'       => $this->blankToNull($item['payload']['nationality'] ?? null),
+                    'raw_gender'            => $this->blankToNull($item['payload']['gender'] ?? null),
+                    'raw_interest'          => $this->blankToNull($item['payload']['interest'] ?? null),
+                    'raw_official_area'     => $this->blankToNull($item['payload']['official_area_name'] ?? null),
+                    'raw_marketing_area'    => $this->blankToNull($item['payload']['marketing_area_name'] ?? null),
+                    'raw_project'           => $this->blankToNull($item['payload']['project_name'] ?? null),
+                    'raw_building'          => $this->blankToNull($item['payload']['building_name'] ?? null),
+                    'raw_unit'              => $this->blankToNull($item['payload']['unit_reference'] ?? null),
                     'raw_relationship_type' => $this->blankToNull($item['payload']['relationship_type'] ?? null),
+                    'field_conflicts'       => $item['field_conflicts'] ?? null,
                 ]),
                 'created_at' => $now,
                 'updated_at' => $now,

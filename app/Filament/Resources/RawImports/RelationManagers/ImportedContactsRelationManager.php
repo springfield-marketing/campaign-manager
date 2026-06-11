@@ -3,10 +3,12 @@
 namespace App\Filament\Resources\RawImports\RelationManagers;
 
 use App\Filament\Resources\Clients\ClientResource;
+use App\Models\Client;
 use App\Models\ClientSource;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Actions\Action;
+use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -38,6 +40,30 @@ class ImportedContactsRelationManager extends RelationManager
                     ->badge()
                     ->color(fn (string $state) => $state === 'new' ? 'success' : 'gray')
                     ->formatStateUsing(fn (string $state) => ucfirst($state)),
+
+                TextColumn::make('conflicts')
+                    ->label('Conflicts')
+                    ->getStateUsing(function (ClientSource $record): string {
+                        $conflicts = $record->metadata['field_conflicts'] ?? null;
+                        if (empty($conflicts)) {
+                            return '';
+                        }
+
+                        $labels = array_map(fn (string $f) => match ($f) {
+                            'full_name'   => 'Name',
+                            'emirate'     => 'Emirate',
+                            'nationality' => 'Nationality',
+                            'gender'      => 'Gender',
+                            'interest'    => 'Interest',
+                            'country_iso' => 'Country',
+                            default       => $f,
+                        }, array_keys($conflicts));
+
+                        return implode(', ', $labels);
+                    })
+                    ->badge()
+                    ->color('warning')
+                    ->placeholder('—'),
 
                 TextColumn::make('client.full_name')
                     ->label('Name')
@@ -116,6 +142,15 @@ class ImportedContactsRelationManager extends RelationManager
                         default     => $query,
                     }),
 
+                SelectFilter::make('has_conflicts')
+                    ->label('Has Conflicts')
+                    ->options(['yes' => 'Has conflicts'])
+                    ->query(fn (Builder $query, array $data): Builder =>
+                        ($data['value'] ?? null) === 'yes'
+                            ? $query->whereRaw("metadata->>'field_conflicts' IS NOT NULL")
+                            : $query
+                    ),
+
                 SelectFilter::make('emirate')
                     ->label('Emirate')
                     ->options([
@@ -152,6 +187,52 @@ class ImportedContactsRelationManager extends RelationManager
             ->recordAction(null)
             ->recordUrl(null)
             ->recordActions([
+                Action::make('apply_conflicts')
+                    ->label('Apply imported values')
+                    ->icon('heroicon-o-arrow-path')
+                    ->color('warning')
+                    ->visible(fn (ClientSource $record): bool =>
+                        ! empty($record->metadata['field_conflicts'])
+                    )
+                    ->requiresConfirmation()
+                    ->modalHeading('Apply imported values to this contact?')
+                    ->modalDescription(function (ClientSource $record): string {
+                        $conflicts = $record->metadata['field_conflicts'] ?? [];
+                        $lines = [];
+                        foreach ($conflicts as $field => $diff) {
+                            $label = match ($field) {
+                                'full_name'   => 'Name',
+                                'emirate'     => 'Emirate',
+                                'nationality' => 'Nationality',
+                                'gender'      => 'Gender',
+                                'interest'    => 'Interest',
+                                'country_iso' => 'Country',
+                                default       => $field,
+                            };
+                            $lines[] = $label . ': "' . $diff['stored'] . '" → "' . $diff['imported'] . '"';
+                        }
+                        return 'The following stored values will be replaced: ' . implode('; ', $lines) . '.';
+                    })
+                    ->modalSubmitActionLabel('Apply')
+                    ->action(function (ClientSource $record): void {
+                        $conflicts = $record->metadata['field_conflicts'] ?? [];
+                        if (empty($conflicts) || ! $record->client_id) {
+                            return;
+                        }
+
+                        $updates = [];
+                        foreach ($conflicts as $field => $diff) {
+                            $updates[$field] = $diff['imported'];
+                        }
+
+                        Client::where('id', $record->client_id)->update($updates);
+
+                        Notification::make()
+                            ->success()
+                            ->title('Contact updated')
+                            ->send();
+                    }),
+
                 Action::make('view_contact')
                     ->label('View contact')
                     ->icon('heroicon-o-arrow-top-right-on-square')

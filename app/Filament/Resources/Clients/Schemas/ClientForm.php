@@ -8,6 +8,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
+use Illuminate\Support\HtmlString;
 
 class ClientForm
 {
@@ -79,6 +80,29 @@ class ClientForm
                             ? $record->completeness_score . '%'
                             : 'Not yet scored'),
                 ]),
+
+            Section::make('Known as')
+                ->description('Other names this contact has appeared under across imports. Stored names were not overwritten because the names were too different to be a safe auto-update.')
+                ->collapsed()
+                ->schema([
+                    Placeholder::make('alternate_names_display')
+                        ->label('')
+                        ->content(function (Client $record): HtmlString {
+                            $names = $record->alternate_names ?? [];
+
+                            if (empty($names)) {
+                                return new HtmlString('<span class="text-sm text-gray-400">No alternate names recorded.</span>');
+                            }
+
+                            $chips = implode('', array_map(
+                                fn (string $name) => '<span class="inline-flex items-center px-2.5 py-0.5 me-1 mb-1 text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">' . e($name) . '</span>',
+                                $names,
+                            ));
+
+                            return new HtmlString('<div class="flex flex-wrap">' . $chips . '</div>');
+                        }),
+                ])
+                ->visible(fn (Client $record): bool => ! empty($record->alternate_names)),
 
             Section::make('Tags')->schema([
                 Select::make('tags')
