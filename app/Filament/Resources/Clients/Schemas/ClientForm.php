@@ -94,7 +94,7 @@ class ClientForm
                                 return new HtmlString('<span class="text-sm text-gray-400">No alternate names recorded.</span>');
                             }
 
-                            $chips = implode('', array_map(
+                            $chips = implode('<span class="text-gray-400">,</span>', array_map(
                                 fn (string $name) => '<span class="inline-flex items-center px-2.5 py-0.5 text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">' . e($name) . '</span>',
                                 $names,
                             ));
