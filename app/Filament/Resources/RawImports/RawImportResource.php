@@ -85,6 +85,17 @@ class RawImportResource extends Resource
                         ->label('Completed')
                         ->dateTime('d M Y H:i')
                         ->placeholder('—'),
+
+                    TextEntry::make('status_message')
+                        ->label('Status details')
+                        ->columnSpanFull()
+                        ->getStateUsing(fn (IvrImport $record): ?string => $record->statusMessage())
+                        ->color(fn (IvrImport $record): string => in_array($record->status, [
+                            'delete_failed', 'revert_failed', 'failed',
+                        ], strict: true) ? 'danger' : 'gray')
+                        ->visible(fn (IvrImport $record): bool => ! in_array($record->status, [
+                            'pending', 'completed',
+                        ], strict: true)),
                 ]),
         ]);
     }
