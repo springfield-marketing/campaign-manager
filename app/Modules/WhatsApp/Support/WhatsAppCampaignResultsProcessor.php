@@ -258,13 +258,19 @@ class WhatsAppCampaignResultsProcessor
      */
     private function findOrCreateCampaign(array $payload, ?string $platform): WhatsAppCampaign
     {
-        return WhatsAppCampaign::firstOrCreate(
+        $campaign = WhatsAppCampaign::firstOrCreate(
             ['name' => (string) $payload['CampaignName']],
             [
                 'platform'   => $platform,
                 'started_at' => $this->parseScheduledAt($payload['ScheduleAt'] ?? null),
             ],
         );
+
+        if ($campaign->platform === null && $platform !== null) {
+            $campaign->forceFill(['platform' => $platform])->save();
+        }
+
+        return $campaign;
     }
 
     /**
