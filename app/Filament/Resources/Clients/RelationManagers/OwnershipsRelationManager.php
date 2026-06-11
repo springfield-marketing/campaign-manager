@@ -102,8 +102,8 @@ class OwnershipsRelationManager extends RelationManager
                     ])
                     ->nullable(),
 
-                TextInput::make('source')
-                    ->label('Source')
+                TextInput::make('last_source_name')
+                    ->label('Last Source')
                     ->maxLength(255)
                     ->columnSpanFull(),
             ]),
@@ -164,10 +164,31 @@ class OwnershipsRelationManager extends RelationManager
                     })
                     ->placeholder('—'),
 
-                TextColumn::make('source')
-                    ->label('Source')
+                TextColumn::make('source_count')
+                    ->label('Sources')
+                    ->getStateUsing(fn (\App\Models\Ownership $record): int =>
+                        count($record->source_names ?? [])
+                    )
+                    ->badge()
+                    ->color(fn (int $state) => match(true) {
+                        $state >= 3 => 'success',
+                        $state === 2 => 'warning',
+                        default     => 'gray',
+                    })
+                    ->tooltip(fn (\App\Models\Ownership $record): string =>
+                        implode("\n", $record->source_names ?? [])
+                    ),
+
+                TextColumn::make('last_source_name')
+                    ->label('Last Source')
                     ->placeholder('—')
                     ->limit(30),
+
+                TextColumn::make('first_confirmed_at')
+                    ->label('First Seen')
+                    ->dateTime('d M Y')
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->headerActions([CreateAction::make()])
             ->recordActions([EditAction::make(), DeleteAction::make()])

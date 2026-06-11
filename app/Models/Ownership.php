@@ -17,8 +17,28 @@ class Ownership extends Model
         'unit_reference',
         'relationship_type',
         'confidence_level',
-        'source',
+        'last_source_name',
+        'source_names',
+        'first_confirmed_at',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'source_names'       => 'array',
+            'first_confirmed_at' => 'datetime',
+        ];
+    }
+
+    private const CONFIDENCE_RANK = ['low' => 1, 'medium' => 2, 'high' => 3];
+
+    /** Returns the higher of two confidence levels, or the non-null one. */
+    public static function higherConfidence(?string $a, ?string $b): ?string
+    {
+        if ($a === null) return $b;
+        if ($b === null) return $a;
+        return (self::CONFIDENCE_RANK[$a] ?? 0) >= (self::CONFIDENCE_RANK[$b] ?? 0) ? $a : $b;
+    }
 
     public function client(): BelongsTo
     {

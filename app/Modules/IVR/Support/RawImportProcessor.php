@@ -868,35 +868,30 @@ class RawImportProcessor
             ]);
 
             $rows[$key] = [
-                'client_id' => $item['client_id'],
-                'emirate' => $item['emirate'],
+                'client_id'         => $item['client_id'],
+                'emirate'           => $item['emirate'],
                 'marketing_area_id' => $item['marketing_area_id'],
-                'project_id' => $item['project_id'],
-                'building_id' => $item['building_id'],
-                'unit_reference' => $this->blankToNull($item['payload']['unit_reference'] ?? null),
+                'project_id'        => $item['project_id'],
+                'building_id'       => $item['building_id'],
+                'unit_reference'    => $this->blankToNull($item['payload']['unit_reference'] ?? null),
                 'relationship_type' => $item['relationship_type'],
-                'official_area_id' => $item['official_area_id'],
-                'confidence_level' => $item['confidence_level'],
-                'source' => $item['source_name'],
+                'official_area_id'  => $item['official_area_id'],
+                'confidence_level'  => $item['confidence_level'],
+                'source_name'       => $item['source_name'],
             ];
         }
 
+        $now = now()->toDateTimeString();
+
         foreach ($rows as $row) {
             $match = [
-                'client_id' => $row['client_id'],
-                'emirate' => $row['emirate'],
+                'client_id'         => $row['client_id'],
+                'emirate'           => $row['emirate'],
                 'marketing_area_id' => $row['marketing_area_id'],
-                'project_id' => $row['project_id'],
-                'building_id' => $row['building_id'],
-                'unit_reference' => $row['unit_reference'],
+                'project_id'        => $row['project_id'],
+                'building_id'       => $row['building_id'],
+                'unit_reference'    => $row['unit_reference'],
                 'relationship_type' => $row['relationship_type'],
-            ];
-
-            $values = [
-                'official_area_id' => $row['official_area_id'],
-                'confidence_level' => $row['confidence_level'],
-                'source' => $row['source'],
-                'updated_at' => now()->toDateTimeString(),
             ];
 
             $query = DB::table('ownerships');
@@ -904,24 +899,44 @@ class RawImportProcessor
                 $value === null ? $query->whereNull($column) : $query->where($column, $value);
             }
 
-            if ($query->exists()) {
+            $existing = $query->first();
+
+            if ($existing) {
+                // Append source name to the array if not already present
+                $sourceNames = json_decode($existing->source_names ?? '[]', true) ?? [];
+                if (! in_array($row['source_name'], $sourceNames, true)) {
+                    $sourceNames[] = $row['source_name'];
+                }
+
+                // Confidence only upgrades, never downgrades
+                $confidence = \App\Models\Ownership::higherConfidence(
+                    $existing->confidence_level,
+                    $row['confidence_level'],
+                );
+
                 $updateQuery = DB::table('ownerships');
                 foreach ($match as $column => $value) {
                     $value === null ? $updateQuery->whereNull($column) : $updateQuery->where($column, $value);
                 }
 
-                $updateQuery->update($values);
-
-                continue;
+                $updateQuery->update([
+                    'official_area_id' => $row['official_area_id'],
+                    'confidence_level' => $confidence,
+                    'last_source_name' => $row['source_name'],
+                    'source_names'     => json_encode($sourceNames),
+                    'updated_at'       => $now,
+                ]);
+            } else {
+                DB::table('ownerships')->insert(array_merge($match, [
+                    'official_area_id'  => $row['official_area_id'],
+                    'confidence_level'  => $row['confidence_level'],
+                    'last_source_name'  => $row['source_name'],
+                    'source_names'      => json_encode([$row['source_name']]),
+                    'first_confirmed_at' => $now,
+                    'created_at'        => $now,
+                    'updated_at'        => $now,
+                ]));
             }
-
-            DB::table('ownerships')->insert(array_merge(
-                $match,
-                $values,
-                [
-                    'created_at' => now()->toDateTimeString(),
-                ],
-            ));
         }
     }
 

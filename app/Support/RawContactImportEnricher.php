@@ -108,22 +108,41 @@ class RawContactImportEnricher
             throw new \InvalidArgumentException('marketing_area_id is required for ownership');
         }
 
-        return Ownership::updateOrCreate(
-            [
-                'client_id'         => $client->id,
-                'emirate'           => $emirate,
-                'marketing_area_id' => $marketingAreaId,
-                'project_id'        => $projectId,
-                'building_id'       => $buildingId,
-                'unit_reference'    => $unitReference,
-                'relationship_type' => $relationshipType,
-            ],
-            [
+        $matchFields = [
+            'client_id'         => $client->id,
+            'emirate'           => $emirate,
+            'marketing_area_id' => $marketingAreaId,
+            'project_id'        => $projectId,
+            'building_id'       => $buildingId,
+            'unit_reference'    => $unitReference,
+            'relationship_type' => $relationshipType,
+        ];
+
+        $existing = Ownership::where($matchFields)->first();
+
+        if ($existing) {
+            $sourceNames = $existing->source_names ?? [];
+            if (! in_array($sourceName, $sourceNames, true)) {
+                $sourceNames[] = $sourceName;
+            }
+
+            $existing->fill([
                 'official_area_id' => $officialAreaId,
-                'confidence_level' => $confidenceLevel,
-                'source'           => $sourceName,
-            ]
-        );
+                'confidence_level' => Ownership::higherConfidence($existing->confidence_level, $confidenceLevel),
+                'last_source_name' => $sourceName,
+                'source_names'     => $sourceNames,
+            ])->save();
+
+            return $existing;
+        }
+
+        return Ownership::create(array_merge($matchFields, [
+            'official_area_id'  => $officialAreaId,
+            'confidence_level'  => $confidenceLevel,
+            'last_source_name'  => $sourceName,
+            'source_names'      => [$sourceName],
+            'first_confirmed_at' => now(),
+        ]));
     }
 
     private function enrichClientBlanks(Client $client, array $payload): void
