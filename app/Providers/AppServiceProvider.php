@@ -25,6 +25,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // php artisan serve ignores .user.ini — raise the web process memory here instead
+        ini_set('memory_limit', '256M');
+
         $this->configureRateLimiting();
     }
 
