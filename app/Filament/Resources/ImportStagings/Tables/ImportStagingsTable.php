@@ -132,7 +132,9 @@ class ImportStagingsTable
                         $promoted = 0;
                         $skipped  = 0;
 
-                        DB::transaction(function () use ($records, &$promoted, &$skipped): void {
+                        $promotedClientIds = [];
+
+                        DB::transaction(function () use ($records, &$promoted, &$skipped, &$promotedClientIds): void {
                             $sourceRows = [];
                             $now = now()->toDateTimeString();
 
@@ -190,6 +192,7 @@ class ImportStagingsTable
                                     'updated_at'             => $now,
                                 ];
 
+                                $promotedClientIds[] = $client->id;
                                 $staged->update(['status' => ImportStaging::STATUS_MATCHED]);
                                 $promoted++;
                             }
@@ -198,6 +201,8 @@ class ImportStagingsTable
                                 DB::table('client_sources')->insertOrIgnore($sourceRows);
                             }
                         });
+
+                        Client::recalculateOriginalSourceForIds($promotedClientIds);
 
                         Notification::make()
                             ->success()

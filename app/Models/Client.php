@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\DB;
 
 class Client extends Model
 {
@@ -23,6 +24,7 @@ class Client extends Model
         'tier',
         'wealth_score',
         'completeness_score',
+        'original_source',
         'metadata',
     ];
 
@@ -103,6 +105,42 @@ class Client extends Model
     public function sources(): HasMany
     {
         return $this->hasMany(ClientSource::class);
+    }
+
+    /**
+     * Recalculate original_source for a batch of clients.
+     * Rule: earliest non-campaign source wins; fall back to earliest campaign source.
+     *
+     * @param  int[]  $clientIds
+     */
+    public static function recalculateOriginalSourceForIds(array $clientIds): void
+    {
+        if (empty($clientIds)) {
+            return;
+        }
+
+        // Chunk to avoid hitting PostgreSQL's parameter limit on large imports.
+        foreach (array_chunk($clientIds, 1000) as $chunk) {
+            DB::table('clients')
+                ->whereIn('id', $chunk)
+                ->update([
+                    'original_source' => DB::raw("(
+                        SELECT COALESCE(
+                            (
+                                SELECT source_name FROM client_sources
+                                WHERE client_id = clients.id
+                                  AND source_type <> 'campaign_result'
+                                ORDER BY created_at ASC LIMIT 1
+                            ),
+                            (
+                                SELECT source_name FROM client_sources
+                                WHERE client_id = clients.id
+                                ORDER BY created_at ASC LIMIT 1
+                            )
+                        )
+                    )"),
+                ]);
+        }
     }
 
     public function interactions(): HasMany

@@ -237,6 +237,7 @@ class RawImportProcessor
 
             if ($affectedClientIds !== []) {
                 RecomputeClientScoresJob::dispatch($affectedClientIds)->onQueue('analysis');
+                Client::recalculateOriginalSourceForIds($affectedClientIds);
             }
 
             Log::channel('ivr')->info('Completed raw IVR import.', ['import_id' => $import->id]);

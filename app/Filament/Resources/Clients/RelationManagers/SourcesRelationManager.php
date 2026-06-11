@@ -56,8 +56,19 @@ class SourcesRelationManager extends RelationManager
                         'ivr'      => 'IVR',
                         'whatsapp' => 'WhatsApp',
                     ]),
+
+                SelectFilter::make('source_type')
+                    ->label('Type')
+                    ->options([
+                        'raw_import'       => 'Raw Import',
+                        'staging_promoted' => 'Staging Promoted',
+                        'campaign_result'  => 'Campaign Result',
+                    ]),
             ])
-            ->defaultSort('created_at', 'desc')
+            ->modifyQueryUsing(fn ($query) => $query
+                ->orderByRaw("CASE WHEN source_type = 'campaign_result' THEN 1 ELSE 0 END ASC")
+                ->orderBy('created_at', 'asc')
+            )
             ->recordActions([])
             ->toolbarActions([]);
     }

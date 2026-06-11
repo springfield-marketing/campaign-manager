@@ -74,6 +74,7 @@ class EditImportStaging extends EditRecord
                         ],
                     ]);
 
+                    Client::recalculateOriginalSourceForIds([$client->id]);
                     $record->update(['status' => ImportStaging::STATUS_MATCHED]);
 
                     Notification::make()->success()->title('Contact created')->send();

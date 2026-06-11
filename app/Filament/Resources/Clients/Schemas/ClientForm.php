@@ -104,6 +104,12 @@ class ClientForm
                 ])
                 ->visible(fn (Client $record): bool => ! empty($record->alternate_names)),
 
+            Section::make('Source')->schema([
+                Placeholder::make('original_source')
+                    ->label('Original Source')
+                    ->content(fn (Client $record): string => $record->original_source ?? '—'),
+            ]),
+
             Section::make('Tags')->schema([
                 Select::make('tags')
                     ->relationship('tags', 'name')

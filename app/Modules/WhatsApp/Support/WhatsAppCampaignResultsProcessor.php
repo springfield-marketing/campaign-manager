@@ -169,8 +169,11 @@ class WhatsAppCampaignResultsProcessor
 
             // One batch job covers all unique numbers from this import.
             // Runs on the 'analysis' queue so it never blocks the next import.
-            BatchAnalyseWhatsAppNumbers::dispatch(array_values($phoneIdCache))
-                ->onQueue('analysis');
+            $phoneNumberIds = array_values($phoneIdCache);
+            BatchAnalyseWhatsAppNumbers::dispatch($phoneNumberIds)->onQueue('analysis');
+
+            $clientIds = ClientPhoneNumber::whereIn('id', $phoneNumberIds)->pluck('client_id')->all();
+            Client::recalculateOriginalSourceForIds($clientIds);
 
             $import->update([
                 'status' => $failed > 0

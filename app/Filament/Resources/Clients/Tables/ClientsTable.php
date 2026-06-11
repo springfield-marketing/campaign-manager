@@ -83,6 +83,13 @@ class ClientsTable
                     })
                     ->toggleable(isToggledHiddenByDefault: true),
 
+                TextColumn::make('original_source')
+                    ->label('Original Source')
+                    ->searchable()
+                    ->sortable()
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 TextColumn::make('tags.name')
                     ->label('Tags')
                     ->badge()
