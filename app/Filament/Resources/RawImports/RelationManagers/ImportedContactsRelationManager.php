@@ -2,9 +2,11 @@
 
 namespace App\Filament\Resources\RawImports\RelationManagers;
 
+use App\Filament\Resources\Clients\ClientResource;
 use App\Models\ClientSource;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
+use Filament\Tables\Actions\Action;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -40,7 +42,19 @@ class ImportedContactsRelationManager extends RelationManager
                 TextColumn::make('client.full_name')
                     ->label('Name')
                     ->searchable()
-                    ->placeholder('—'),
+                    ->placeholder('—')
+                    ->description(fn (ClientSource $record): ?string =>
+                        filled($record->metadata['raw_name'] ?? null) &&
+                        ($record->metadata['raw_name'] !== $record->client?->full_name)
+                            ? 'Imported as: ' . $record->metadata['raw_name']
+                            : null
+                    )
+                    ->url(fn (ClientSource $record): ?string =>
+                        $record->client_id
+                            ? ClientResource::getUrl('edit', ['record' => $record->client_id])
+                            : null
+                    )
+                    ->openUrlInNewTab(),
 
                 TextColumn::make('client.primaryPhone.normalized_phone')
                     ->label('Phone')
@@ -137,7 +151,18 @@ class ImportedContactsRelationManager extends RelationManager
             ->paginated([10, 25, 50])
             ->recordAction(null)
             ->recordUrl(null)
-            ->recordActions([])
+            ->recordActions([
+                Action::make('view_contact')
+                    ->label('View contact')
+                    ->icon('heroicon-o-arrow-top-right-on-square')
+                    ->color('gray')
+                    ->url(fn (ClientSource $record): ?string =>
+                        $record->client_id
+                            ? ClientResource::getUrl('edit', ['record' => $record->client_id])
+                            : null
+                    )
+                    ->openUrlInNewTab(),
+            ])
             ->headerActions([])
             ->toolbarActions([]);
     }
