@@ -7,6 +7,7 @@ use App\Models\Client;
 use App\Models\ClientSource;
 use App\Models\ImportStaging;
 use App\Models\Ownership;
+use App\Support\NameNormalizer;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -49,29 +50,46 @@ class PromoteStagingContactsJob implements ShouldQueue
                 foreach ($rows as $staged) {
                     $client = Client::firstOrCreate(
                         array_filter([
-                            'full_name' => $staged->name ?: null,
+                            'full_name' => $staged->name ? NameNormalizer::normalize($staged->name) : null,
                             'emirate'   => $staged->emirate ?: null,
                         ]),
                         ['country_iso' => $staged->country_iso ?: null],
                     );
 
                     if ($staged->marketing_area_id && $staged->emirate) {
-                        Ownership::updateOrCreate(
-                            [
-                                'client_id'         => $client->id,
-                                'emirate'           => $staged->emirate,
-                                'marketing_area_id' => $staged->marketing_area_id,
-                                'project_id'        => $staged->project_id,
-                                'building_id'       => $staged->building_id,
-                                'unit_reference'    => $staged->raw_unit_reference ?: null,
-                                'relationship_type' => $staged->relationship_type ?: 'owner',
-                            ],
-                            [
+                        $matchFields = [
+                            'client_id'         => $client->id,
+                            'emirate'           => $staged->emirate,
+                            'marketing_area_id' => $staged->marketing_area_id,
+                            'project_id'        => $staged->project_id,
+                            'building_id'       => $staged->building_id,
+                            'unit_reference'    => $staged->raw_unit_reference ?: null,
+                            'relationship_type' => $staged->relationship_type ?: 'owner',
+                        ];
+
+                        $existing = Ownership::where($matchFields)->first();
+
+                        if ($existing) {
+                            $sourceNames = $existing->source_names ?? [];
+                            if ($staged->source && ! in_array($staged->source, $sourceNames, true)) {
+                                $sourceNames[] = $staged->source;
+                            }
+
+                            $existing->fill([
                                 'official_area_id' => $staged->official_area_id,
-                                'confidence_level' => $staged->confidence_level,
-                                'source'           => $staged->source,
-                            ],
-                        );
+                                'confidence_level' => Ownership::higherConfidence($existing->confidence_level, $staged->confidence_level),
+                                'last_source_name' => $staged->source,
+                                'source_names'     => $sourceNames,
+                            ])->save();
+                        } else {
+                            Ownership::create(array_merge($matchFields, [
+                                'official_area_id'  => $staged->official_area_id,
+                                'confidence_level'  => $staged->confidence_level,
+                                'last_source_name'  => $staged->source,
+                                'source_names'      => $staged->source ? [$staged->source] : [],
+                                'first_confirmed_at' => $now,
+                            ]));
+                        }
                     }
 
                     $sourceRows[] = [
