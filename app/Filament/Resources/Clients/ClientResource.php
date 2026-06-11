@@ -59,7 +59,8 @@ class ClientResource extends Resource
             RelationManagers\OwnershipsRelationManager::class,
             RelationManagers\PhoneNumbersRelationManager::class,
             RelationManagers\EmailsRelationManager::class,
-            RelationManagers\InteractionsRelationManager::class,
+            RelationManagers\SourcesRelationManager::class,
+            RelationManagers\ActivityTimelineRelationManager::class,
         ];
     }
 
