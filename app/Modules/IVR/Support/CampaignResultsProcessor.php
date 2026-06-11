@@ -66,6 +66,9 @@ class CampaignResultsProcessor
             $duplicates = 0;
             $rowNumber = 0;
 
+            // Keyed by phone number ID — deduplicated so each number is refreshed once after import.
+            $affectedPhoneNumbers = [];
+
             while (! $file->eof()) {
                 $row = $file->fgetcsv();
                 $rowNumber++;
@@ -105,7 +108,8 @@ class CampaignResultsProcessor
                     $payload = $this->mapRow($header, $row);
                     // Upsert campaign once on the first row; reuse for all subsequent rows.
                     $campaign ??= $this->upsertCampaign($summary, $payload, $import);
-                    $duplicate = $this->upsertCallRecord($campaign, $payload, $import);
+                    [$duplicate, $phoneNumber] = $this->upsertCallRecord($campaign, $payload, $import);
+                    $affectedPhoneNumbers[$phoneNumber->id] = $phoneNumber;
 
                     $successful++;
                     $duplicates += $duplicate ? 1 : 0;
@@ -135,6 +139,10 @@ class CampaignResultsProcessor
                     ]);
                     $import->broadcastProgress();
                 }
+            }
+
+            foreach ($affectedPhoneNumbers as $phoneNumber) {
+                $this->eligibilityService->refresh($phoneNumber);
             }
 
             $campaignId = $summary['order_number'] ?? null;
@@ -388,9 +396,7 @@ class CampaignResultsProcessor
             $phoneNumber->forceFill(['unsubscribed_at' => $callTime ?: now()])->save();
         }
 
-        $this->eligibilityService->refresh($phoneNumber);
-
-        return $duplicate;
+        return [$duplicate, $phoneNumber];
     }
 
     private function refreshCampaignMetrics(IvrCampaign $campaign): void
