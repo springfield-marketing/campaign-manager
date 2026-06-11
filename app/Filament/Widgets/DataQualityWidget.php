@@ -44,12 +44,13 @@ class DataQualityWidget extends StatsOverviewWidget
             ->distinct('client_id')
             ->count('client_id');
 
-        $multiSource = (int) DB::table('client_sources')
-            ->select('client_id')
-            ->groupBy('client_id')
-            ->havingRaw('count(*) >= 2')
-            ->get()
-            ->count();
+        $multiSource = (int) DB::table(
+            DB::table('client_sources')
+                ->select('client_id')
+                ->groupBy('client_id')
+                ->havingRaw('count(*) >= 2'),
+            'sub'
+        )->count();
 
         $avgCompleteness = (int) DB::table('clients')
             ->whereNotNull('completeness_score')

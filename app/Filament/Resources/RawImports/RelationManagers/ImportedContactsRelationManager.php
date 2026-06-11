@@ -104,7 +104,6 @@ class ImportedContactsRelationManager extends RelationManager
 
                 SelectFilter::make('emirate')
                     ->label('Emirate')
-                    ->relationship('client', 'emirate')
                     ->options([
                         'Dubai'          => 'Dubai',
                         'Abu Dhabi'      => 'Abu Dhabi',
@@ -113,19 +112,29 @@ class ImportedContactsRelationManager extends RelationManager
                         'Ras Al Khaimah' => 'Ras Al Khaimah',
                         'Fujairah'       => 'Fujairah',
                         'Umm Al Quwain'  => 'Umm Al Quwain',
-                    ]),
+                    ])
+                    ->query(fn (Builder $query, array $data): Builder =>
+                        $data['value']
+                            ? $query->whereHas('client', fn (Builder $q) => $q->where('emirate', $data['value']))
+                            : $query
+                    ),
 
                 SelectFilter::make('tier')
                     ->label('Tier')
-                    ->relationship('client', 'tier')
                     ->options([
                         'vip'            => 'VIP',
                         'high_net_worth' => 'High Net Worth',
                         'premium'        => 'Premium',
                         'standard'       => 'Standard',
-                    ]),
+                    ])
+                    ->query(fn (Builder $query, array $data): Builder =>
+                        $data['value']
+                            ? $query->whereHas('client', fn (Builder $q) => $q->where('tier', $data['value']))
+                            : $query
+                    ),
             ])
             ->defaultSort('created_at', 'desc')
+            ->paginated([10, 25, 50])
             ->recordAction(null)
             ->recordUrl(null)
             ->recordActions([])
