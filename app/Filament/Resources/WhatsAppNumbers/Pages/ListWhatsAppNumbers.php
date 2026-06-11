@@ -4,8 +4,10 @@ namespace App\Filament\Resources\WhatsAppNumbers\Pages;
 
 use App\Filament\Resources\WhatsAppNumbers\WhatsAppNumberResource;
 use Filament\Actions\Action;
+use Filament\Forms\Components\TextInput;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 class ListWhatsAppNumbers extends ListRecords
 {
@@ -18,7 +20,16 @@ class ListWhatsAppNumbers extends ListRecords
                 ->label('Export Filtered CSV')
                 ->icon('heroicon-o-arrow-down-tray')
                 ->color('gray')
-                ->action(function (): \Symfony\Component\HttpFoundation\StreamedResponse {
+                ->form([
+                    TextInput::make('limit')
+                        ->label('Number of records to export')
+                        ->placeholder('Leave empty to export all')
+                        ->numeric()
+                        ->minValue(1)
+                        ->helperText('Exports are randomised when a limit is set so you get a varied sample.'),
+                ])
+                ->action(function (array $data): \Symfony\Component\HttpFoundation\StreamedResponse {
+                    $limit = filled($data['limit'] ?? null) ? (int) $data['limit'] : null;
                     $query = WhatsAppNumberResource::getEloquentQuery();
                     $filters = $this->tableFilters ?? [];
 
@@ -54,8 +65,32 @@ class ListWhatsAppNumbers extends ListRecords
                         $query->whereDoesntHave('whatsAppMessages');
                     }
 
+                    $waStatus = $filters['wa_status']['value'] ?? null;
+                    if ($waStatus === 'never_messaged') {
+                        $query->whereDoesntHave('whatsAppProfile');
+                    } elseif (in_array($waStatus, ['active', 'cooldown', 'dead'], true)) {
+                        $query->whereHas('whatsAppProfile', fn ($q) => $q->where('usage_status', $waStatus));
+                    }
+
+                    $lastMessageStatus = $filters['last_message_status']['value'] ?? null;
+                    if (filled($lastMessageStatus)) {
+                        $query->whereHas('whatsAppProfile', fn ($p) =>
+                            $p->whereRaw('upper(last_message_status) = ?', [strtoupper($lastMessageStatus)])
+                        );
+                    }
+
                     $query = self::activeExportQuery($query);
-                    $fileName = 'whatsapp_numbers_' . now()->format('Y-m-d') . '.csv';
+
+                    if ($limit) {
+                        $query = DB::query()
+                            ->fromSub($query->reorder(), 'filtered')
+                            ->select('normalized_phone')
+                            ->inRandomOrder()
+                            ->limit($limit);
+                    }
+
+                    $limitSuffix = $limit ? "_limit{$limit}" : '';
+                    $fileName = 'whatsapp_numbers_' . now()->format('Y-m-d') . $limitSuffix . '.csv';
 
                     return response()->streamDownload(function () use ($query): void {
                         set_time_limit(0);
@@ -71,7 +106,7 @@ class ListWhatsAppNumbers extends ListRecords
                     }, $fileName, ['Content-Type' => 'text/csv']);
                 })
                 ->modalHeading('Export WhatsApp Numbers')
-                ->modalDescription('Exports eligible (active or never messaged, not suppressed) numbers matching the current location filters.'),
+                ->modalDescription('Exports eligible (active or never messaged, not suppressed) numbers matching the current filters. Optionally cap the export to a specific count — a random sample will be taken.'),
         ];
     }
 

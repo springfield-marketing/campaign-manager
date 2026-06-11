@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\WhatsAppNumbers\Tables;
 
 use App\Filament\Filters\PhoneSearchFilter;
+use App\Filament\Resources\Clients\ClientResource;
 use App\Models\ClientPhoneNumber;
 use App\Models\ContactSuppression;
 use App\Models\MarketingArea;
@@ -28,7 +29,9 @@ class WhatsAppNumbersTable
                 TextColumn::make('normalized_phone')
                     ->label('Phone')
                     ->searchable()
-                    ->copyable(),
+                    ->url(fn (ClientPhoneNumber $record): ?string => $record->client_id
+                        ? ClientResource::getUrl('edit', ['record' => $record->client_id])
+                        : null),
 
                 TextColumn::make('client.full_name')
                     ->label('Contact')
@@ -137,7 +140,15 @@ class WhatsAppNumbersTable
                     ])
                     ->query(fn (Builder $query, array $data): Builder => match ($data['value'] ?? null) {
                         'never_messaged' => $query->whereDoesntHave('whatsAppProfile'),
-                        'active'         => $query->whereHas('whatsAppProfile', fn ($q) => $q->where('usage_status', 'active')),
+                        'active'         => $query
+                            ->whereHas('whatsAppProfile', fn ($q) => $q->where('usage_status', 'active'))
+                            ->whereNotExists(fn ($q) => $q
+                                ->selectRaw('1')
+                                ->from('contact_suppressions')
+                                ->whereColumn('contact_suppressions.client_phone_number_id', 'client_phone_numbers.id')
+                                ->where('contact_suppressions.channel', 'whatsapp')
+                                ->whereNull('contact_suppressions.released_at')
+                            ),
                         'cooldown'       => $query->whereHas('whatsAppProfile', fn ($q) => $q->where('usage_status', 'cooldown')),
                         'dead'           => $query->whereHas('whatsAppProfile', fn ($q) => $q->where('usage_status', 'dead')),
                         'unsubscribed'   => $query->whereExists(fn ($q) => $q
