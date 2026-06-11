@@ -76,6 +76,8 @@ class WhatsAppMessagesRelationManager extends RelationManager
                         'READ'      => 'Read',
                         'REPLIED'   => 'Replied',
                         'FAILED'    => 'Failed',
+                        'STOPPED'   => 'Stopped',
+                        'PENDING'   => 'Pending',
                     ]),
             ])
             ->recordActions([])

@@ -145,6 +145,7 @@ class WhatsAppRawImportProcessor
 
             if ($affectedClientIds !== []) {
                 RecomputeClientScoresJob::dispatch($affectedClientIds)->onQueue('analysis');
+                Client::recalculateOriginalSourceForIds($affectedClientIds);
             }
 
             Log::channel('whatsapp')->info('Completed WhatsApp raw import.', ['import_id' => $import->id]);

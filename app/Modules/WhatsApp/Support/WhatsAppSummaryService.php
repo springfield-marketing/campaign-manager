@@ -22,24 +22,26 @@ class WhatsAppSummaryService
             ->selectRaw("sum(case when delivery_status = 'READ'      then 1 else 0 end) as read_count")
             ->selectRaw("sum(case when delivery_status = 'REPLIED'   then 1 else 0 end) as replied_count")
             ->selectRaw("sum(case when delivery_status = 'FAILED'    then 1 else 0 end) as failed_count")
+            ->selectRaw("sum(case when delivery_status = 'STOPPED'   then 1 else 0 end) as unsubscribed_count")
             ->first();
 
         DB::table('whatsapp_monthly_summaries')->upsert(
             [
-                'year'            => $year,
-                'month'           => $month,
-                'total_messages'  => (int) ($aggregate->total_messages ?? 0),
-                'sent_count'      => (int) ($aggregate->sent_count ?? 0),
-                'delivered_count' => (int) ($aggregate->delivered_count ?? 0),
-                'read_count'      => (int) ($aggregate->read_count ?? 0),
-                'replied_count'   => (int) ($aggregate->replied_count ?? 0),
-                'failed_count'    => (int) ($aggregate->failed_count ?? 0),
-                'computed_at'     => now(),
-                'created_at'      => now(),
-                'updated_at'      => now(),
+                'year'               => $year,
+                'month'              => $month,
+                'total_messages'     => (int) ($aggregate->total_messages ?? 0),
+                'sent_count'         => (int) ($aggregate->sent_count ?? 0),
+                'delivered_count'    => (int) ($aggregate->delivered_count ?? 0),
+                'read_count'         => (int) ($aggregate->read_count ?? 0),
+                'replied_count'      => (int) ($aggregate->replied_count ?? 0),
+                'failed_count'       => (int) ($aggregate->failed_count ?? 0),
+                'unsubscribed_count' => (int) ($aggregate->unsubscribed_count ?? 0),
+                'computed_at'        => now(),
+                'created_at'         => now(),
+                'updated_at'         => now(),
             ],
             ['year', 'month'],
-            ['total_messages', 'sent_count', 'delivered_count', 'read_count', 'replied_count', 'failed_count', 'computed_at', 'updated_at'],
+            ['total_messages', 'sent_count', 'delivered_count', 'read_count', 'replied_count', 'failed_count', 'unsubscribed_count', 'computed_at', 'updated_at'],
         );
     }
 

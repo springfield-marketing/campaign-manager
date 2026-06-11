@@ -142,26 +142,40 @@ class WhatsAppNumberAnalyser
 
         // Permanent opt-out → ContactSuppression (like an unsubscribe)
         if ($hasOptOut) {
-            ContactSuppression::firstOrCreate(
-                [
+            $hasActive = ContactSuppression::where('client_phone_number_id', $phoneNumberId)
+                ->where('channel', 'whatsapp')
+                ->where('reason', 'opted_out')
+                ->whereNull('released_at')
+                ->exists();
+
+            if (! $hasActive) {
+                ContactSuppression::create([
                     'client_phone_number_id' => $phoneNumberId,
                     'channel'                => 'whatsapp',
                     'reason'                 => 'opted_out',
-                ],
-                ['context' => [], 'suppressed_at' => now()],
-            );
+                    'context'                => [],
+                    'suppressed_at'          => now(),
+                ]);
+            }
         }
 
         // Spam → suppress immediately
         if ($isSpam) {
-            ContactSuppression::firstOrCreate(
-                [
+            $hasActive = ContactSuppression::where('client_phone_number_id', $phoneNumberId)
+                ->where('channel', 'whatsapp')
+                ->where('reason', 'reported_spam')
+                ->whereNull('released_at')
+                ->exists();
+
+            if (! $hasActive) {
+                ContactSuppression::create([
                     'client_phone_number_id' => $phoneNumberId,
                     'channel'                => 'whatsapp',
                     'reason'                 => 'reported_spam',
-                ],
-                ['context' => [], 'suppressed_at' => now()],
-            );
+                    'context'                => [],
+                    'suppressed_at'          => now(),
+                ]);
+            }
         }
 
         // Dead numbers cannot be leads
