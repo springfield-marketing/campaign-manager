@@ -369,17 +369,21 @@ class CampaignResultsProcessor
         }
 
         if ($dtmfOutcome === 'unsubscribe') {
-            ContactSuppression::query()->firstOrCreate(
-                [
+            $hasActive = ContactSuppression::where('client_phone_number_id', $phoneNumber->id)
+                ->where('channel', 'ivr')
+                ->where('reason', 'customer_unsubscribed')
+                ->whereNull('released_at')
+                ->exists();
+
+            if (! $hasActive) {
+                ContactSuppression::create([
                     'client_phone_number_id' => $phoneNumber->id,
-                    'channel' => 'ivr',
-                    'reason' => 'customer_unsubscribed',
-                ],
-                [
-                    'context' => ['campaign_id' => $campaign->external_campaign_id],
-                    'suppressed_at' => $callTime ?: now(),
-                ],
-            );
+                    'channel'                => 'ivr',
+                    'reason'                 => 'customer_unsubscribed',
+                    'context'                => ['campaign_id' => $campaign->external_campaign_id],
+                    'suppressed_at'          => $callTime ?: now(),
+                ]);
+            }
 
             $phoneNumber->forceFill(['unsubscribed_at' => $callTime ?: now()])->save();
         }
