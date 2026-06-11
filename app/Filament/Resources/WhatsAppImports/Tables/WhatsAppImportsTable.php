@@ -119,7 +119,7 @@ class WhatsAppImportsTable
                             ->maxLength(255),
                     ])
                     ->action(function (array $data): void {
-                        $originalName  = $data['file'];
+                        $originalName  = basename($data['file']);
                         $tmpRelative   = 'whatsapp/imports/campaign-results/tmp/' . $originalName;
                         $finalRelative = 'whatsapp/imports/campaign-results/' . $originalName;
 
