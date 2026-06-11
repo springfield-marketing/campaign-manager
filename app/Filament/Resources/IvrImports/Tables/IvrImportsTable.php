@@ -150,7 +150,7 @@ class IvrImportsTable
                         ]);
 
                         $import->broadcastProgress();
-                        ProcessIvrCampaignResultsImport::dispatch($import->id)->onQueue('imports');
+                        ProcessIvrCampaignResultsImport::dispatch($import->id)->onQueue('imports-high');
 
                         Notification::make()->title('Campaign results import queued — status will update automatically')->success()->send();
                     })
@@ -249,9 +249,9 @@ class IvrImportsTable
                             'completed_at'    => null,
                         ]);
                         match ($record->type) {
-                            'campaign_results' => ProcessIvrCampaignResultsImport::dispatch($record->id)->onQueue('imports'),
-                            'unsubscribers'    => ProcessUnsubscriberImport::dispatch($record->id)->onQueue('imports'),
-                            default            => ProcessIvrCampaignResultsImport::dispatch($record->id)->onQueue('imports'),
+                            'campaign_results' => ProcessIvrCampaignResultsImport::dispatch($record->id)->onQueue('imports-high'),
+                            'unsubscribers'    => ProcessUnsubscriberImport::dispatch($record->id)->onQueue('imports-high'),
+                            default            => ProcessIvrCampaignResultsImport::dispatch($record->id)->onQueue('imports-high'),
                         };
                         Notification::make()->title('Re-queued — watch status update below')->warning()->send();
                     }),

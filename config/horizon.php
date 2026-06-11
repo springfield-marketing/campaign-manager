@@ -203,14 +203,14 @@ return [
     'defaults' => [
         'supervisor-imports' => [
             'connection'          => 'redis',
-            'queue'               => ['imports'],
+            'queue'               => ['imports-high', 'imports'],
             'balance'             => 'simple',
             'maxProcesses'        => 2,
             'maxTime'             => 0,
             'maxJobs'             => 0,
-            'memory'              => 256,
+            'memory'              => 512,
             'tries'               => 5,
-            'timeout'             => 1800,
+            'timeout'             => 7500,
             'nice'                => 0,
         ],
         'supervisor-analysis' => [
