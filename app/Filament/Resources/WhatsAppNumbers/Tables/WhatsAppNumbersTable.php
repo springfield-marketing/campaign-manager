@@ -64,11 +64,23 @@ class WhatsAppNumbersTable
                 TextColumn::make('wa_status')
                     ->label('WA Status')
                     ->badge()
-                    ->getStateUsing(fn (ClientPhoneNumber $record): string =>
-                        (bool) $record->is_whatsapp_suppressed
-                            ? 'unsubscribed'
-                            : ($record->whatsAppProfile?->usage_status ?? 'never_messaged')
-                    )
+                    ->getStateUsing(function (ClientPhoneNumber $record): string {
+                        if ((bool) $record->is_whatsapp_suppressed) {
+                            return 'unsubscribed';
+                        }
+                        $profile = $record->whatsAppProfile;
+                        if ($profile === null) {
+                            return 'never_messaged';
+                        }
+                        if (
+                            $profile->usage_status === 'cooldown'
+                            && $profile->cooldown_until !== null
+                            && \Carbon\Carbon::parse($profile->cooldown_until)->isPast()
+                        ) {
+                            return 'active';
+                        }
+                        return $profile->usage_status;
+                    })
                     ->color(fn (string $state): string => match ($state) {
                         'active'         => 'success',
                         'cooldown'       => 'warning',
@@ -141,7 +153,16 @@ class WhatsAppNumbersTable
                     ->query(fn (Builder $query, array $data): Builder => match ($data['value'] ?? null) {
                         'never_messaged' => $query->whereDoesntHave('whatsAppProfile'),
                         'active'         => $query
-                            ->whereHas('whatsAppProfile', fn ($q) => $q->where('usage_status', 'active'))
+                            ->whereHas('whatsAppProfile', fn ($q) => $q->where(fn ($q2) =>
+                                $q2->where('usage_status', 'active')
+                                   ->orWhere(fn ($q3) => $q3
+                                       ->where('usage_status', 'cooldown')
+                                       ->where(fn ($q4) => $q4
+                                           ->whereNull('cooldown_until')
+                                           ->orWhereRaw('cooldown_until <= NOW()')
+                                       )
+                                   )
+                            ))
                             ->whereNotExists(fn ($q) => $q
                                 ->selectRaw('1')
                                 ->from('contact_suppressions')
@@ -149,7 +170,11 @@ class WhatsAppNumbersTable
                                 ->where('contact_suppressions.channel', 'whatsapp')
                                 ->whereNull('contact_suppressions.released_at')
                             ),
-                        'cooldown'       => $query->whereHas('whatsAppProfile', fn ($q) => $q->where('usage_status', 'cooldown')),
+                        'cooldown'       => $query->whereHas('whatsAppProfile', fn ($q) => $q
+                            ->where('usage_status', 'cooldown')
+                            ->whereNotNull('cooldown_until')
+                            ->whereRaw('cooldown_until > NOW()')
+                        ),
                         'dead'           => $query->whereHas('whatsAppProfile', fn ($q) => $q->where('usage_status', 'dead')),
                         'unsubscribed'   => $query->whereExists(fn ($q) => $q
                             ->selectRaw('1')

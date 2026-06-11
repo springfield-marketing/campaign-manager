@@ -22,7 +22,10 @@ class WhatsAppNumberStatsWidget extends StatsOverviewWidget
                     WHEN EXISTS (
                         SELECT 1 FROM whatsapp_phone_profiles wpp
                         WHERE wpp.client_phone_number_id = client_phone_numbers.id
-                          AND wpp.usage_status = 'active'
+                          AND (
+                              wpp.usage_status = 'active'
+                              OR (wpp.usage_status = 'cooldown' AND (wpp.cooldown_until IS NULL OR wpp.cooldown_until <= NOW()))
+                          )
                     )
                     AND NOT EXISTS (
                         SELECT 1 FROM contact_suppressions cs
@@ -38,6 +41,8 @@ class WhatsAppNumberStatsWidget extends StatsOverviewWidget
                         SELECT 1 FROM whatsapp_phone_profiles wpp
                         WHERE wpp.client_phone_number_id = client_phone_numbers.id
                           AND wpp.usage_status = 'cooldown'
+                          AND wpp.cooldown_until IS NOT NULL
+                          AND wpp.cooldown_until > NOW()
                     )
                     THEN 1 ELSE 0 END
                 ) AS cooldown,
