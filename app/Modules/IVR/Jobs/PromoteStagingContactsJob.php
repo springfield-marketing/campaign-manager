@@ -2,6 +2,7 @@
 
 namespace App\Modules\IVR\Jobs;
 
+use App\Jobs\RecomputeClientScoresJob;
 use App\Models\Client;
 use App\Models\ClientSource;
 use App\Models\ImportStaging;
@@ -33,14 +34,15 @@ class PromoteStagingContactsJob implements ShouldQueue
 
         $total = $query->count();
         $promoted = 0;
+        $promotedClientIds = [];
 
         Log::channel('ivr')->info('Starting staging promotion.', [
             'batch_id' => $this->batchId,
             'total' => $total,
         ]);
 
-        $query->orderBy('id')->chunk(self::CHUNK_SIZE, function ($rows) use (&$promoted): void {
-            DB::transaction(function () use ($rows, &$promoted): void {
+        $query->orderBy('id')->chunk(self::CHUNK_SIZE, function ($rows) use (&$promoted, &$promotedClientIds): void {
+            DB::transaction(function () use ($rows, &$promoted, &$promotedClientIds): void {
                 $sourceRows = [];
                 $now = now()->toDateTimeString();
 
@@ -94,6 +96,7 @@ class PromoteStagingContactsJob implements ShouldQueue
                     ];
 
                     $staged->update(['status' => ImportStaging::STATUS_MATCHED]);
+                    $promotedClientIds[] = $client->id;
                     $promoted++;
                 }
 
@@ -102,6 +105,10 @@ class PromoteStagingContactsJob implements ShouldQueue
                 }
             });
         });
+
+        if ($promotedClientIds !== []) {
+            RecomputeClientScoresJob::dispatch(array_unique($promotedClientIds))->onQueue('analysis');
+        }
 
         Log::channel('ivr')->info('Staging promotion complete.', [
             'batch_id' => $this->batchId,

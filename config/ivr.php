@@ -7,8 +7,7 @@ return [
     ],
 
     'eligibility' => [
-        'inactive_after_uses' => 3,
-        'dead_after_uses' => 5,
+        'inactive_after_consecutive_no_answers' => 5,
     ],
 
     'raw_import' => [
@@ -30,6 +29,7 @@ return [
             'relationship_type'    => ['relationship type', 'relationship_type', 'relationship'],
             'confidence_level'     => ['confidence level', 'confidence_level', 'confidence'],
             'source'               => ['source file', 'source', 'source name'],
+            'tier'                 => ['tier', 'client tier', 'wealth tier', 'segment'],
         ],
     ],
 

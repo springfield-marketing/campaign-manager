@@ -2,6 +2,7 @@
 
 namespace App\Modules\IVR\Support;
 
+use App\Jobs\RecomputeClientScoresJob;
 use App\Models\Client;
 use App\Models\ClientEmail;
 use App\Models\ClientPhoneNumber;
@@ -223,6 +224,19 @@ class RawImportProcessor
                 ],
             ]);
             $import->broadcastProgress();
+
+            // Rescore all clients touched by this import
+            $affectedClientIds = DB::table('client_sources')
+                ->where('source_reference', (string) $import->id)
+                ->where('channel', 'ivr')
+                ->where('source_type', 'raw_import')
+                ->pluck('client_id')
+                ->unique()
+                ->all();
+
+            if ($affectedClientIds !== []) {
+                RecomputeClientScoresJob::dispatch($affectedClientIds)->onQueue('analysis');
+            }
 
             Log::channel('ivr')->info('Completed raw IVR import.', ['import_id' => $import->id]);
         } catch (Throwable $throwable) {
@@ -525,6 +539,7 @@ class RawImportProcessor
                 'country_iso' => $this->normalizeCountryIso($item['payload']['country_iso'] ?? null),
                 'nationality' => $this->blankToNull($item['payload']['nationality'] ?? null),
                 'gender' => $this->blankToNull($item['payload']['gender'] ?? null),
+                'tier' => $this->normalizeTier($item['payload']['tier'] ?? null),
             ];
         }
 
@@ -540,6 +555,7 @@ class RawImportProcessor
                     'country_iso' => $row['country_iso'],
                     'nationality' => $row['nationality'],
                     'gender' => $row['gender'],
+                    'tier' => $row['tier'] ?? null,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ], array_values($missing));
@@ -1060,6 +1076,14 @@ class RawImportProcessor
         }
 
         return $normalized;
+    }
+
+    private function normalizeTier(?string $value): ?string
+    {
+        $v = strtolower(trim((string) $value));
+        $v = str_replace([' ', '-'], '_', $v);
+
+        return in_array($v, ['standard', 'premium', 'high_net_worth', 'vip'], true) ? $v : null;
     }
 
     private function blankToNull(?string $value): ?string

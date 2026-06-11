@@ -51,6 +51,38 @@ class ClientsTable
                     ->counts('ownerships')
                     ->sortable(),
 
+                TextColumn::make('tier')
+                    ->label('Tier')
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state) => match ($state) {
+                        'vip'            => 'VIP',
+                        'high_net_worth' => 'High Net Worth',
+                        'premium'        => 'Premium',
+                        'standard'       => 'Standard',
+                        default          => '—',
+                    })
+                    ->color(fn (?string $state) => match ($state) {
+                        'vip'            => 'warning',
+                        'high_net_worth' => 'success',
+                        'premium'        => 'info',
+                        'standard'       => 'gray',
+                        default          => 'gray',
+                    })
+                    ->sortable()
+                    ->placeholder('—'),
+
+                TextColumn::make('completeness_score')
+                    ->label('Completeness')
+                    ->formatStateUsing(fn (?int $state) => $state !== null ? $state . '%' : '—')
+                    ->sortable()
+                    ->color(fn (?int $state) => match (true) {
+                        $state === null  => 'gray',
+                        $state >= 75     => 'success',
+                        $state >= 50     => 'warning',
+                        default          => 'danger',
+                    })
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 TextColumn::make('tags.name')
                     ->label('Tags')
                     ->badge()
@@ -79,13 +111,22 @@ class ClientsTable
                             ->all()
                     ),
 
+                SelectFilter::make('tier')
+                    ->options([
+                        'vip'            => 'VIP',
+                        'high_net_worth' => 'High Net Worth',
+                        'premium'        => 'Premium',
+                        'standard'       => 'Standard',
+                    ])
+                    ->placeholder('All tiers'),
+
                 Filter::make('has_phone')
                     ->label('Has Phone Number')
-                    ->query(fn (Builder $q) => $q->whereHas('phoneNumbers')),
+                    ->query(fn (Builder $query) => $query->whereHas('phoneNumbers')),
 
                 Filter::make('has_ownership')
                     ->label('Has Property')
-                    ->query(fn (Builder $q) => $q->whereHas('ownerships')),
+                    ->query(fn (Builder $query) => $query->whereHas('ownerships')),
 
                 Filter::make('phone_search')
                     ->label('Search by Phone')
@@ -94,8 +135,8 @@ class ClientsTable
                             ->label('Phone number')
                             ->placeholder('+971501234567'),
                     ])
-                    ->query(fn (Builder $q, array $data) =>
-                        $q->when(
+                    ->query(fn (Builder $query, array $data) =>
+                        $query->when(
                             filled($data['phone'] ?? null),
                             fn ($q) => $q->whereHas('phoneNumbers', fn ($q2) =>
                                 $q2->where('normalized_phone', 'like', '%'.ltrim($data['phone'], '+').'%')

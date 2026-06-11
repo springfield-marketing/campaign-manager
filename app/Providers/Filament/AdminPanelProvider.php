@@ -7,6 +7,8 @@ use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Navigation\NavigationGroup;
+use App\Filament\Widgets\ContactTierWidget;
+use App\Filament\Widgets\DataQualityWidget;
 use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
@@ -50,6 +52,8 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->widgets([
                 AccountWidget::class,
+                DataQualityWidget::class,
+                ContactTierWidget::class,
             ])
             ->middleware([
                 EncryptCookies::class,

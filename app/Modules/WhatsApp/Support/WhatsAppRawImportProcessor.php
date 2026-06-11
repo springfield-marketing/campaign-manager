@@ -2,6 +2,7 @@
 
 namespace App\Modules\WhatsApp\Support;
 
+use App\Jobs\RecomputeClientScoresJob;
 use App\Models\Client;
 use App\Models\ClientPhoneNumber;
 use App\Models\ClientSource;
@@ -9,6 +10,7 @@ use App\Modules\WhatsApp\Enums\WhatsAppImportStatus;
 use App\Modules\WhatsApp\Models\WhatsAppImport;
 use App\Support\LocationResolver;
 use App\Support\RawContactImportEnricher;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Laravel\Telescope\Telescope;
 use SplFileObject;
@@ -132,6 +134,18 @@ class WhatsAppRawImportProcessor
                 ],
             ]);
             $import->broadcastProgress();
+
+            $affectedClientIds = DB::table('client_sources')
+                ->where('source_reference', (string) $import->id)
+                ->where('channel', 'whatsapp')
+                ->where('source_type', 'raw_import')
+                ->pluck('client_id')
+                ->unique()
+                ->all();
+
+            if ($affectedClientIds !== []) {
+                RecomputeClientScoresJob::dispatch($affectedClientIds)->onQueue('analysis');
+            }
 
             Log::channel('whatsapp')->info('Completed WhatsApp raw import.', ['import_id' => $import->id]);
         } catch (Throwable $e) {

@@ -19,7 +19,17 @@ class Client extends Model
         'nationality',
         'gender',
         'interest',
+        'tier',
+        'wealth_score',
+        'completeness_score',
         'metadata',
+    ];
+
+    public const TIERS = [
+        'standard'       => 'Standard',
+        'premium'        => 'Premium',
+        'high_net_worth' => 'High Net Worth',
+        'vip'            => 'VIP',
     ];
 
     protected function casts(): array
@@ -96,6 +106,11 @@ class Client extends Model
     public function interactions(): HasMany
     {
         return $this->hasMany(ClientInteraction::class)->latest('created_at');
+    }
+
+    public function activityTimeline(): HasMany
+    {
+        return $this->hasMany(ClientActivity::class)->latest('activity_at');
     }
 
     public function tags(): BelongsToMany
