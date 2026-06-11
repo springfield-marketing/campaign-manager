@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\WhatsAppCampaigns\RelationManagers;
 
+use App\Filament\Resources\Clients\ClientResource;
+use App\Modules\WhatsApp\Models\WhatsAppMessage;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
@@ -26,17 +28,21 @@ class MessagesRelationManager extends RelationManager
                 TextColumn::make('phoneNumber.normalized_phone')
                     ->label('Phone')
                     ->searchable()
-                    ->copyable(),
+                    ->url(fn (WhatsAppMessage $record): ?string => $record->phoneNumber?->client_id
+                        ? ClientResource::getUrl('edit', ['record' => $record->phoneNumber->client_id])
+                        : null),
 
                 TextColumn::make('delivery_status')
                     ->label('Status')
                     ->badge()
-                    ->color(fn (?string $state) => match($state) {
-                        'delivered', 'read' => 'success',
-                        'sent'              => 'info',
-                        'failed'            => 'danger',
-                        default             => 'gray',
+                    ->color(fn (?string $state) => match(strtolower((string) $state)) {
+                        'delivered', 'read', 'replied' => 'success',
+                        'sent'                         => 'info',
+                        'failed'                       => 'danger',
+                        'pending'                      => 'warning',
+                        default                        => 'gray',
                     })
+                    ->formatStateUsing(fn (?string $state) => $state ? ucfirst(strtolower($state)) : '—')
                     ->placeholder('—'),
 
                 IconColumn::make('clicked')
@@ -63,10 +69,13 @@ class MessagesRelationManager extends RelationManager
                 SelectFilter::make('delivery_status')
                     ->label('Status')
                     ->options([
-                        'sent'      => 'Sent',
-                        'delivered' => 'Delivered',
-                        'read'      => 'Read',
-                        'failed'    => 'Failed',
+                        'PENDING'   => 'Pending',
+                        'SENT'      => 'Sent',
+                        'DELIVERED' => 'Delivered',
+                        'READ'      => 'Read',
+                        'REPLIED'   => 'Replied',
+                        'FAILED'    => 'Failed',
+                        'STOPPED'   => 'Stopped',
                     ]),
             ])
             ->defaultSort('scheduled_at', 'desc')
