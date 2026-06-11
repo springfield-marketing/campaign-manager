@@ -111,7 +111,20 @@ class IvrReportsPage extends Page implements HasForms, HasTable
         $underRate  = (float) $settings->price_per_minute_under;
         $overRate   = (float) $settings->price_per_minute_over;
         $quota      = $settings->monthly_minutes_quota;
+
+        // Sum minutes_consumed from the pre-aggregated monthly summaries.
+        // For a single month this is one row; for whole-year ($month=null) it sums all months in the year.
+        // Falls back to under-rate if no summary exists yet (0 minutes).
+        $totalMinutes = (int) DB::table('ivr_monthly_summaries')
+            ->where('year', $year)
+            ->when($month !== null, fn ($q) => $q->where('month', $month))
+            ->sum('minutes_consumed');
+
         $blendedRate = $underRate;
+        if ($totalMinutes > 0) {
+            $totalCost   = min($totalMinutes, $quota) * $underRate + max(0, $totalMinutes - $quota) * $overRate;
+            $blendedRate = $totalCost / $totalMinutes;
+        }
 
         return $table
             ->query(
