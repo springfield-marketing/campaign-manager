@@ -95,11 +95,11 @@ class ClientForm
                             }
 
                             $chips = implode('', array_map(
-                                fn (string $name) => '<span class="inline-flex items-center px-2.5 py-0.5 me-1 mb-1 text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">' . e($name) . '</span>',
+                                fn (string $name) => '<span class="inline-flex items-center px-2.5 py-0.5 text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full">' . e($name) . '</span>',
                                 $names,
                             ));
 
-                            return new HtmlString('<div class="flex flex-wrap">' . $chips . '</div>');
+                            return new HtmlString('<div class="flex flex-wrap gap-2">' . $chips . '</div>');
                         }),
                 ])
                 ->visible(fn (Client $record): bool => ! empty($record->alternate_names)),
