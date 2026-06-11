@@ -86,27 +86,32 @@ class WhatsAppNumberStatsWidget extends StatsOverviewWidget
         return [
             Stat::make('Total WhatsApp Numbers', number_format($total))
                 ->icon('heroicon-o-chat-bubble-left-right')
-                ->description('UAE mobile + non-UAE numbers in contacts'),
+                ->description('UAE mobile + non-UAE numbers in contacts')
+                ->extraAttributes(['x-tooltip.raw' => 'Every phone number in the system that can potentially receive a WhatsApp message — UAE mobile numbers starting with 5, plus all international numbers.']),
 
             Stat::make('Active', number_format($active))
                 ->icon('heroicon-o-check-circle')
                 ->color('success')
-                ->description($activeRate),
+                ->description($activeRate)
+                ->extraAttributes(['x-tooltip.raw' => 'Numbers that have been messaged before and are ready to receive another message. Does not include anyone who has unsubscribed.']),
 
             Stat::make('Cooldown', number_format((int) $counts->cooldown))
                 ->icon('heroicon-o-clock')
                 ->color('warning')
-                ->description('Temporarily held back'),
+                ->description('Temporarily held back')
+                ->extraAttributes(['x-tooltip.raw' => 'Numbers that were messaged recently and are on a short break before they can be contacted again.']),
 
             Stat::make('Never Messaged', number_format((int) $counts->never_messaged))
                 ->icon('heroicon-o-envelope')
                 ->color('gray')
-                ->description('No campaign history'),
+                ->description('No campaign history')
+                ->extraAttributes(['x-tooltip.raw' => 'Numbers that exist in contacts but have never appeared in any WhatsApp campaign. Fresh numbers with no messaging history.']),
 
             Stat::make('Unsubscribed', number_format((int) $counts->unsubscribed))
                 ->icon('heroicon-o-no-symbol')
                 ->color('danger')
-                ->description('Opted out of WhatsApp'),
+                ->description('Opted out of WhatsApp')
+                ->extraAttributes(['x-tooltip.raw' => 'Numbers that have opted out or been manually suppressed. These are never included in exports and will not be contacted.']),
         ];
     }
 }
