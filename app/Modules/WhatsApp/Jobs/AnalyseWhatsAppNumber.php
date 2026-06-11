@@ -2,7 +2,7 @@
 
 namespace App\Modules\WhatsApp\Jobs;
 
-use App\Modules\WhatsApp\Support\WhatsAppNumberAnalyser;
+use App\Modules\WhatsApp\Support\WhatsAppBatchProfileUpdater;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
@@ -14,8 +14,8 @@ class AnalyseWhatsAppNumber implements ShouldQueue
 
     public function __construct(public readonly int $phoneNumberId) {}
 
-    public function handle(WhatsAppNumberAnalyser $analyser): void
+    public function handle(WhatsAppBatchProfileUpdater $updater): void
     {
-        $analyser->analyse($this->phoneNumberId);
+        $updater->run([$this->phoneNumberId]);
     }
 }

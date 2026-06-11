@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Modules\WhatsApp\Support\WhatsAppNumberAnalyser;
+use App\Modules\WhatsApp\Support\WhatsAppBatchProfileUpdater;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -13,7 +13,7 @@ class ReanalyseWhatsAppNumbers extends Command
 
     protected $description = 'Re-run the WhatsApp number analyser on all numbers that have messages, rebuilding usage_status, cooldown_until, and consecutive_hard_fail_count.';
 
-    public function handle(WhatsAppNumberAnalyser $analyser): int
+    public function handle(WhatsAppBatchProfileUpdater $updater): int
     {
         $total = DB::table('whatsapp_messages')
             ->whereNotNull('client_phone_number_id')
@@ -26,7 +26,7 @@ class ReanalyseWhatsAppNumbers extends Command
         }
 
         $this->info("Processing {$total} numbers…");
-        $bar  = $this->output->createProgressBar($total);
+        $bar   = $this->output->createProgressBar($total);
         $bar->start();
 
         $chunk  = (int) $this->option('chunk');
@@ -42,11 +42,11 @@ class ReanalyseWhatsAppNumbers extends Command
                 ->limit($chunk)
                 ->pluck('client_phone_number_id');
 
-            foreach ($ids as $id) {
-                $analyser->analyse($id);
-                $bar->advance();
-                $done++;
-                $lastId = $id;
+            if ($ids->isNotEmpty()) {
+                $updater->run($ids->all());
+                $done  += $ids->count();
+                $lastId = $ids->last();
+                $bar->advance($ids->count());
             }
         } while ($ids->count() === $chunk);
 
