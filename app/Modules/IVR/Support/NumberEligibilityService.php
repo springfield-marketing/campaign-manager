@@ -18,18 +18,16 @@ class NumberEligibilityService
 
     public function refresh(ClientPhoneNumber $phoneNumber): void
     {
-        $inactiveAfterUses = (int) config('ivr.eligibility.inactive_after_uses', 3);
-        $deadAfterUses = (int) config('ivr.eligibility.dead_after_uses', 5);
+        $inactiveAfterConsecutiveNoAnswers = (int) config('ivr.eligibility.inactive_after_consecutive_no_answers', 5);
 
-        // One query for last call + recent statuses, one for total count.
+        // One query for the latest calls needed to determine cooldown and no-answer streaks.
         $recentRecords = $phoneNumber->ivrCallRecords()
             ->latest('call_time')
-            ->limit($deadAfterUses)
+            ->limit($inactiveAfterConsecutiveNoAnswers)
             ->get(['call_time', 'call_status', 'dtmf_outcome']);
 
         $lastCall = $recentRecords->first();
         $recentStatuses = $recentRecords->pluck('call_status');
-        $useCount = $phoneNumber->ivrCallRecords()->count();
 
         $cooldownUntil = null;
 
@@ -38,8 +36,6 @@ class NumberEligibilityService
                 ? $lastCall->call_time->copy()->addDays($this->settings->cooldown_answered_days)
                 : $lastCall->call_time->copy()->addDays($this->settings->cooldown_missed_days);
         }
-
-        $isSuppressed = $phoneNumber->unsubscribed_at !== null;
 
         $consecutiveMisses = 0;
         foreach ($recentStatuses as $callStatus) {
@@ -52,9 +48,10 @@ class NumberEligibilityService
 
         $status = 'active';
 
-        if ($isSuppressed || $consecutiveMisses >= $deadAfterUses) {
-            $status = 'dead';
-        } elseif (($cooldownUntil && now()->lt($cooldownUntil)) || $useCount >= $inactiveAfterUses) {
+        if (
+            $consecutiveMisses >= $inactiveAfterConsecutiveNoAnswers
+            || ($cooldownUntil && now()->lt($cooldownUntil))
+        ) {
             $status = 'inactive';
         }
 
