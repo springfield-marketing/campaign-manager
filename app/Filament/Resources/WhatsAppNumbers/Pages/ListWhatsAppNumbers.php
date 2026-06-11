@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\WhatsAppNumbers\Pages;
 
 use App\Filament\Resources\WhatsAppNumbers\WhatsAppNumberResource;
+use App\Filament\Widgets\WhatsAppNumberStatsWidget;
 use Filament\Actions\Action;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Pages\ListRecords;
@@ -12,6 +13,18 @@ use Illuminate\Support\Facades\DB;
 class ListWhatsAppNumbers extends ListRecords
 {
     protected static string $resource = WhatsAppNumberResource::class;
+
+    protected function getHeaderWidgets(): array
+    {
+        return [
+            WhatsAppNumberStatsWidget::class,
+        ];
+    }
+
+    public function getHeaderWidgetsColumns(): int|array
+    {
+        return 1;
+    }
 
     protected function getHeaderActions(): array
     {
