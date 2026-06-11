@@ -2,6 +2,7 @@
 
 namespace App\Filament\Widgets;
 
+use App\Filament\Resources\RawImports\RawImportResource;
 use App\Modules\IVR\Enums\IvrImportStatus;
 use App\Modules\IVR\Enums\IvrImportType;
 use App\Modules\IVR\Jobs\ProcessRawIvrImport;
@@ -149,23 +150,9 @@ class RawContactImportProgressWidget extends TableWidget
                     ->label('Details')
                     ->icon('heroicon-o-document-magnifying-glass')
                     ->color('gray')
-                    ->modalHeading(fn (IvrImport $r) => $r->original_file_name)
-                    ->modalWidth('3xl')
-                    ->modalSubmitAction(false)
-                    ->modalCancelActionLabel('Close')
-                    ->form(fn (IvrImport $record) => [
-                        \Filament\Forms\Components\Placeholder::make('summary')
-                            ->label('Summary')
-                            ->content(fn () => self::summaryHtml($record))
-                            ->columnSpanFull(),
-
-                        \Filament\Forms\Components\Placeholder::make('row_errors')
-                            ->label('Row Errors')
-                            ->content(fn () => self::rowErrorsHtml($record))
-                            ->columnSpanFull()
-                            ->visible(fn () => $record->errors()->exists()),
-                    ])
-                    ->action(fn () => null),
+                    ->url(fn (IvrImport $record): string =>
+                        RawImportResource::getUrl('view', ['record' => $record])
+                    ),
             ])
             ->toolbarActions([])
             ->paginated(false);

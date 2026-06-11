@@ -2,6 +2,7 @@
 
 namespace App\Modules\IVR\Models;
 
+use App\Models\ClientSource;
 use App\Models\Tag;
 use App\Models\User;
 use App\Modules\IVR\Enums\IvrImportStatus;
@@ -69,6 +70,13 @@ class IvrImport extends Model
     public function callRecords(): HasMany
     {
         return $this->hasMany(IvrCallRecord::class);
+    }
+
+    /** All ClientSource rows written by this raw import. */
+    public function rawImportSources(): HasMany
+    {
+        return $this->hasMany(ClientSource::class, 'source_reference', 'id')
+            ->where('source_type', 'raw_import');
     }
 
     public function statusLabel(): string
