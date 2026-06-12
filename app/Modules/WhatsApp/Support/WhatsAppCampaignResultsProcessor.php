@@ -73,6 +73,8 @@ class WhatsAppCampaignResultsProcessor
 
             $now = now()->toDateTimeString();
 
+            $isGupshup = stripos((string) $import->source_name, 'gupshup') !== false;
+
             while (! $file->eof()) {
                 $row = $file->fgetcsv();
                 $rowNumber++;
@@ -89,7 +91,9 @@ class WhatsAppCampaignResultsProcessor
                 $processed++;
 
                 try {
-                    $payload = $this->mapRow($header, $row);
+                    $payload = $isGupshup
+                        ? $this->mapGupshupRow($header, $row)
+                        : $this->mapRow($header, $row);
 
                     // Resolve campaign (cached per name)
                     $campaignName = (string) $payload['CampaignName'];
@@ -391,15 +395,89 @@ class WhatsAppCampaignResultsProcessor
             return null;
         }
 
+        // Wati format: "01/15/2025 09:30"
         try {
             return Carbon::createFromFormat('m/d/Y H:i', $value);
+        } catch (Throwable) {}
+
+        // Gupshup format: "12 Feb 2025 19:09:22 GST" — strip timezone suffix, parse as Gulf time
+        try {
+            $clean = preg_replace('/\s+[A-Z]{2,4}$/', '', trim($value));
+            return Carbon::createFromFormat('d M Y H:i:s', $clean, 'Asia/Dubai');
+        } catch (Throwable) {}
+
+        // Generic fallback
+        try {
+            return Carbon::parse($value);
         } catch (Throwable) {
-            try {
-                return Carbon::parse($value);
-            } catch (Throwable) {
-                return null;
-            }
+            return null;
         }
+    }
+
+    /**
+     * Map a Gupshup CSV row to the canonical internal payload format.
+     *
+     * Gupshup spreads delivery state across three columns (Send Status, Delivery Status,
+     * Read Status). We collapse them into a single Status value matching the Wati vocabulary
+     * so the rest of the processor can run unchanged.
+     *
+     * @param  array<int, string>       $header
+     * @param  array<int, string|null>  $row
+     * @return array<string, string|null>
+     */
+    private function mapGupshupRow(array $header, array $row): array
+    {
+        $mapped = [];
+        foreach ($header as $index => $column) {
+            $mapped[trim((string) $column)] = isset($row[$index]) ? trim((string) $row[$index]) : null;
+        }
+
+        if (empty($mapped['Phone'])) {
+            throw new \RuntimeException('Phone is required.');
+        }
+        if (empty($mapped['Template Name'])) {
+            throw new \RuntimeException('Template Name is required.');
+        }
+
+        // Build a unique, human-readable campaign name from template + short campaign UUID.
+        $campaignId   = (string) ($mapped['Campaign Id'] ?? '');
+        $shortId      = $campaignId !== '' ? ' (' . substr($campaignId, 0, 8) . ')' : '';
+        $campaignName = $mapped['Template Name'] . $shortId;
+
+        return [
+            'PhoneNumber'   => $mapped['Phone'],
+            'CampaignName'  => $campaignName,
+            'ScheduleAt'    => $mapped['Sent Time'] ?? null,
+            'TemplateName'  => $mapped['Template Name'],
+            'Status'        => $this->deriveGupshupStatus($mapped),
+            'Failure reason' => ($mapped['Failed Reason'] ?? '') !== '' ? $mapped['Failed Reason'] : null,
+            'Quick replies'  => null,
+            'Quick reply 1'  => null,
+            'Quick reply 2'  => null,
+            'Quick reply 3'  => null,
+            'Clicked'        => null,
+            'Retried'        => null,
+        ];
+    }
+
+    /**
+     * Collapse Gupshup's three separate status columns into a single delivery status.
+     * Priority: READ > DELIVERED > SENT > FAILED
+     *
+     * @param  array<string, string|null>  $mapped
+     */
+    private function deriveGupshupStatus(array $mapped): string
+    {
+        if (strtoupper((string) ($mapped['Read Status'] ?? '')) === 'READ') {
+            return 'READ';
+        }
+        if (strtoupper((string) ($mapped['Delivery Status'] ?? '')) === 'DELIVERED') {
+            return 'DELIVERED';
+        }
+        if (strtoupper((string) ($mapped['Send Status'] ?? '')) === 'SENT') {
+            return 'SENT';
+        }
+        return 'FAILED';
     }
 
     private function parseBool(?string $value): bool
