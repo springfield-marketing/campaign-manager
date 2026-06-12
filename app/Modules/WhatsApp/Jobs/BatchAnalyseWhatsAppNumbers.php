@@ -36,9 +36,15 @@ class BatchAnalyseWhatsAppNumbers implements ShouldQueue
         $updater->run($this->phoneNumberIds);
 
         if ($this->trackProgress) {
+            $completedAt = now();
+            $duration    = $completedAt->diffInSeconds(
+                WhatsAppSettings::where('lock_key', 'default')->value('reanalysis_started_at')
+            );
+
             WhatsAppSettings::where('lock_key', 'default')->update([
-                'reanalysis_status'       => 'completed',
-                'reanalysis_completed_at' => now(),
+                'reanalysis_status'          => 'completed',
+                'reanalysis_completed_at'    => $completedAt,
+                'last_run_duration_seconds'  => $duration,
             ]);
         }
     }

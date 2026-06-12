@@ -64,11 +64,29 @@ class WhatsAppReanalysisStatusWidget extends StatsOverviewWidget
         }
 
         if ($status === 'running' && $s->reanalysis_started_at) {
-            $elapsed = now()->diffInSeconds($s->reanalysis_started_at);
-            $stats[] = Stat::make('Running for', $this->formatSeconds($elapsed))
-                ->icon('heroicon-o-arrow-path')
-                ->color('warning')
-                ->description('Started ' . $s->reanalysis_started_at->diffForHumans());
+            $elapsed   = now()->diffInSeconds($s->reanalysis_started_at);
+            $estimated = $s->last_run_duration_seconds;
+
+            if ($estimated && $estimated > 0) {
+                $pct       = min(99, (int) round($elapsed / $estimated * 100));
+                $remaining = max(0, $estimated - $elapsed);
+                $bar       = str_repeat('█', (int) round($pct / 10))
+                           . str_repeat('░', 10 - (int) round($pct / 10));
+
+                $stats[] = Stat::make('Progress', $bar . '  ' . $pct . '%')
+                    ->icon('heroicon-o-arrow-path')
+                    ->color('warning')
+                    ->description(
+                        $this->formatSeconds($elapsed) . ' elapsed'
+                        . ' · ~' . $this->formatSeconds($remaining) . ' remaining'
+                        . ' (based on last run: ' . $this->formatSeconds($estimated) . ')'
+                    );
+            } else {
+                $stats[] = Stat::make('Running for', $this->formatSeconds($elapsed))
+                    ->icon('heroicon-o-arrow-path')
+                    ->color('warning')
+                    ->description('No estimate — this is the first run');
+            }
         }
 
         if ($status === 'completed' && $s->reanalysis_started_at && $s->reanalysis_completed_at) {

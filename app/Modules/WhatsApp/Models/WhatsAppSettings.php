@@ -21,6 +21,7 @@ class WhatsAppSettings extends Model
         'reanalysis_status',
         'reanalysis_started_at',
         'reanalysis_completed_at',
+        'last_run_duration_seconds',
     ];
 
     protected function casts(): array
