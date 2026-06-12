@@ -36,27 +36,32 @@ class ContactTierWidget extends StatsOverviewWidget
             Stat::make('VIP', number_format($vip))
                 ->description('Wealth score 75–100')
                 ->color('warning')
-                ->icon('heroicon-o-star'),
+                ->icon('heroicon-o-star')
+                ->extraAttributes(['x-tooltip.raw' => 'Contacts in the top wealth tier with a score of 75–100. These are the highest-value contacts in the database — typically multi-property owners or high-transaction buyers.']),
 
             Stat::make('High Net Worth', number_format($hnw))
                 ->description('Wealth score 50–74')
                 ->color('success')
-                ->icon('heroicon-o-sparkles'),
+                ->icon('heroicon-o-sparkles')
+                ->extraAttributes(['x-tooltip.raw' => 'Contacts with a wealth score of 50–74 — significant buyers or investors, below VIP but still high-priority for premium campaigns.']),
 
             Stat::make('Premium', number_format($prem))
                 ->description('Wealth score 25–49')
                 ->color('info')
-                ->icon('heroicon-o-arrow-trending-up'),
+                ->icon('heroicon-o-arrow-trending-up')
+                ->extraAttributes(['x-tooltip.raw' => 'Contacts with a wealth score of 25–49 — active or past buyers with a solid profile, suitable for most targeted campaigns.']),
 
             Stat::make('Standard', number_format($std))
                 ->description('Wealth score 0–24')
                 ->color('gray')
-                ->icon('heroicon-o-user-group'),
+                ->icon('heroicon-o-user-group')
+                ->extraAttributes(['x-tooltip.raw' => 'Contacts with a wealth score of 0–24 — the broadest segment, typically contacts with limited property history or sparse data.']),
 
             Stat::make('Unclassified', number_format($unset))
                 ->description($scored > 0 ? number_format($scored) . ' have a wealth score' : 'Run rescore to classify')
                 ->color($unset > $total * 0.5 ? 'warning' : 'gray')
-                ->icon('heroicon-o-question-mark-circle'),
+                ->icon('heroicon-o-question-mark-circle')
+                ->extraAttributes(['x-tooltip.raw' => 'Contacts that have not yet been assigned a tier. Run the rescore job to compute wealth scores and move these into the appropriate tier.']),
         ];
     }
 }

@@ -71,31 +71,37 @@ class WhatsAppReportsStatsWidget extends StatsOverviewWidget
         return [
             Stat::make('Total Sent', number_format($total))
                 ->icon('heroicon-o-paper-airplane')
-                ->description($campaigns > 0 ? "{$campaigns} campaign".($campaigns !== 1 ? 's' : '') : null),
+                ->description($campaigns > 0 ? "{$campaigns} campaign".($campaigns !== 1 ? 's' : '') : null)
+                ->extraAttributes(['x-tooltip.raw' => 'Total messages dispatched across all campaigns in the selected period.']),
 
             Stat::make('Delivered', number_format($delivered))
                 ->icon('heroicon-o-check-circle')
                 ->color('success')
-                ->description($deliveryRate),
+                ->description($deliveryRate)
+                ->extraAttributes(['x-tooltip.raw' => 'Messages confirmed as delivered to recipient devices across all campaigns in this period — WhatsApp returned a delivery receipt.']),
 
             Stat::make('Read', number_format($read))
                 ->icon('heroicon-o-eye')
                 ->color('primary')
-                ->description($readRate),
+                ->description($readRate)
+                ->extraAttributes(['x-tooltip.raw' => 'Messages opened by recipients — confirmed by WhatsApp read receipts (double blue tick). Only counts if read receipts are enabled on the recipient\'s account.']),
 
             Stat::make('Replied', number_format($replied))
                 ->icon('heroicon-o-chat-bubble-left-right')
                 ->color('success')
-                ->description($replyRate),
+                ->description($replyRate)
+                ->extraAttributes(['x-tooltip.raw' => 'Recipients who sent a reply back across all campaigns in this period.']),
 
             Stat::make('Failed', number_format($failed))
                 ->icon('heroicon-o-x-circle')
                 ->color($failed > 0 ? 'danger' : 'gray')
-                ->description($failRate),
+                ->description($failRate)
+                ->extraAttributes(['x-tooltip.raw' => 'Messages that could not be delivered — invalid or deleted numbers, accounts that have blocked the sender, or WhatsApp delivery errors.']),
 
             Stat::make('Unsubscribed', number_format($unsubscribed))
                 ->icon('heroicon-o-no-symbol')
-                ->color($unsubscribed > 0 ? 'warning' : 'gray'),
+                ->color($unsubscribed > 0 ? 'warning' : 'gray')
+                ->extraAttributes(['x-tooltip.raw' => 'Recipients who opted out during campaigns in this period. They are added to the suppression list and excluded from future sends.']),
         ];
     }
 }

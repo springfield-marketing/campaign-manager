@@ -42,32 +42,39 @@ class IvrCampaignStatsWidget extends StatsOverviewWidget
 
         return [
             Stat::make('Total Calls', number_format($totalCalls))
-                ->icon('heroicon-o-phone'),
+                ->icon('heroicon-o-phone')
+                ->extraAttributes(['x-tooltip.raw' => 'Total call attempts made for this campaign — includes answered, missed, and any calls that did not connect.']),
 
             Stat::make('Answered', number_format($answeredCalls))
                 ->icon('heroicon-o-check-circle')
                 ->color('success')
-                ->description($answerRate),
+                ->description($answerRate)
+                ->extraAttributes(['x-tooltip.raw' => 'Calls where the recipient picked up. Answer rate is answered ÷ total calls.']),
 
             Stat::make('Missed', number_format((int) $campaign->unanswered_calls))
                 ->icon('heroicon-o-x-circle')
-                ->color('warning'),
+                ->color('warning')
+                ->extraAttributes(['x-tooltip.raw' => 'Calls that were attempted but not answered — the line rang or connected but the recipient did not pick up.']),
 
             Stat::make('Leads', number_format($totalLeads))
                 ->icon('heroicon-o-star')
                 ->color('primary')
-                ->description(number_format((int) $campaign->leads_count).' interested'),
+                ->description(number_format((int) $campaign->leads_count).' interested')
+                ->extraAttributes(['x-tooltip.raw' => 'Combined warm leads — contacts who pressed "Interested" or "More Info" during the IVR prompt. The description shows the Interested-only count.']),
 
             Stat::make('More Info', number_format((int) $campaign->more_info_count))
                 ->icon('heroicon-o-information-circle')
-                ->color('info'),
+                ->color('info')
+                ->extraAttributes(['x-tooltip.raw' => 'Contacts who pressed "More Info" — interested but wanting further details. Also included in the Leads total.']),
 
             Stat::make('Unsubscribed', number_format((int) $campaign->unsubscribed_count))
                 ->icon('heroicon-o-no-symbol')
-                ->color('danger'),
+                ->color('danger')
+                ->extraAttributes(['x-tooltip.raw' => 'Contacts who pressed the opt-out key during this campaign. They are added to the Do Not Call list and will not be called again.']),
 
             Stat::make('Time Consumed', number_format($timeConsumedMinutes).' min')
-                ->icon('heroicon-o-clock'),
+                ->icon('heroicon-o-clock')
+                ->extraAttributes(['x-tooltip.raw' => 'Billable minutes for this campaign — answered calls only, rounded up to the nearest minute with a minimum of 1 minute per answered call.']),
         ];
     }
 }

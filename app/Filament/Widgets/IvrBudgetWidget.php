@@ -46,19 +46,22 @@ class IvrBudgetWidget extends StatsOverviewWidget
 
         return [
             Stat::make('Monthly Quota', number_format($budget['minutes_quota']) . ' min')
-                ->icon('heroicon-o-calendar'),
+                ->icon('heroicon-o-calendar')
+                ->extraAttributes(['x-tooltip.raw' => 'The contracted number of minutes for the selected month. Calls within this limit are billed at the standard rate.']),
 
             Stat::make('Remaining', number_format($budget['minutes_remaining']) . ' min')
                 ->icon('heroicon-o-clock')
                 ->color($overQuota ? 'danger' : 'success')
                 ->description($overQuota
                     ? 'Exceeded by ' . number_format($exceeded) . ' min — over-quota rate applies'
-                    : null),
+                    : null)
+                ->extraAttributes(['x-tooltip.raw' => 'Minutes left in the monthly quota. If this is negative, the quota has been exceeded and the higher over-quota rate is being charged for the excess.']),
 
             Stat::make('Budget / Day', number_format($budget['minutes_per_day']) . ' min/day')
                 ->icon('heroicon-o-chart-bar')
                 ->color($overQuota ? 'danger' : null)
-                ->description($budget['remaining_working_days'] . ' working days left'),
+                ->description($budget['remaining_working_days'] . ' working days left')
+                ->extraAttributes(['x-tooltip.raw' => 'Remaining quota minutes divided by remaining working days (Sunday–Thursday) — the daily target to use up the quota evenly without going over.']),
         ];
     }
 }
