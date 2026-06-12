@@ -4,10 +4,10 @@ namespace App\Filament\Resources\IvrNumbers\RelationManagers;
 
 use App\Models\ContactSuppression;
 use App\Modules\IVR\Support\NumberEligibilityService;
+use App\Support\IvrSuppressionDisplay;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
-use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -15,12 +15,7 @@ use Filament\Tables\Table;
 class SuppressionsRelationManager extends RelationManager
 {
     protected static string $relationship = 'suppressions';
-    protected static ?string $title = 'Suppression History';
-
-    public function form(Schema $schema): Schema
-    {
-        return $schema->components([]);
-    }
+    protected static ?string $title = 'Do Not Call History';
 
     public function table(Table $table): Table
     {
@@ -38,16 +33,28 @@ class SuppressionsRelationManager extends RelationManager
 
                 TextColumn::make('reason')
                     ->label('Reason')
-                    ->formatStateUsing(fn (?string $state) => $state ? ucwords(str_replace('_', ' ', $state)) : '—')
+                    ->badge()
+                    ->color('warning')
+                    ->formatStateUsing(fn (?string $state) => IvrSuppressionDisplay::reasonLabel($state)),
+
+                TextColumn::make('source')
+                    ->label('Source')
+                    ->getStateUsing(fn (ContactSuppression $record): string => IvrSuppressionDisplay::sourceLabel($record))
                     ->placeholder('—'),
 
+                TextColumn::make('details')
+                    ->label('Details')
+                    ->getStateUsing(fn (ContactSuppression $record): string => IvrSuppressionDisplay::detailLabel($record))
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 TextColumn::make('suppressed_at')
-                    ->label('Suppressed At')
+                    ->label('Marked At')
                     ->dateTime('d M Y H:i')
                     ->sortable(),
 
                 TextColumn::make('released_at')
-                    ->label('Released At')
+                    ->label('Callable Again At')
                     ->dateTime('d M Y H:i')
                     ->placeholder('Active')
                     ->sortable(),
@@ -60,19 +67,19 @@ class SuppressionsRelationManager extends RelationManager
             ->defaultSort('suppressed_at', 'desc')
             ->recordActions([
                 Action::make('release')
-                    ->label('Release')
-                    ->icon('heroicon-o-x-circle')
-                    ->color('danger')
+                    ->label('Make Callable')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
                     ->visible(fn (ContactSuppression $record) => $record->released_at === null)
                     ->requiresConfirmation()
+                    ->modalHeading('Make this number callable again?')
                     ->action(function (ContactSuppression $record): void {
-                        $phoneNumber = $record->getRelationValue('') ?? $this->getOwnerRecord();
+                        $phoneNumber = $this->getOwnerRecord();
 
                         $record->forceFill(['released_at' => now()])->save();
 
                         $stillSuppressed = ContactSuppression::where('client_phone_number_id', $phoneNumber->id)
-                            ->whereNull('released_at')
-                            ->where(fn ($q) => $q->whereNull('channel')->orWhere('channel', 'ivr'))
+                            ->activeIvr()
                             ->exists();
 
                         if (! $stillSuppressed) {
@@ -81,7 +88,7 @@ class SuppressionsRelationManager extends RelationManager
 
                         app(NumberEligibilityService::class)->refresh($phoneNumber->refresh());
 
-                        Notification::make()->title('Suppression released.')->success()->send();
+                        Notification::make()->title('Number can be called again')->success()->send();
                     }),
             ])
             ->toolbarActions([]);

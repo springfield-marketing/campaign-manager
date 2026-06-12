@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -31,5 +32,12 @@ class ContactSuppression extends Model
     public function phoneNumber(): BelongsTo
     {
         return $this->belongsTo(ClientPhoneNumber::class, 'client_phone_number_id');
+    }
+
+    public function scopeActiveIvr(Builder $query): Builder
+    {
+        return $query
+            ->whereNull('released_at')
+            ->where(fn (Builder $q) => $q->whereNull('channel')->orWhere('channel', 'ivr'));
     }
 }

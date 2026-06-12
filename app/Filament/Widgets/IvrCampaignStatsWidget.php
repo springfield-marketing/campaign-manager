@@ -5,7 +5,6 @@ namespace App\Filament\Widgets;
 use App\Modules\IVR\Models\IvrCampaign;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
-use Illuminate\Support\Facades\DB;
 
 class IvrCampaignStatsWidget extends StatsOverviewWidget
 {
@@ -23,20 +22,22 @@ class IvrCampaignStatsWidget extends StatsOverviewWidget
             return [];
         }
 
-        $totalCalls = (int) $campaign->total_calls;
+        $totalCalls    = (int) $campaign->total_calls;
         $answeredCalls = (int) $campaign->answered_calls;
-        $totalLeads = (int) $campaign->leads_count + (int) $campaign->more_info_count;
-        $answerRate = $totalCalls > 0
+        $totalLeads    = (int) $campaign->leads_count + (int) $campaign->more_info_count;
+        $answerRate    = $totalCalls > 0
             ? number_format(($answeredCalls / $totalCalls) * 100, 1).'% answer rate'
             : null;
 
-        $driver = DB::connection()->getDriverName();
-        $billableExpr = $driver === 'sqlite'
-            ? "coalesce(sum(case when lower(call_status) <> 'answered' then 0 when total_duration_seconds <= 0 then 0 when total_duration_seconds <= 60 then 1 else cast((total_duration_seconds + 59) / 60 as integer) end), 0)"
-            : "coalesce(sum(case when lower(call_status) <> 'answered' then 0 when total_duration_seconds <= 0 then 0 when total_duration_seconds <= 60 then 1 else ceiling(total_duration_seconds / 60.0) end), 0)";
-
+        // FLOOR((s + 59) / 60) is ceiling-division for positive integers, works on
+        // MySQL and SQLite without driver detection (replaces CEILING() vs cast trick).
         $timeConsumedMinutes = (int) $campaign->callRecords()
-            ->selectRaw($billableExpr.' as billable_minutes')
+            ->selectRaw("coalesce(sum(case
+                when lower(call_status) <> 'answered' then 0
+                when total_duration_seconds <= 0 then 0
+                when total_duration_seconds <= 60 then 1
+                else floor((total_duration_seconds + 59) / 60)
+            end), 0) as billable_minutes")
             ->value('billable_minutes');
 
         return [

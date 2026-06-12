@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\IvrNumbers\Tables;
 
 use App\Filament\Filters\PhoneSearchFilter;
+use App\Filament\Resources\Clients\ClientResource;
 use App\Models\ClientPhoneNumber;
 use App\Models\MarketingArea;
 use App\Models\Tag;
@@ -27,7 +28,9 @@ class IvrNumbersTable
                 TextColumn::make('normalized_phone')
                     ->label('Phone')
                     ->searchable()
-                    ->copyable(),
+                    ->url(fn (ClientPhoneNumber $record): ?string => $record->client_id
+                        ? ClientResource::getUrl('edit', ['record' => $record->client_id])
+                        : null),
 
                 TextColumn::make('client.full_name')
                     ->label('Contact')

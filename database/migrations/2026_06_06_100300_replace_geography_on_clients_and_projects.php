@@ -34,6 +34,7 @@ return new class extends Migration
         Schema::table('projects', function (Blueprint $table): void {
             $table->dropForeign(['community_id']);
             $table->dropIndex(['community_id']);
+            $table->dropIndex(['active']);
             $table->dropColumn('community_id');
             $table->dropColumn('active');
         });
@@ -54,6 +55,12 @@ return new class extends Migration
         });
 
         // ── Restructure clients: drop old geography FKs, add emirate + country_iso ──
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            DB::statement('DROP INDEX IF EXISTS clients_country_id_idx');
+            DB::statement('DROP INDEX IF EXISTS clients_region_id_idx');
+            DB::statement('DROP INDEX IF EXISTS clients_community_id_idx');
+        }
+
         Schema::table('clients', function (Blueprint $table): void {
             $table->dropForeign(['community_id']);
             $table->dropForeign(['region_id']);

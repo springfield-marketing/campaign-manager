@@ -2,7 +2,9 @@
 
 namespace App\Modules\IVR\Enums;
 
-enum IvrImportStatus: string
+use Filament\Support\Contracts\HasLabel;
+
+enum IvrImportStatus: string implements HasLabel
 {
     case Pending = 'pending';
     case Processing = 'processing';
@@ -15,4 +17,9 @@ enum IvrImportStatus: string
     case Reverting = 'reverting';
     case Reverted = 'reverted';
     case RevertFailed = 'revert_failed';
+
+    public function getLabel(): string
+    {
+        return ucwords(str_replace('_', ' ', $this->value));
+    }
 }

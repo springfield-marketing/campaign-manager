@@ -6,12 +6,16 @@ use App\Models\Client;
 use App\Models\ClientPhoneNumber;
 use App\Models\ClientSource;
 use App\Models\User;
+use App\Filament\Resources\IvrCampaigns\Pages\EditIvrCampaign;
+use App\Filament\Resources\IvrCampaigns\RelationManagers\CallRecordsRelationManager;
 use App\Modules\IVR\Jobs\ExportCentralDatabase;
 use App\Modules\IVR\Models\CentralDatabaseExport;
 use App\Modules\IVR\Models\IvrCallRecord;
+use App\Modules\IVR\Models\IvrCampaign;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
@@ -114,4 +118,67 @@ class ModulePagesTest extends TestCase
             ->assertOk()
             ->assertDownload('test.xlsx');
     }
+
+    #[Test]
+    public function filament_ivr_campaign_page_shows_lead_call_records_and_export_action(): void
+    {
+        $user = User::factory()->create();
+
+        $campaign = IvrCampaign::create([
+            'external_campaign_id' => 'campaign-leads',
+            'name' => 'campaign-leads',
+            'total_calls' => 2,
+            'answered_calls' => 2,
+            'leads_count' => 1,
+        ]);
+
+        $client = Client::create(['full_name' => 'Campaign Lead']);
+
+        $number = ClientPhoneNumber::create([
+            'client_id' => $client->id,
+            'raw_phone' => '0500000707',
+            'normalized_phone' => '+971500000707',
+            'is_uae' => true,
+        ]);
+
+        $leadCall = IvrCallRecord::create([
+            'ivr_campaign_id' => $campaign->id,
+            'client_phone_number_id' => $number->id,
+            'external_call_uuid' => 'lead-call',
+            'call_time' => '2026-06-06 12:00:00',
+            'call_status' => 'Answered',
+            'dtmf_outcome' => 'interested',
+            'total_duration_seconds' => 65,
+        ]);
+
+        $nonLeadCall = IvrCallRecord::create([
+            'ivr_campaign_id' => $campaign->id,
+            'client_phone_number_id' => $number->id,
+            'external_call_uuid' => 'non-lead-call',
+            'call_time' => '2026-06-06 13:00:00',
+            'call_status' => 'Answered',
+            'dtmf_outcome' => 'no_input',
+            'total_duration_seconds' => 121,
+        ]);
+
+        $this->actingAs($user);
+
+        $this->get(route('filament.admin.resources.ivr-campaigns.edit', $campaign))
+            ->assertOk()
+            ->assertSee('Total Calls')
+            ->assertSee('Answered')
+            ->assertSee('Time Consumed')
+            ->assertSee('5 min')
+            ->assertDontSee('Credits Used')
+            ->assertDontSee('Call Window');
+
+        Livewire::test(CallRecordsRelationManager::class, [
+            'ownerRecord' => $campaign,
+            'pageClass' => EditIvrCampaign::class,
+        ])
+            ->assertCanSeeTableRecords([$leadCall])
+            ->assertCanNotSeeTableRecords([$nonLeadCall])
+            ->assertTableHeaderActionsExistInOrder(['export_leads']);
+    }
+
 }

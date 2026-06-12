@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Clients\RelationManagers;
 
+use App\Filament\Resources\Clients\ClientResource;
 use App\Filament\Resources\IvrNumbers\IvrNumberResource;
 use App\Models\ClientPhoneNumber;
 use App\Support\IvrSuppressionDisplay;
@@ -46,7 +47,9 @@ class PhoneNumbersRelationManager extends RelationManager
                 TextColumn::make('normalized_phone')
                     ->label('Normalised Phone')
                     ->searchable()
-                    ->copyable(),
+                    ->url(fn (ClientPhoneNumber $record): ?string => $record->client_id
+                        ? ClientResource::getUrl('edit', ['record' => $record->client_id])
+                        : null),
 
                 TextColumn::make('raw_phone')
                     ->label('Raw')

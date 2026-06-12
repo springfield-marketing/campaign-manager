@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\IvrNumbers\RelationManagers;
 
 use Filament\Resources\RelationManagers\RelationManager;
-use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
@@ -11,11 +10,6 @@ class SourcesRelationManager extends RelationManager
 {
     protected static string $relationship = 'sources';
     protected static ?string $title = 'Import Sources';
-
-    public function form(Schema $schema): Schema
-    {
-        return $schema->components([]);
-    }
 
     public function table(Table $table): Table
     {

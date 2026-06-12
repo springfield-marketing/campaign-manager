@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\IvrUnsubscribers\Tables;
 
 use App\Filament\Filters\PhoneSearchFilter;
+use App\Filament\Resources\Clients\ClientResource;
 use App\Models\ClientPhoneNumber;
 use App\Models\ContactSuppression;
 use App\Modules\IVR\Enums\IvrImportStatus;
@@ -35,7 +36,9 @@ class IvrUnsubscribersTable
                 TextColumn::make('phoneNumber.normalized_phone')
                     ->label('Phone')
                     ->searchable()
-                    ->copyable()
+                    ->url(fn (ContactSuppression $record): ?string => $record->phoneNumber?->client_id
+                        ? ClientResource::getUrl('edit', ['record' => $record->phoneNumber->client_id])
+                        : null)
                     ->placeholder('—'),
 
                 TextColumn::make('suppressed_at')

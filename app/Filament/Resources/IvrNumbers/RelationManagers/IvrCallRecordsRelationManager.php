@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\IvrNumbers\RelationManagers;
 
 use Filament\Resources\RelationManagers\RelationManager;
-use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -12,11 +11,6 @@ class IvrCallRecordsRelationManager extends RelationManager
 {
     protected static string $relationship = 'ivrCallRecords';
     protected static ?string $title = 'IVR Call History';
-
-    public function form(Schema $schema): Schema
-    {
-        return $schema->components([]);
-    }
 
     public function table(Table $table): Table
     {

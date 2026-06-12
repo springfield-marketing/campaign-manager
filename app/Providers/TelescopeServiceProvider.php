@@ -18,6 +18,10 @@ class TelescopeServiceProvider extends TelescopeApplicationServiceProvider
         $this->hideSensitiveRequestDetails();
 
         Telescope::filter(function (IncomingEntry $entry) {
+            if ($this->isImportQueueEntry($entry)) {
+                return $entry->isReportableException() || $entry->isFailedJob();
+            }
+
             if ($this->app->environment('local')) {
                 return true;
             }
@@ -30,6 +34,22 @@ class TelescopeServiceProvider extends TelescopeApplicationServiceProvider
                 || $entry->hasMonitoredTag()
                 || ($entry->type === 'query' && ($entry->content['slow'] ?? false));
         });
+    }
+
+    private function isImportQueueEntry(IncomingEntry $entry): bool
+    {
+        $job = $entry->content['job'] ?? $entry->content['name'] ?? null;
+
+        if (! is_string($job)) {
+            return false;
+        }
+
+        return str_contains($job, 'ProcessRawIvrImport')
+            || str_contains($job, 'ProcessIvrCampaignResultsImport')
+            || str_contains($job, 'ProcessUnsubscriberImport')
+            || str_contains($job, 'ProcessWhatsAppRawImport')
+            || str_contains($job, 'ProcessWhatsAppCampaignResultsImport')
+            || str_contains($job, 'ProcessWhatsAppUnsubscriberImport');
     }
 
     /**

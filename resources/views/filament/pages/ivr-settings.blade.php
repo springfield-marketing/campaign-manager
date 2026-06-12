@@ -32,7 +32,7 @@
                             <td class="px-3 py-2 text-gray-700 dark:text-gray-300">{{ $export->requester?->name ?? '—' }}</td>
                             <td class="px-3 py-2 text-right">
                                 @if ($export->status === 'completed')
-                                    <a href="{{ route('modules.ivr.settings.database-export.download', $export) }}"
+                                    <a href="{{ route('ivr.database-export.download', $export) }}"
                                        class="text-primary-600 hover:underline font-medium">Download</a>
                                 @elseif (in_array($export->status, ['pending', 'processing']))
                                     <span class="text-gray-400">Processing…</span>
