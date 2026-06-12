@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Modules\WhatsApp\Jobs\BatchAnalyseWhatsAppNumbers;
 use App\Modules\WhatsApp\Models\WhatsAppSettings;
 use Filament\Actions\Action;
 use Filament\Forms\Components\TextInput;
@@ -172,6 +173,17 @@ class WhatsAppSettingsPage extends Page implements HasForms
         Notification::make()->title('WhatsApp settings saved.')->success()->send();
     }
 
+    public function reanalyse(): void
+    {
+        BatchAnalyseWhatsAppNumbers::dispatch([])->onQueue('analysis');
+
+        Notification::make()
+            ->title('Reanalysis queued — profiles will update shortly.')
+            ->body('All WhatsApp numbers will be re-evaluated against the current settings. The Active / Cooldown counts on the Numbers page will reflect the new rules once the job completes.')
+            ->success()
+            ->send();
+    }
+
     protected function getHeaderActions(): array
     {
         return [
@@ -180,6 +192,15 @@ class WhatsAppSettingsPage extends Page implements HasForms
                 ->action('save')
                 ->icon('heroicon-o-check')
                 ->color('primary'),
+
+            Action::make('reanalyse')
+                ->label('Reanalyse All Numbers')
+                ->action('reanalyse')
+                ->icon('heroicon-o-arrow-path')
+                ->color('gray')
+                ->requiresConfirmation()
+                ->modalHeading('Reanalyse all WhatsApp numbers?')
+                ->modalDescription('This rebuilds every number\'s usage_status and cooldown_until based on the current settings. Run this after changing any setting on this page — otherwise the changes only apply to numbers processed in future imports. The job runs in the background and may take a few minutes on large datasets.'),
         ];
     }
 }
