@@ -102,8 +102,8 @@ class IvrReportData
 
         $current = $today->copy();
         while ($current->lte($endOfMonth)) {
-            // 0 = Sunday, exclude it
-            if ($current->dayOfWeek !== Carbon::SUNDAY) {
+            // UAE working week is Sunday–Thursday; Friday and Saturday are the weekend.
+            if (! in_array($current->dayOfWeek, [Carbon::FRIDAY, Carbon::SATURDAY], true)) {
                 $count++;
             }
             $current->addDay();
@@ -117,19 +117,43 @@ class IvrReportData
      */
     private function summaryForPeriod(int $year, ?int $month, string $billableMinutesExpression): array
     {
-        $row = DB::table('ivr_monthly_summaries')
-            ->where('year', $year)
-            ->where('month', $month)
-            ->first();
+        // For a specific month: look up the pre-aggregated row directly.
+        // For whole-year (month=null): sum all monthly rows — WHERE month IS NULL never matches
+        // because summaries are stored per-month only, so we aggregate instead.
+        if ($month !== null) {
+            $row = DB::table('ivr_monthly_summaries')
+                ->where('year', $year)
+                ->where('month', $month)
+                ->first();
+        } else {
+            $row = DB::table('ivr_monthly_summaries')
+                ->where('year', $year)
+                ->whereNotNull('month')
+                ->selectRaw('
+                    sum(total_calls)      as total_calls,
+                    sum(answered_calls)   as answered_calls,
+                    sum(missed_calls)     as missed_calls,
+                    sum(leads)            as leads,
+                    sum(more_info)        as more_info,
+                    sum(unsubscribed)     as unsubscribed,
+                    sum(minutes_consumed) as minutes_consumed
+                ')
+                ->first();
+
+            // Treat as cache miss if no monthly rows exist for this year
+            if ($row !== null && $row->total_calls === null) {
+                $row = null;
+            }
+        }
 
         if ($row !== null) {
             return [
-                'total_calls' => (int) $row->total_calls,
-                'answered_calls' => (int) $row->answered_calls,
-                'missed_calls' => (int) $row->missed_calls,
-                'leads' => (int) $row->leads,
-                'more_info' => (int) $row->more_info,
-                'unsubscribed' => (int) $row->unsubscribed,
+                'total_calls'      => (int) $row->total_calls,
+                'answered_calls'   => (int) $row->answered_calls,
+                'missed_calls'     => (int) $row->missed_calls,
+                'leads'            => (int) $row->leads,
+                'more_info'        => (int) $row->more_info,
+                'unsubscribed'     => (int) $row->unsubscribed,
                 'minutes_consumed' => (int) $row->minutes_consumed,
             ];
         }
