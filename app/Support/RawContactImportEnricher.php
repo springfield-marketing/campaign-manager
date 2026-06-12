@@ -176,6 +176,9 @@ class RawContactImportEnricher
         if (blank($client->interest) && $val = $this->blankToNull($payload['interest'] ?? null)) {
             $updates['interest'] = $val;
         }
+        if (blank($client->notes) && $val = $this->blankToNull($payload['notes'] ?? null)) {
+            $updates['notes'] = $val;
+        }
         if (blank($client->country_iso)) {
             $iso = strtoupper(substr(trim((string) ($payload['country_iso'] ?? '')), 0, 2)) ?: null;
             if ($iso) {

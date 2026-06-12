@@ -21,6 +21,7 @@ class Client extends Model
         'nationality',
         'gender',
         'interest',
+        'notes',
         'tier',
         'wealth_score',
         'completeness_score',

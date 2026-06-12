@@ -30,6 +30,7 @@ return [
             'confidence_level'     => ['confidence level', 'confidence_level', 'confidence'],
             'source'               => ['source file', 'source', 'source name'],
             'tier'                 => ['tier', 'client tier', 'wealth tier', 'segment'],
+            'notes'                => ['notes', 'note', 'comments', 'comment', 'remarks', 'remark'],
         ],
     ],
 

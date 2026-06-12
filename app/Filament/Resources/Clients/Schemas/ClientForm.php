@@ -6,6 +6,7 @@ use App\Models\Client;
 use Filament\Forms\Components\Placeholder;
 use Filament\Schemas\Components\Section;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
 use Illuminate\Support\HtmlString;
@@ -108,6 +109,14 @@ class ClientForm
                 Placeholder::make('original_source')
                     ->label('Original Source')
                     ->content(fn (Client $record): string => $record->original_source ?? '—'),
+            ]),
+
+            Section::make('Notes')->schema([
+                Textarea::make('notes')
+                    ->label('')
+                    ->rows(4)
+                    ->placeholder('Free-form notes, extra details, or anything that doesn\'t fit a structured field.')
+                    ->columnSpanFull(),
             ]),
 
             Section::make('Tags')->schema([
