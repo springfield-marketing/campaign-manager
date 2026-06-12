@@ -210,21 +210,31 @@ class WhatsAppNumbersTable
                     )
                     ->searchable(),
 
-                SelectFilter::make('marketing_area')
-                    ->label('Marketing Area')
-                    ->options(fn () => MarketingArea::active()->orderBy('emirate')->orderBy('name')->pluck('name', 'id'))
+                SelectFilter::make('communities')
+                    ->label('Communities')
+                    ->multiple()
+                    ->searchable()
+                    ->preload()
+                    ->options(fn () => MarketingArea::active()
+                        ->orderBy('emirate')
+                        ->orderBy('name')
+                        ->get()
+                        ->mapWithKeys(fn (MarketingArea $area) => [
+                            $area->id => "{$area->emirate} - {$area->name}",
+                        ])
+                        ->all()
+                    )
                     ->query(fn (Builder $query, array $data): Builder =>
                         $query->when(
-                            filled($data['value'] ?? null),
+                            filled($data['values'] ?? []),
                             fn (Builder $q): Builder => $q->whereExists(fn ($ownership) =>
                                 $ownership->selectRaw('1')
                                     ->from('ownerships')
                                     ->whereColumn('ownerships.client_id', 'client_phone_numbers.client_id')
-                                    ->where('ownerships.marketing_area_id', $data['value'])
+                                    ->whereIn('ownerships.marketing_area_id', $data['values'])
                             )
                         )
-                    )
-                    ->searchable(),
+                    ),
 
                 SelectFilter::make('last_message_status')
                     ->label('Last Message Status')

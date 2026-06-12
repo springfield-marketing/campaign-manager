@@ -56,13 +56,13 @@ class ListWhatsAppNumbers extends ListRecords
                         );
                     }
 
-                    $marketingAreaId = $filters['marketing_area']['value'] ?? null;
-                    if (filled($marketingAreaId)) {
+                    $communityIds = $filters['communities']['values'] ?? [];
+                    if (filled($communityIds)) {
                         $query->whereExists(fn ($q) => $q
                             ->selectRaw('1')
                             ->from('ownerships')
                             ->whereColumn('ownerships.client_id', 'client_phone_numbers.client_id')
-                            ->where('ownerships.marketing_area_id', $marketingAreaId)
+                            ->whereIn('ownerships.marketing_area_id', $communityIds)
                         );
                     }
 
