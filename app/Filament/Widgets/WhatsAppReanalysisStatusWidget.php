@@ -57,7 +57,7 @@ class WhatsAppReanalysisStatusWidget extends StatsOverviewWidget
         $stats = [$statusStat];
 
         if ($status === 'pending' && $s->reanalysis_started_at) {
-            $stats[] = Stat::make('Queued', $s->reanalysis_started_at->format('H:i:s'))
+            $stats[] = Stat::make('Queued', $s->reanalysis_started_at->diffForHumans())
                 ->icon('heroicon-o-clock')
                 ->color('gray')
                 ->description('Waiting for a queue worker to pick this up');
@@ -65,22 +65,22 @@ class WhatsAppReanalysisStatusWidget extends StatsOverviewWidget
 
         if ($status === 'running' && $s->reanalysis_started_at) {
             $elapsed = now()->diffInSeconds($s->reanalysis_started_at);
-            $stats[] = Stat::make('Elapsed', $this->formatSeconds($elapsed))
+            $stats[] = Stat::make('Running for', $this->formatSeconds($elapsed))
                 ->icon('heroicon-o-arrow-path')
                 ->color('warning')
-                ->description('Started at ' . $s->reanalysis_started_at->format('H:i:s'));
+                ->description('Started ' . $s->reanalysis_started_at->diffForHumans());
         }
 
         if ($status === 'completed' && $s->reanalysis_started_at && $s->reanalysis_completed_at) {
             $duration = $s->reanalysis_completed_at->diffInSeconds($s->reanalysis_started_at);
-            $stats[] = Stat::make('Completed', $s->reanalysis_completed_at->format('d M Y H:i:s'))
+            $stats[] = Stat::make('Finished', $s->reanalysis_completed_at->diffForHumans())
                 ->icon('heroicon-o-check-circle')
                 ->color('success')
                 ->description('Took ' . $this->formatSeconds($duration));
         }
 
         if ($status === 'failed' && $s->reanalysis_completed_at) {
-            $stats[] = Stat::make('Failed at', $s->reanalysis_completed_at->format('H:i:s'))
+            $stats[] = Stat::make('Failed', $s->reanalysis_completed_at->diffForHumans())
                 ->icon('heroicon-o-x-circle')
                 ->color('danger')
                 ->description('Check the queue worker logs for the error');
