@@ -401,11 +401,18 @@ class CampaignResultsProcessor
 
     private function refreshCampaignMetrics(IvrCampaign $campaign): void
     {
+        $row = $campaign->callRecords()
+            ->selectRaw("sum(case when dtmf_outcome = 'interested'  then 1 else 0 end) as leads_count")
+            ->selectRaw("sum(case when dtmf_outcome = 'more_info'   then 1 else 0 end) as more_info_count")
+            ->selectRaw("sum(case when dtmf_outcome = 'unsubscribe' then 1 else 0 end) as unsubscribed_count")
+            ->selectRaw('coalesce(sum(credits_deducted), 0) as credits_used')
+            ->first();
+
         $campaign->forceFill([
-            'leads_count' => $campaign->callRecords()->where('dtmf_outcome', 'interested')->count(),
-            'more_info_count' => $campaign->callRecords()->where('dtmf_outcome', 'more_info')->count(),
-            'unsubscribed_count' => $campaign->callRecords()->where('dtmf_outcome', 'unsubscribe')->count(),
-            'credits_used' => (float) $campaign->callRecords()->sum('credits_deducted'),
+            'leads_count'        => (int)   ($row->leads_count ?? 0),
+            'more_info_count'    => (int)   ($row->more_info_count ?? 0),
+            'unsubscribed_count' => (int)   ($row->unsubscribed_count ?? 0),
+            'credits_used'       => (float) ($row->credits_used ?? 0),
         ])->save();
     }
 
