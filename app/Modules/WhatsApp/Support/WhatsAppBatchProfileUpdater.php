@@ -2,6 +2,7 @@
 
 namespace App\Modules\WhatsApp\Support;
 
+use App\Modules\WhatsApp\Models\WhatsAppSettings;
 use Illuminate\Support\Facades\DB;
 
 class WhatsAppBatchProfileUpdater
@@ -21,13 +22,16 @@ class WhatsAppBatchProfileUpdater
     {
         $idFilter = $this->idFilter('wm.client_phone_number_id', $ids);
 
-        $hardFailThreshold      = (int) config('whatsapp.hard_fail_threshold', 3);
-        $bulkDeadThreshold      = (int) config('whatsapp.bulk_dead_threshold', 10);
-        $noEngagementThreshold  = (int) config('whatsapp.no_engagement_threshold', 5);
-        $noEngagementDays       = (int) config('whatsapp.cooldown_days.no_engagement', 90);
-        $qualityHoldDays        = (int) config('whatsapp.cooldown_days.quality_hold', 3);
-        $experimentDays         = (int) config('whatsapp.cooldown_days.experiment', 7);
-        $regionalDays           = (int) config('whatsapp.cooldown_days.regional', 30);
+        $settings = WhatsAppSettings::current();
+
+        $hardFailThreshold      = $settings->hard_fail_threshold;
+        $bulkDeadThreshold      = $settings->bulk_dead_threshold;
+        $noEngagementThreshold  = $settings->no_engagement_threshold;
+        $noEngagementDays       = $settings->cooldown_no_engagement_days;
+        $qualityHoldDays        = $settings->cooldown_quality_hold_days;
+        $experimentDays         = $settings->cooldown_experiment_days;
+        $regionalDays           = $settings->cooldown_regional_days;
+        $minDaysBetweenSends    = $settings->min_days_between_sends;
 
         DB::statement("
             WITH classified AS (
@@ -136,6 +140,9 @@ class WhatsAppBatchProfileUpdater
                         THEN 'dead'
                         WHEN a.failure_cooldown_until > NOW() THEN 'cooldown'
                         WHEN a.total_clicks = 0 AND a.distinct_campaigns >= {$noEngagementThreshold} THEN 'cooldown'
+                        WHEN {$minDaysBetweenSends} > 0
+                          AND a.last_messaged_at > NOW() - ({$minDaysBetweenSends} * INTERVAL '1 day')
+                        THEN 'cooldown'
                         ELSE 'active'
                     END AS usage_status,
 
@@ -150,6 +157,9 @@ class WhatsAppBatchProfileUpdater
                         WHEN a.failure_cooldown_until > NOW() THEN a.failure_cooldown_until
                         WHEN a.total_clicks = 0 AND a.distinct_campaigns >= {$noEngagementThreshold}
                         THEN NOW() + ({$noEngagementDays} * INTERVAL '1 day')
+                        WHEN {$minDaysBetweenSends} > 0
+                          AND a.last_messaged_at > NOW() - ({$minDaysBetweenSends} * INTERVAL '1 day')
+                        THEN a.last_messaged_at + ({$minDaysBetweenSends} * INTERVAL '1 day')
                         ELSE NULL
                     END AS cooldown_until
 
