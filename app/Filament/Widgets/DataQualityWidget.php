@@ -23,11 +23,6 @@ class DataQualityWidget extends StatsOverviewWidget
             ->where(fn ($q) => $q->whereNull('full_name')->orWhereRaw("trim(full_name) = ''"))
             ->count();
 
-        $noPhone = (int) DB::table('clients')
-            ->whereNotExists(fn ($q) => $q->select(DB::raw(1))->from('client_phone_numbers')->whereColumn('client_phone_number_id', 'clients.id')->orWhereColumn('client_id', 'clients.id'))
-            ->count();
-
-        // Simpler approach — count clients without any phone number row
         $noPhone = $total - (int) DB::table('client_phone_numbers')
             ->distinct('client_id')
             ->count('client_id');
