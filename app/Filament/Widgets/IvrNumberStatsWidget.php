@@ -14,12 +14,11 @@ class IvrNumberStatsWidget extends StatsOverviewWidget
 
     protected function getStats(): array
     {
-        // Single query with CASE aggregates — replaces five separate cloned queries.
-        // FLOOR((s + 59) / 60) is ceiling-division that works on MySQL and SQLite alike.
         $counts = DB::selectOne("
             SELECT
                 COUNT(*) AS total,
 
+                -- Do Not Call: suppressed or opted-out (checked first, highest priority)
                 SUM(CASE WHEN unsubscribed_at IS NOT NULL
                       OR EXISTS (
                             SELECT 1 FROM contact_suppressions cs
@@ -30,7 +29,16 @@ class IvrNumberStatsWidget extends StatsOverviewWidget
                     THEN 1 ELSE 0 END
                 ) AS unsubscribed,
 
-                SUM(CASE WHEN EXISTS (
+                -- Resting: on cooldown, NOT suppressed (suppressed numbers excluded to avoid double-count)
+                SUM(CASE
+                    WHEN unsubscribed_at IS NULL
+                     AND NOT EXISTS (
+                            SELECT 1 FROM contact_suppressions cs
+                            WHERE cs.client_phone_number_id = client_phone_numbers.id
+                              AND cs.released_at IS NULL
+                              AND (cs.channel IS NULL OR cs.channel = 'ivr')
+                          )
+                     AND EXISTS (
                             SELECT 1 FROM ivr_phone_profiles ipp
                             WHERE ipp.client_phone_number_id = client_phone_numbers.id
                               AND (
@@ -41,14 +49,33 @@ class IvrNumberStatsWidget extends StatsOverviewWidget
                     THEN 1 ELSE 0 END
                 ) AS resting,
 
-                SUM(CASE WHEN EXISTS (
+                -- No Name: eligible by calling status but missing a contact name — needs data enrichment
+                SUM(CASE
+                    WHEN unsubscribed_at IS NULL
+                     AND NOT EXISTS (
+                            SELECT 1 FROM contact_suppressions cs
+                            WHERE cs.client_phone_number_id = client_phone_numbers.id
+                              AND cs.released_at IS NULL
+                              AND (cs.channel IS NULL OR cs.channel = 'ivr')
+                          )
+                     AND NOT EXISTS (
                             SELECT 1 FROM ivr_phone_profiles ipp
                             WHERE ipp.client_phone_number_id = client_phone_numbers.id
-                              AND ipp.usage_status = 'dead'
+                              AND (
+                                ipp.usage_status = 'inactive'
+                                OR (ipp.cooldown_until IS NOT NULL AND ipp.cooldown_until > NOW())
+                              )
+                          )
+                     AND NOT EXISTS (
+                            SELECT 1 FROM clients c
+                            WHERE c.id = client_phone_numbers.client_id
+                              AND c.full_name IS NOT NULL
+                              AND TRIM(c.full_name) <> ''
                           )
                     THEN 1 ELSE 0 END
-                ) AS not_callable,
+                ) AS no_name,
 
+                -- Active (ready): not suppressed, not resting, has a name
                 SUM(CASE
                     WHEN unsubscribed_at IS NULL
                      AND NOT EXISTS (
@@ -84,8 +111,9 @@ class IvrNumberStatsWidget extends StatsOverviewWidget
               AND LENGTH(normalized_phone) = 13
         ");
 
-        $total = (int) $counts->total;
-        $ready = (int) $counts->ready;
+        $total   = (int) $counts->total;
+        $ready   = (int) $counts->ready;
+        $noName  = (int) $counts->no_name;
 
         $readyRate = $total > 0
             ? number_format(($ready / $total) * 100, 1).'% ready'
@@ -109,11 +137,11 @@ class IvrNumberStatsWidget extends StatsOverviewWidget
                 ->description('Temporarily held back')
                 ->extraAttributes(['x-tooltip.raw' => 'Numbers that were called recently and are on a temporary rest before they can be called again. They will become active once the rest period ends.']),
 
-            Stat::make('Not Callable', number_format((int) $counts->not_callable))
-                ->icon('heroicon-o-x-circle')
+            Stat::make('No Name', number_format($noName))
+                ->icon('heroicon-o-user')
                 ->color('gray')
-                ->description('Not eligible for IVR')
-                ->extraAttributes(['x-tooltip.raw' => 'Numbers that failed too many times or are otherwise permanently ineligible for IVR. They will not be included in any export.']),
+                ->description('Need data enrichment')
+                ->extraAttributes(['x-tooltip.raw' => 'Numbers that are not suppressed and not on a rest period, but have no contact name — they cannot be included in an export until the contact is enriched.']),
 
             Stat::make('Do Not Call', number_format((int) $counts->unsubscribed))
                 ->icon('heroicon-o-no-symbol')
