@@ -121,6 +121,11 @@ class WhatsAppImportsTable
                                 'other'    => 'Other',
                             ])
                             ->required(),
+
+                        \Filament\Forms\Components\Toggle::make('lenient_phones')
+                            ->label('Lenient phone validation')
+                            ->default(false)
+                            ->helperText('Turn on if the file contains numbers that WhatsApp can deliver to but our validator rejects (e.g. older number formats for certain countries). UAE numbers are always strictly validated regardless of this setting.'),
                     ])
                     ->action(function (array $data): void {
                         $originalName  = basename($data['file']);
@@ -155,6 +160,7 @@ class WhatsAppImportsTable
                             'stored_file_name'    => $originalName,
                             'storage_path'        => $finalRelative,
                             'source_name'         => $data['platform'] ?: null,
+                            'lenient_phones'      => (bool) ($data['lenient_phones'] ?? false),
                             'uploaded_by'         => auth()->id(),
                         ]);
 

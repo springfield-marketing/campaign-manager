@@ -27,6 +27,7 @@ class WhatsAppImport extends Model
         'duplicate_rows',
         'error_message',
         'column_mapping',
+        'lenient_phones',
         'summary',
         'started_at',
         'completed_at',
@@ -38,8 +39,9 @@ class WhatsAppImport extends Model
     protected function casts(): array
     {
         return [
-            'column_mapping' => 'array',
-            'summary' => 'array',
+            'column_mapping'  => 'array',
+            'lenient_phones'  => 'boolean',
+            'summary'         => 'array',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
             'reverted_at' => 'datetime',

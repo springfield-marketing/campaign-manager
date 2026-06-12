@@ -104,7 +104,7 @@ class WhatsAppCampaignResultsProcessor
 
                     $campaign = $campaignsByName[$campaignName];
 
-                    $normalized = $this->phoneNormalizer->normalize((string) $payload['PhoneNumber']);
+                    $normalized = $this->phoneNormalizer->normalize((string) $payload['PhoneNumber'], (bool) $import->lenient_phones);
                     $normalizedPhone = $normalized['normalized'];
 
                     if (! isset($phoneIdCache[$normalizedPhone])) {

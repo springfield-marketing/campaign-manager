@@ -21,10 +21,16 @@ class WhatsAppPhoneNormalizer
      * UAE local formats (05x, 5x, 971x) are detected without a leading +.
      * All other numbers must include a country code (e.g. +44, +1).
      *
+     * @param  bool  $lenient  When true, non-UAE numbers that parse successfully but fail
+     *                         isValidNumber() are accepted if they pass isPossibleNumber().
+     *                         Use for files where libphonenumber's data is outdated (e.g.
+     *                         countries that recently changed their numbering plan).
+     *                         UAE numbers are always strictly validated regardless.
+     *
      * @return array{normalized:string, country_code:string, national_number:string, detected_country:string, is_uae:bool}
      * @throws \InvalidArgumentException
      */
-    public function normalize(string $value): array
+    public function normalize(string $value, bool $lenient = false): array
     {
         $input = trim($value);
 
@@ -64,6 +70,16 @@ class WhatsAppPhoneNormalizer
                 } catch (NumberParseException $e) {
                     $secondError = $e;
                 }
+            }
+        }
+
+        // Lenient fallback: accept non-UAE numbers that parsed cleanly and pass
+        // isPossibleNumber() even though isValidNumber() returned false.
+        // UAE numbers are always kept strict — we know that format well.
+        if ($parsed === null && $lenient && $parsedCandidate !== null) {
+            $region = $this->util->getRegionCodeForNumber($parsedCandidate) ?? '';
+            if ($region !== 'AE' && $this->util->isPossibleNumber($parsedCandidate)) {
+                $parsed = $parsedCandidate;
             }
         }
 
