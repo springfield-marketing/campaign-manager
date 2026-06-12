@@ -18,6 +18,9 @@ class WhatsAppSettings extends Model
         'cooldown_quality_hold_days',
         'cooldown_experiment_days',
         'cooldown_regional_days',
+        'reanalysis_status',
+        'reanalysis_started_at',
+        'reanalysis_completed_at',
     ];
 
     protected function casts(): array
@@ -31,6 +34,8 @@ class WhatsAppSettings extends Model
             'cooldown_quality_hold_days'   => 'integer',
             'cooldown_experiment_days'     => 'integer',
             'cooldown_regional_days'       => 'integer',
+            'reanalysis_started_at'        => 'datetime',
+            'reanalysis_completed_at'      => 'datetime',
         ];
     }
 

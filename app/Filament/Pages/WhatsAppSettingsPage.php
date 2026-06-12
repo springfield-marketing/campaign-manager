@@ -175,11 +175,20 @@ class WhatsAppSettingsPage extends Page implements HasForms
 
     public function reanalyse(): void
     {
-        BatchAnalyseWhatsAppNumbers::dispatch([])->onQueue('analysis');
+        WhatsAppSettings::where('lock_key', 'default')->updateOrInsert(
+            ['lock_key' => 'default'],
+            [
+                'reanalysis_status'       => 'pending',
+                'reanalysis_started_at'   => now(),
+                'reanalysis_completed_at' => null,
+            ]
+        );
+
+        BatchAnalyseWhatsAppNumbers::dispatch([], trackProgress: true)->onQueue('analysis');
 
         Notification::make()
-            ->title('Reanalysis queued — profiles will update shortly.')
-            ->body('All WhatsApp numbers will be re-evaluated against the current settings. The Active / Cooldown counts on the Numbers page will reflect the new rules once the job completes.')
+            ->title('Reanalysis queued.')
+            ->body('Watch the status panel below — it updates every 3 seconds.')
             ->success()
             ->send();
     }
