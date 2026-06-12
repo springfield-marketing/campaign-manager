@@ -10,6 +10,7 @@ use App\Modules\IVR\Enums\IvrImportStatus;
 use App\Modules\IVR\Models\IvrCallRecord;
 use App\Modules\IVR\Models\IvrCampaign;
 use App\Modules\IVR\Models\IvrImport;
+use App\Modules\IVR\Support\IvrBatchEligibilityUpdater;
 use App\Modules\IVR\Support\IvrSummaryService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -23,7 +24,7 @@ class CampaignResultsProcessor
 
     public function __construct(
         private readonly PhoneNormalizer $phoneNormalizer,
-        private readonly NumberEligibilityService $eligibilityService,
+        private readonly IvrBatchEligibilityUpdater $batchUpdater,
     ) {
     }
 
@@ -66,8 +67,8 @@ class CampaignResultsProcessor
             $duplicates = 0;
             $rowNumber = 0;
 
-            // Keyed by phone number ID — deduplicated so each number is refreshed once after import.
-            $affectedPhoneNumbers = [];
+            // Deduplicated phone number IDs — refreshed in one batch after all records are inserted.
+            $affectedPhoneNumberIds = [];
 
             while (! $file->eof()) {
                 $row = $file->fgetcsv();
@@ -109,7 +110,7 @@ class CampaignResultsProcessor
                     // Upsert campaign once on the first row; reuse for all subsequent rows.
                     $campaign ??= $this->upsertCampaign($summary, $payload, $import);
                     [$duplicate, $phoneNumber] = $this->upsertCallRecord($campaign, $payload, $import);
-                    $affectedPhoneNumbers[$phoneNumber->id] = $phoneNumber;
+                    $affectedPhoneNumberIds[$phoneNumber->id] = true;
 
                     $successful++;
                     $duplicates += $duplicate ? 1 : 0;
@@ -141,8 +142,8 @@ class CampaignResultsProcessor
                 }
             }
 
-            foreach ($affectedPhoneNumbers as $phoneNumber) {
-                $this->eligibilityService->refresh($phoneNumber);
+            if ($affectedPhoneNumberIds !== []) {
+                $this->batchUpdater->run(array_keys($affectedPhoneNumberIds));
             }
 
             $campaignId = $summary['order_number'] ?? null;
