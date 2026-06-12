@@ -65,7 +65,7 @@ class IvrCampaignStatsWidget extends StatsOverviewWidget
             Stat::make('More Info', number_format((int) $campaign->more_info_count))
                 ->icon('heroicon-o-information-circle')
                 ->color('info')
-                ->extraAttributes(['x-tooltip.raw' => 'Contacts who pressed 2 during the IVR prompt — interested but wanting further details. Also included in the Leads total.']),
+                ->extraAttributes(['x-tooltip.raw' => 'Contacts who pressed 2 during the IVR prompt — interested but wanting further details before committing.']),
 
             Stat::make('Unsubscribed', number_format((int) $campaign->unsubscribed_count))
                 ->icon('heroicon-o-no-symbol')
