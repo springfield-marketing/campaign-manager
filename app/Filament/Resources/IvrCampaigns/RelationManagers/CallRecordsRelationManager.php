@@ -52,7 +52,7 @@ class CallRecordsRelationManager extends RelationManager
                     ->placeholder('-')
                     ->toggleable(),
 
-                TextColumn::make('phoneNumber.last_source_name')
+                TextColumn::make('phoneNumber.client.original_source')
                     ->label('Source')
                     ->placeholder('-')
                     ->limit(28)

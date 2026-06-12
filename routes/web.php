@@ -24,7 +24,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             fputcsv($handle, ['Campaign', 'Call Time', 'Name', 'Phone', 'Email', 'Emirate', 'DTMF Outcome', 'Duration', 'Source']);
 
             $campaign->callRecords()
-                ->with(['phoneNumber.client.primaryEmail', 'phoneNumber.firstSource'])
+                ->with(['phoneNumber.client.primaryEmail'])
                 ->whereIn('dtmf_outcome', ['interested', 'more_info'])
                 ->latest('call_time')
                 ->chunk(500, function ($leads) use ($handle, $campaign): void {
@@ -40,7 +40,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
                             $client?->emirate,
                             $lead->dtmf_outcome,
                             gmdate('H:i:s', (int) $lead->total_duration_seconds),
-                            $lead->phoneNumber?->firstSource?->source_name,
+                            $client?->original_source,
                         ]);
                     }
                 });
