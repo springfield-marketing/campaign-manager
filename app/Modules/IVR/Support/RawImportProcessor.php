@@ -1142,6 +1142,8 @@ class RawImportProcessor
                     'raw_building'          => $this->blankToNull($item['payload']['building_name'] ?? null),
                     'raw_unit'              => $this->blankToNull($item['payload']['unit_reference'] ?? null),
                     'raw_relationship_type' => $this->blankToNull($item['payload']['relationship_type'] ?? null),
+                    'raw_notes'             => $this->blankToNull($item['payload']['notes'] ?? null),
+                    'raw_tags'              => $this->blankToNull($item['payload']['tags'] ?? null),
                     'field_conflicts'       => $item['field_conflicts'] ?? null,
                 ]),
                 'created_at' => $now,

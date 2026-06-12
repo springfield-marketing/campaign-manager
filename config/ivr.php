@@ -31,6 +31,7 @@ return [
             'source'               => ['source file', 'source', 'source name'],
             'tier'                 => ['tier', 'client tier', 'wealth tier', 'segment'],
             'notes'                => ['notes', 'note', 'comments', 'comment', 'remarks', 'remark'],
+            'tags'                 => ['tags', 'tag', 'labels', 'label', 'segments', 'segment', 'categories', 'category'],
         ],
     ],
 

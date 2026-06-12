@@ -307,6 +307,8 @@ class WhatsAppRawImportProcessor
                 'raw_building'          => $blankToNull($payload['building_name'] ?? null),
                 'raw_unit'              => $blankToNull($payload['unit_reference'] ?? null),
                 'raw_relationship_type' => $blankToNull($payload['relationship_type'] ?? null),
+                'raw_notes'             => $blankToNull($payload['notes'] ?? null),
+                'raw_tags'              => $blankToNull($payload['tags'] ?? null),
             ],
         ]);
 

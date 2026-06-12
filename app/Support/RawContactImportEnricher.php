@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\Client;
 use App\Models\ClientPhoneNumber;
 use App\Models\Ownership;
+use App\Models\Tag;
 use App\Support\NameNormalizer;
 
 /**
@@ -188,6 +189,19 @@ class RawContactImportEnricher
 
         if ($updates !== []) {
             $client->fill($updates)->save();
+        }
+
+        // Tags are additive — always add specified tags, never remove existing ones.
+        if ($rawTags = $this->blankToNull($payload['tags'] ?? null)) {
+            $tagNames = array_values(array_filter(array_map('trim', explode(',', $rawTags))));
+
+            if ($tagNames !== []) {
+                $tagIds = array_map(
+                    fn (string $name) => Tag::firstOrCreate(['name' => $name])->id,
+                    $tagNames,
+                );
+                $client->tags()->syncWithoutDetaching($tagIds);
+            }
         }
     }
 
