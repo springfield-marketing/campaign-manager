@@ -62,12 +62,12 @@ class IvrStatsWidget extends StatsOverviewWidget
             Stat::make('Leads (Interested)', number_format($s['leads']))
                 ->icon('heroicon-o-star')
                 ->color('primary')
-                ->extraAttributes(['x-tooltip.raw' => 'Contacts who pressed the "Interested" key during the IVR prompt — the highest-intent response.']),
+                ->extraAttributes(['x-tooltip.raw' => 'Contacts who pressed 1 during the IVR prompt to indicate interest — the highest-intent response.']),
 
             Stat::make('More Info', number_format($s['more_info']))
                 ->icon('heroicon-o-information-circle')
                 ->color('info')
-                ->extraAttributes(['x-tooltip.raw' => 'Contacts who pressed "More Info" during the IVR prompt — interested but wanting further details before committing.']),
+                ->extraAttributes(['x-tooltip.raw' => 'Contacts who pressed 2 during the IVR prompt — interested but wanting further details before committing.']),
 
             Stat::make('Unsubscribed', number_format($s['unsubscribed']))
                 ->icon('heroicon-o-no-symbol')
