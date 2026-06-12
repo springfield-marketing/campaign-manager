@@ -59,15 +59,20 @@ class IvrStatsWidget extends StatsOverviewWidget
                 ->description('Filtered before dialing')
                 ->extraAttributes(['x-tooltip.raw' => 'Call records that were submitted to the system but never actually dialed — typically suppressed numbers, duplicates, or numbers excluded by campaign rules.']),
 
-            Stat::make('Leads (Interested)', number_format($s['leads']))
+            Stat::make('Interested', number_format($s['leads']))
                 ->icon('heroicon-o-star')
                 ->color('primary')
-                ->extraAttributes(['x-tooltip.raw' => 'Contacts who pressed 1 during the IVR prompt to indicate interest — the highest-intent response.']),
+                ->extraAttributes(['x-tooltip.raw' => 'Contacts who pressed 1.']),
 
             Stat::make('More Info', number_format($s['more_info']))
                 ->icon('heroicon-o-information-circle')
                 ->color('info')
-                ->extraAttributes(['x-tooltip.raw' => 'Contacts who pressed 2 during the IVR prompt — interested but wanting further details before committing.']),
+                ->extraAttributes(['x-tooltip.raw' => 'Contacts who pressed 2.']),
+
+            Stat::make('Total Leads', number_format($s['leads'] + $s['more_info']))
+                ->icon('heroicon-o-user-group')
+                ->color('primary')
+                ->extraAttributes(['x-tooltip.raw' => 'Total contacts who pressed 1 or 2.']),
 
             Stat::make('Unsubscribed', number_format($s['unsubscribed']))
                 ->icon('heroicon-o-no-symbol')

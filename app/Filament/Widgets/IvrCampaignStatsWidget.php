@@ -24,7 +24,9 @@ class IvrCampaignStatsWidget extends StatsOverviewWidget
 
         $totalCalls    = (int) $campaign->total_calls;
         $answeredCalls = (int) $campaign->answered_calls;
-        $totalLeads    = (int) $campaign->leads_count + (int) $campaign->more_info_count;
+        $interested    = (int) $campaign->leads_count;
+        $moreInfo      = (int) $campaign->more_info_count;
+        $totalLeads    = $interested + $moreInfo;
         $answerRate    = $totalCalls > 0
             ? number_format(($answeredCalls / $totalCalls) * 100, 1).'% answer rate'
             : null;
@@ -56,16 +58,20 @@ class IvrCampaignStatsWidget extends StatsOverviewWidget
                 ->color('warning')
                 ->extraAttributes(['x-tooltip.raw' => 'Calls that were attempted but not answered — the line rang or connected but the recipient did not pick up.']),
 
-            Stat::make('Leads', number_format($totalLeads))
+            Stat::make('Interested', number_format($interested))
                 ->icon('heroicon-o-star')
                 ->color('primary')
-                ->description(number_format((int) $campaign->leads_count).' interested')
-                ->extraAttributes(['x-tooltip.raw' => 'Combined warm leads — contacts who pressed 1 (Interested) or 2 (More Info) during the IVR prompt. The description shows the press-1-only count.']),
+                ->extraAttributes(['x-tooltip.raw' => 'Contacts who pressed 1.']),
 
-            Stat::make('More Info', number_format((int) $campaign->more_info_count))
+            Stat::make('More Info', number_format($moreInfo))
                 ->icon('heroicon-o-information-circle')
                 ->color('info')
-                ->extraAttributes(['x-tooltip.raw' => 'Contacts who pressed 2 during the IVR prompt — interested but wanting further details before committing.']),
+                ->extraAttributes(['x-tooltip.raw' => 'Contacts who pressed 2.']),
+
+            Stat::make('Total Leads', number_format($totalLeads))
+                ->icon('heroicon-o-user-group')
+                ->color('primary')
+                ->extraAttributes(['x-tooltip.raw' => 'Total contacts who pressed 1 or 2.']),
 
             Stat::make('Unsubscribed', number_format((int) $campaign->unsubscribed_count))
                 ->icon('heroicon-o-no-symbol')
