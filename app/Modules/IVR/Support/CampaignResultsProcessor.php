@@ -296,7 +296,7 @@ class CampaignResultsProcessor
         ];
     }
 
-    private function upsertCallRecord(IvrCampaign $campaign, array $payload, IvrImport $import): bool
+    private function upsertCallRecord(IvrCampaign $campaign, array $payload, IvrImport $import): array
     {
         $rawCustomer = (string) $payload['Customer'];
 
