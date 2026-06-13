@@ -14,6 +14,7 @@ class ContactSuppression extends Model
     protected $fillable = [
         'client_phone_number_id',
         'channel',
+        'platform',
         'reason',
         'context',
         'suppressed_at',
@@ -39,5 +40,18 @@ class ContactSuppression extends Model
         return $query
             ->whereNull('released_at')
             ->where(fn (Builder $q) => $q->whereNull('channel')->orWhere('channel', 'ivr'));
+    }
+
+    public function scopeActiveWhatsApp(Builder $query, ?string $platform = null): Builder
+    {
+        return $query
+            ->whereNull('released_at')
+            ->where('channel', 'whatsapp')
+            ->when(
+                $platform !== null,
+                fn (Builder $q) => $q->where(
+                    fn (Builder $inner) => $inner->whereNull('platform')->orWhere('platform', $platform)
+                )
+            );
     }
 }

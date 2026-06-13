@@ -6,8 +6,10 @@ use App\Filament\Filters\PhoneSearchFilter;
 use App\Filament\Resources\Clients\ClientResource;
 use App\Models\ClientPhoneNumber;
 use App\Models\ContactSuppression;
+use Filament\Tables\Filters\SelectFilter;
 use App\Modules\WhatsApp\Enums\WhatsAppImportStatus;
 use App\Modules\WhatsApp\Enums\WhatsAppImportType;
+use App\Modules\WhatsApp\Enums\WhatsAppPlatform;
 use App\Modules\WhatsApp\Jobs\ProcessWhatsAppUnsubscriberImport;
 use App\Modules\WhatsApp\Models\WhatsAppImport;
 use App\Modules\WhatsApp\Support\WhatsAppPhoneNormalizer;
@@ -50,6 +52,12 @@ class WhatsAppUnsubscribersTable
                     ->getStateUsing(fn (ContactSuppression $record): string => self::sourceLabel($record))
                     ->placeholder('—'),
 
+                TextColumn::make('platform')
+                    ->label('Platform')
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state) => WhatsAppPlatform::tryFrom($state ?? '')?->getLabel() ?? '—')
+                    ->placeholder('—'),
+
                 TextColumn::make('reason')
                     ->label('Reason')
                     ->badge()
@@ -76,6 +84,17 @@ class WhatsAppUnsubscribersTable
                             )
                         )
                     ),
+
+                SelectFilter::make('platform')
+                    ->label('Platform')
+                    ->options(array_merge(['__global' => 'Global (all platforms)'], WhatsAppPlatform::options()))
+                    ->query(fn (Builder $query, array $data) =>
+                        $query->when(filled($data['value']), fn ($q) =>
+                            $data['value'] === '__global'
+                                ? $q->whereNull('platform')
+                                : $q->where('platform', $data['value'])
+                        )
+                    ),
             ])
             ->headerActions([
                 Action::make('upload_csv')
@@ -91,6 +110,12 @@ class WhatsAppUnsubscribersTable
                             ->preserveFilenames()
                             ->acceptedFileTypes(['text/csv', 'text/plain', 'application/csv'])
                             ->maxSize(10240),
+
+                        \Filament\Forms\Components\Select::make('platform')
+                            ->label('Platform')
+                            ->options(WhatsAppPlatform::options())
+                            ->placeholder('All platforms (global suppression)')
+                            ->helperText('Leave blank to suppress the number across all WhatsApp platforms.'),
                     ])
                     ->action(function (array $data): void {
                         $tmpRelative   = $data['file'];
@@ -105,6 +130,7 @@ class WhatsAppUnsubscribersTable
                             'original_file_name' => $originalName,
                             'stored_file_name'   => $originalName,
                             'storage_path'       => $finalRelative,
+                            'source_name'        => $data['platform'] ?: null,
                             'uploaded_by'        => auth()->id(),
                             'summary'            => ['format' => 'phone,name'],
                         ]);

@@ -6,6 +6,7 @@ use App\Models\Client;
 use App\Models\ClientPhoneNumber;
 use App\Models\ContactSuppression;
 use App\Modules\WhatsApp\Enums\WhatsAppImportStatus;
+use App\Modules\WhatsApp\Enums\WhatsAppPlatform;
 use App\Modules\WhatsApp\Models\WhatsAppImport;
 use Illuminate\Support\Facades\Log;
 use Laravel\Telescope\Telescope;
@@ -44,6 +45,8 @@ class WhatsAppUnsubscriberImportProcessor
 
             $file->rewind();
             $file->fgetcsv(); // skip header
+
+            $platform = $import->platform();
 
             $processed  = 0;
             $successful = 0;
@@ -95,8 +98,7 @@ class WhatsAppUnsubscriberImportProcessor
 
                     $alreadySuppressed = ContactSuppression::query()
                         ->where('client_phone_number_id', $phoneNumber->id)
-                        ->where('channel', 'whatsapp')
-                        ->whereNull('released_at')
+                        ->activeWhatsApp($platform?->value)
                         ->exists();
 
                     if ($alreadySuppressed) {
@@ -106,6 +108,7 @@ class WhatsAppUnsubscriberImportProcessor
                         ContactSuppression::create([
                             'client_phone_number_id' => $phoneNumber->id,
                             'channel'                => 'whatsapp',
+                            'platform'               => $platform?->value,
                             'reason'                 => 'opted_out',
                             'suppressed_at'          => now(),
                             'context'                => [
