@@ -5,6 +5,7 @@ namespace App\Filament\Resources\IvrImports\Tables;
 use App\Modules\IVR\Enums\IvrImportStatus;
 use App\Modules\IVR\Enums\IvrImportType;
 use App\Modules\IVR\Jobs\ProcessIvrCampaignResultsImport;
+use App\Modules\IVR\Jobs\ProcessRawIvrImport;
 use App\Modules\IVR\Jobs\ProcessUnsubscriberImport;
 use App\Modules\IVR\Models\IvrImport;
 use App\Modules\IVR\Models\IvrScript;
@@ -250,7 +251,8 @@ class IvrImportsTable
                         ]);
                         match ($record->type) {
                             'campaign_results' => ProcessIvrCampaignResultsImport::dispatch($record->id)->onQueue('imports-high'),
-                            'unsubscribers'    => ProcessUnsubscriberImport::dispatch($record->id)->onQueue('imports-high'),
+                            'unsubscribers'    => ProcessUnsubscriberImport::dispatch($record->id)->onQueue('imports'),
+                            'raw_contacts'     => ProcessRawIvrImport::dispatch($record->id)->onQueue('imports'),
                             default            => ProcessIvrCampaignResultsImport::dispatch($record->id)->onQueue('imports-high'),
                         };
                         Notification::make()->title('Re-queued — watch status update below')->warning()->send();
