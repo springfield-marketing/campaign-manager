@@ -86,6 +86,7 @@ class ReprocessIvrImports extends Command
 
         foreach ($toProcess as $import) {
             // Reset to pending so the processor re-runs
+            $import->errors()->delete();
             $import->update([
                 'status'         => IvrImportStatus::Pending->value,
                 'error_message'  => null,

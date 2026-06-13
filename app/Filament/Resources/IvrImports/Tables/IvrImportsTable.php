@@ -238,6 +238,7 @@ class IvrImportsTable
                         : 'The import will be reset to pending and re-queued. Existing records will be updated or counted as duplicates.'
                     )
                     ->action(function (IvrImport $record): void {
+                        $record->errors()->delete();
                         $record->update([
                             'status'          => IvrImportStatus::Pending->value,
                             'error_message'   => null,
