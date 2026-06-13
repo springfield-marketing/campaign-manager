@@ -30,7 +30,7 @@ class RawImportProcessor
 
     private const RELATIONSHIP_TYPES = [
         'owner', 'resident', 'tenant', 'buyer_interest',
-        'seller_interest', 'investor', 'past_owner', 'unknown',
+        'seller_interest', 'investor', 'past_owner', 'prospect', 'unknown',
     ];
 
     private const CONFIDENCE_LEVELS = ['high', 'medium', 'low'];
