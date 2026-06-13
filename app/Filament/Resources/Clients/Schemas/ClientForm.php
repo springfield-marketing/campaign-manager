@@ -58,26 +58,7 @@ class ClientForm
                         ->helperText('2-letter ISO code e.g. AE, GB, IN'),
                 ]),
 
-            // ── 2. Interest & Tags ───────────────────────────────────────────
-            Section::make('Interest & Tags')
-                ->columns(2)
-                ->schema([
-                    TextInput::make('interest')
-                        ->label('Project Interest')
-                        ->maxLength(255)
-                        ->placeholder('e.g. Palm Central, Yas Park Place'),
-
-                    Select::make('tags')
-                        ->relationship('tags', 'name')
-                        ->multiple()
-                        ->preload()
-                        ->createOptionForm([
-                            TextInput::make('name')->required()->maxLength(100),
-                        ])
-                        ->label('Tags'),
-                ]),
-
-            // ── 3. Scoring & Tier ────────────────────────────────────────────
+            // ── 2. Scoring & Tier ────────────────────────────────────────────
             Section::make('Scoring')
                 ->description('Tier can be set manually. Scores are auto-computed from property data.')
                 ->columns(3)
@@ -99,6 +80,25 @@ class ClientForm
                         ->content(fn (Client $record): string => $record->completeness_score !== null
                             ? $record->completeness_score . '%'
                             : '—'),
+                ]),
+
+            // ── 3. Interest & Tags ───────────────────────────────────────────
+            Section::make('Interest & Tags')
+                ->columns(2)
+                ->schema([
+                    TextInput::make('interest')
+                        ->label('Project Interest')
+                        ->maxLength(255)
+                        ->placeholder('e.g. Palm Central, Yas Park Place'),
+
+                    Select::make('tags')
+                        ->relationship('tags', 'name')
+                        ->multiple()
+                        ->preload()
+                        ->createOptionForm([
+                            TextInput::make('name')->required()->maxLength(100),
+                        ])
+                        ->label('Tags'),
                 ]),
 
             // ── 4. Notes ─────────────────────────────────────────────────────
