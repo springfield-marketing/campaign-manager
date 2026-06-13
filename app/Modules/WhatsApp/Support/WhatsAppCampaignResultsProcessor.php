@@ -366,6 +366,10 @@ class WhatsAppCampaignResultsProcessor
 
     private function refreshCampaignMetrics(WhatsAppCampaign $campaign): void
     {
+        $unsubExpr = $campaign->platform?->isWati()
+            ? "sum(case when delivery_status = 'STOPPED' OR (has_quick_replies = true AND quick_reply_3 IS NOT NULL AND quick_reply_3 != '') then 1 else 0 end) as unsubscribed_count"
+            : "sum(case when delivery_status = 'STOPPED' then 1 else 0 end) as unsubscribed_count";
+
         $row = $campaign->messages()
             ->selectRaw('count(*) as total_messages')
             ->selectRaw("sum(case when delivery_status = 'SENT'      then 1 else 0 end) as sent_count")
@@ -373,7 +377,7 @@ class WhatsAppCampaignResultsProcessor
             ->selectRaw("sum(case when delivery_status = 'READ'      then 1 else 0 end) as read_count")
             ->selectRaw("sum(case when delivery_status = 'REPLIED'   then 1 else 0 end) as replied_count")
             ->selectRaw("sum(case when delivery_status = 'FAILED'    then 1 else 0 end) as failed_count")
-            ->selectRaw("sum(case when delivery_status = 'STOPPED'   then 1 else 0 end) as unsubscribed_count")
+            ->selectRaw($unsubExpr)
             ->selectRaw('min(scheduled_at) as first_scheduled_at')
             ->selectRaw('max(scheduled_at) as last_scheduled_at')
             ->first();

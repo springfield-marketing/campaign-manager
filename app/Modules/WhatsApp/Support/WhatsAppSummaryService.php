@@ -2,6 +2,7 @@
 
 namespace App\Modules\WhatsApp\Support;
 
+use App\Modules\WhatsApp\Enums\WhatsAppPlatform;
 use App\Modules\WhatsApp\Models\WhatsAppMessage;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -14,15 +15,18 @@ class WhatsAppSummaryService
             ? [Carbon::create($year, $month, 1)->startOfDay(), Carbon::create($year, $month, 1)->endOfMonth()->endOfDay()]
             : [Carbon::create($year, 1, 1)->startOfDay(), Carbon::create($year, 12, 31)->endOfDay()];
 
-        $aggregate = WhatsAppMessage::query()
-            ->whereBetween('scheduled_at', $range)
+        $watiList = "'" . implode("','", WhatsAppPlatform::watiValues()) . "'";
+
+        $aggregate = DB::table('whatsapp_messages as wm')
+            ->leftJoin('whatsapp_campaigns as wc', 'wc.id', '=', 'wm.whatsapp_campaign_id')
+            ->whereBetween('wm.scheduled_at', $range)
             ->selectRaw('count(*) as total_messages')
-            ->selectRaw("sum(case when delivery_status = 'SENT'      then 1 else 0 end) as sent_count")
-            ->selectRaw("sum(case when delivery_status = 'DELIVERED' then 1 else 0 end) as delivered_count")
-            ->selectRaw("sum(case when delivery_status = 'READ'      then 1 else 0 end) as read_count")
-            ->selectRaw("sum(case when delivery_status = 'REPLIED'   then 1 else 0 end) as replied_count")
-            ->selectRaw("sum(case when delivery_status = 'FAILED'    then 1 else 0 end) as failed_count")
-            ->selectRaw("sum(case when delivery_status = 'STOPPED'   then 1 else 0 end) as unsubscribed_count")
+            ->selectRaw("sum(case when wm.delivery_status = 'SENT'      then 1 else 0 end) as sent_count")
+            ->selectRaw("sum(case when wm.delivery_status = 'DELIVERED' then 1 else 0 end) as delivered_count")
+            ->selectRaw("sum(case when wm.delivery_status = 'READ'      then 1 else 0 end) as read_count")
+            ->selectRaw("sum(case when wm.delivery_status = 'REPLIED'   then 1 else 0 end) as replied_count")
+            ->selectRaw("sum(case when wm.delivery_status = 'FAILED'    then 1 else 0 end) as failed_count")
+            ->selectRaw("sum(case when wm.delivery_status = 'STOPPED' OR (wc.platform IN ({$watiList}) AND wm.has_quick_replies = true AND wm.quick_reply_3 IS NOT NULL AND wm.quick_reply_3 != '') then 1 else 0 end) as unsubscribed_count")
             ->first();
 
         DB::table('whatsapp_monthly_summaries')->upsert(

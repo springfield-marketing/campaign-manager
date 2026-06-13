@@ -23,6 +23,19 @@ enum WhatsAppPlatform: string implements HasLabel
         };
     }
 
+    public function isWati(): bool
+    {
+        return str_starts_with($this->value, 'wati_');
+    }
+
+    /** @return list<string> */
+    public static function watiValues(): array
+    {
+        return array_values(
+            array_map(fn (self $c) => $c->value, array_filter(self::cases(), fn (self $c) => $c->isWati()))
+        );
+    }
+
     /** @return array<string, string> */
     public static function options(): array
     {

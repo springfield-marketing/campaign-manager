@@ -2,6 +2,7 @@
 
 namespace App\Modules\WhatsApp\Support;
 
+use App\Modules\WhatsApp\Enums\WhatsAppPlatform;
 use App\Modules\WhatsApp\Models\WhatsAppSettings;
 use Illuminate\Support\Facades\DB;
 
@@ -204,7 +205,8 @@ class WhatsAppBatchProfileUpdater
 
     private function updateSuppressions(array $ids): void
     {
-        $idFilter = $this->idFilter('wm.client_phone_number_id', $ids);
+        $idFilter   = $this->idFilter('wm.client_phone_number_id', $ids);
+        $watiList   = "'" . implode("','", WhatsAppPlatform::watiValues()) . "'";
 
         DB::statement("
             INSERT INTO contact_suppressions
@@ -218,22 +220,36 @@ class WhatsAppBatchProfileUpdater
                 NOW(),
                 NOW()
             FROM (
-                -- DISTINCT on integer + text only, before the jsonb literal is introduced
                 SELECT DISTINCT client_phone_number_id, reason
                 FROM (
-                    SELECT client_phone_number_id, 'opted_out' AS reason
+                    SELECT wm.client_phone_number_id, 'opted_out' AS reason
                     FROM whatsapp_messages wm
-                    WHERE delivery_status = 'FAILED'
-                      AND failure_reason LIKE '%chosen to stop receiving marketing messages%'
+                    WHERE wm.delivery_status = 'FAILED'
+                      AND wm.failure_reason LIKE '%chosen to stop receiving marketing messages%'
                       {$idFilter}
 
                     UNION ALL
 
-                    SELECT client_phone_number_id, 'reported_spam' AS reason
+                    -- Wati: reply 3 = customer unsubscribed
+                    SELECT wm.client_phone_number_id, 'customer_unsubscribed' AS reason
                     FROM whatsapp_messages wm
-                    WHERE has_quick_replies = true
-                      AND quick_reply_3 IS NOT NULL
-                      AND quick_reply_3 != ''
+                    JOIN whatsapp_campaigns wc ON wc.id = wm.whatsapp_campaign_id
+                    WHERE wm.has_quick_replies = true
+                      AND wm.quick_reply_3 IS NOT NULL
+                      AND wm.quick_reply_3 != ''
+                      AND wc.platform IN ({$watiList})
+                      {$idFilter}
+
+                    UNION ALL
+
+                    -- Non-Wati: reply 3 = reported spam
+                    SELECT wm.client_phone_number_id, 'reported_spam' AS reason
+                    FROM whatsapp_messages wm
+                    JOIN whatsapp_campaigns wc ON wc.id = wm.whatsapp_campaign_id
+                    WHERE wm.has_quick_replies = true
+                      AND wm.quick_reply_3 IS NOT NULL
+                      AND wm.quick_reply_3 != ''
+                      AND (wc.platform IS NULL OR wc.platform NOT IN ({$watiList}))
                       {$idFilter}
                 ) candidates
             ) sub
