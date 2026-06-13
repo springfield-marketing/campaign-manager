@@ -116,9 +116,11 @@ class WhatsAppImportsTable
                         \Filament\Forms\Components\Select::make('platform')
                             ->label('Platform')
                             ->options([
-                                'wati'     => 'WATI',
-                                'gupshup'  => 'Gupshup',
-                                'other'    => 'Other',
+                                'wati_1'     => 'Wati 1',
+                                'wati_2'     => 'Wati 2',
+                                'wati_3'     => 'Wati 3',
+                                'wati_4'     => 'Wati 4',
+                                'gupshup_1'  => 'Gupshup 1',
                             ])
                             ->required(),
 
