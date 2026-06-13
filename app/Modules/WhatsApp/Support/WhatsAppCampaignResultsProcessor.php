@@ -6,6 +6,7 @@ use App\Models\Client;
 use App\Models\ClientPhoneNumber;
 use App\Models\ClientSource;
 use App\Modules\WhatsApp\Enums\WhatsAppImportStatus;
+use App\Modules\WhatsApp\Enums\WhatsAppPlatform;
 use App\Modules\WhatsApp\Jobs\BatchAnalyseWhatsAppNumbers;
 use App\Modules\WhatsApp\Models\WhatsAppCampaign;
 use App\Modules\WhatsApp\Models\WhatsAppImport;
@@ -73,7 +74,8 @@ class WhatsAppCampaignResultsProcessor
 
             $now = now()->toDateTimeString();
 
-            $isGupshup = stripos((string) $import->source_name, 'gupshup') !== false;
+            $platform  = $import->platform();
+            $isGupshup = $platform === WhatsAppPlatform::Gupshup1;
 
             while (! $file->eof()) {
                 $row = $file->fgetcsv();
@@ -99,7 +101,7 @@ class WhatsAppCampaignResultsProcessor
                     $campaignName = (string) $payload['CampaignName'];
 
                     if (! isset($campaignsByName[$campaignName])) {
-                        $campaignsByName[$campaignName] = $this->findOrCreateCampaign($payload, $import->source_name);
+                        $campaignsByName[$campaignName] = $this->findOrCreateCampaign($payload, $platform);
                     }
 
                     $campaign = $campaignsByName[$campaignName];
@@ -260,7 +262,7 @@ class WhatsAppCampaignResultsProcessor
     /**
      * @param  array<string, string|null>  $payload
      */
-    private function findOrCreateCampaign(array $payload, ?string $platform): WhatsAppCampaign
+    private function findOrCreateCampaign(array $payload, ?WhatsAppPlatform $platform): WhatsAppCampaign
     {
         $campaign = WhatsAppCampaign::firstOrCreate(
             ['name' => (string) $payload['CampaignName']],

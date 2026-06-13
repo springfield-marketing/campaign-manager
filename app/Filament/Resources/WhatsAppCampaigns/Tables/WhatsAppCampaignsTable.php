@@ -17,6 +17,7 @@ class WhatsAppCampaignsTable
                     ->sortable(),
 
                 TextColumn::make('platform')
+                    ->badge()
                     ->searchable()
                     ->sortable()
                     ->placeholder('—'),

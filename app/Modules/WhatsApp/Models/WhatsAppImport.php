@@ -4,6 +4,7 @@ namespace App\Modules\WhatsApp\Models;
 
 use App\Models\User;
 use App\Modules\WhatsApp\Enums\WhatsAppImportStatus;
+use App\Modules\WhatsApp\Enums\WhatsAppPlatform;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -42,9 +43,9 @@ class WhatsAppImport extends Model
             'column_mapping'  => 'array',
             'lenient_phones'  => 'boolean',
             'summary'         => 'array',
-            'started_at' => 'datetime',
-            'completed_at' => 'datetime',
-            'reverted_at' => 'datetime',
+            'started_at'      => 'datetime',
+            'completed_at'    => 'datetime',
+            'reverted_at'     => 'datetime',
         ];
     }
 
@@ -61,6 +62,11 @@ class WhatsAppImport extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    public function platform(): ?WhatsAppPlatform
+    {
+        return WhatsAppPlatform::tryFrom($this->source_name ?? '');
     }
 
     public function broadcastProgress(): void

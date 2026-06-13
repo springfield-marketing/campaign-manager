@@ -2,6 +2,7 @@
 
 namespace App\Modules\WhatsApp\Models;
 
+use App\Modules\WhatsApp\Enums\WhatsAppPlatform;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -27,8 +28,9 @@ class WhatsAppCampaign extends Model
     protected function casts(): array
     {
         return [
-            'summary' => 'array',
-            'started_at' => 'datetime',
+            'platform'     => WhatsAppPlatform::class,
+            'summary'      => 'array',
+            'started_at'   => 'datetime',
             'completed_at' => 'datetime',
         ];
     }

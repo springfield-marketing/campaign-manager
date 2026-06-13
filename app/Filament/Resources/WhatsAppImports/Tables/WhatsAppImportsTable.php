@@ -4,6 +4,7 @@ namespace App\Filament\Resources\WhatsAppImports\Tables;
 
 use App\Modules\WhatsApp\Enums\WhatsAppImportStatus;
 use App\Modules\WhatsApp\Enums\WhatsAppImportType;
+use App\Modules\WhatsApp\Enums\WhatsAppPlatform;
 use App\Modules\WhatsApp\Jobs\ProcessWhatsAppCampaignResultsImport;
 use App\Modules\WhatsApp\Jobs\ProcessWhatsAppRawImport;
 use App\Modules\WhatsApp\Jobs\ProcessWhatsAppUnsubscriberImport;
@@ -50,7 +51,9 @@ class WhatsAppImportsTable
                     ->limit(40),
 
                 TextColumn::make('source_name')
-                    ->label('Source')
+                    ->label('Platform')
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state) => WhatsAppPlatform::tryFrom($state ?? '')?->getLabel() ?? $state)
                     ->placeholder('—')
                     ->searchable(),
 
@@ -115,13 +118,7 @@ class WhatsAppImportsTable
 
                         \Filament\Forms\Components\Select::make('platform')
                             ->label('Platform')
-                            ->options([
-                                'wati_1'     => 'Wati 1',
-                                'wati_2'     => 'Wati 2',
-                                'wati_3'     => 'Wati 3',
-                                'wati_4'     => 'Wati 4',
-                                'gupshup_1'  => 'Gupshup 1',
-                            ])
+                            ->options(WhatsAppPlatform::options())
                             ->required(),
 
                         \Filament\Forms\Components\Toggle::make('lenient_phones')
