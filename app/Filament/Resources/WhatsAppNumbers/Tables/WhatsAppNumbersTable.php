@@ -152,40 +152,40 @@ class WhatsAppNumbersTable
                     // Default to engaged numbers that are ready again (active / off-cooldown,
                     // not dead/unsubscribed). Excludes never-messaged; switch or clear to see more.
                     ->default('active')
-                    ->query(fn (Builder $query, array $data): Builder => match ($data['value'] ?? null) {
-                        'never_messaged' => $query->whereDoesntHave('whatsAppProfile'),
-                        'active'         => $query
-                            ->whereHas('whatsAppProfile', fn ($q) => $q->where(fn ($q2) =>
-                                $q2->where('usage_status', 'active')
-                                   ->orWhere(fn ($q3) => $q3
-                                       ->where('usage_status', 'cooldown')
-                                       ->where(fn ($q4) => $q4
-                                           ->whereNull('cooldown_until')
-                                           ->orWhereRaw('cooldown_until <= NOW()')
-                                       )
-                                   )
-                            ))
-                            ->whereNotExists(fn ($q) => $q
-                                ->selectRaw('1')
-                                ->from('contact_suppressions')
-                                ->whereColumn('contact_suppressions.client_phone_number_id', 'client_phone_numbers.id')
-                                ->where('contact_suppressions.channel', 'whatsapp')
-                                ->whereNull('contact_suppressions.released_at')
-                            ),
-                        'cooldown'       => $query->whereHas('whatsAppProfile', fn ($q) => $q
-                            ->where('usage_status', 'cooldown')
-                            ->whereNotNull('cooldown_until')
-                            ->whereRaw('cooldown_until > NOW()')
-                        ),
-                        'dead'           => $query->whereHas('whatsAppProfile', fn ($q) => $q->where('usage_status', 'dead')),
-                        'unsubscribed'   => $query->whereExists(fn ($q) => $q
+                    ->query(function (Builder $query, array $data): Builder {
+                        // An active WhatsApp suppression is shown as "Unsubscribed" in the WA Status column
+                        // regardless of the profile's usage_status (see the column's getStateUsing), so every
+                        // non-unsubscribed bucket must exclude suppressed numbers to match what's displayed.
+                        $whereSuppressed = fn ($q) => $q
                             ->selectRaw('1')
                             ->from('contact_suppressions')
                             ->whereColumn('contact_suppressions.client_phone_number_id', 'client_phone_numbers.id')
                             ->where('contact_suppressions.channel', 'whatsapp')
-                            ->whereNull('contact_suppressions.released_at')
-                        ),
-                        default => $query,
+                            ->whereNull('contact_suppressions.released_at');
+                        $excludeSuppressed = fn (Builder $q): Builder => $q->whereNotExists($whereSuppressed);
+
+                        return match ($data['value'] ?? null) {
+                            'never_messaged' => $excludeSuppressed($query->whereDoesntHave('whatsAppProfile')),
+                            'active'         => $excludeSuppressed($query
+                                ->whereHas('whatsAppProfile', fn ($q) => $q->where(fn ($q2) =>
+                                    $q2->where('usage_status', 'active')
+                                       ->orWhere(fn ($q3) => $q3
+                                           ->where('usage_status', 'cooldown')
+                                           ->where(fn ($q4) => $q4
+                                               ->whereNull('cooldown_until')
+                                               ->orWhereRaw('cooldown_until <= NOW()')
+                                           )
+                                       )
+                                ))),
+                            'cooldown'       => $excludeSuppressed($query->whereHas('whatsAppProfile', fn ($q) => $q
+                                ->where('usage_status', 'cooldown')
+                                ->whereNotNull('cooldown_until')
+                                ->whereRaw('cooldown_until > NOW()')
+                            )),
+                            'dead'           => $excludeSuppressed($query->whereHas('whatsAppProfile', fn ($q) => $q->where('usage_status', 'dead'))),
+                            'unsubscribed'   => $query->whereExists($whereSuppressed),
+                            default          => $query,
+                        };
                     }),
 
                 SelectFilter::make('emirate')
