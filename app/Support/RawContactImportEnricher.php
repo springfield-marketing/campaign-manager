@@ -210,15 +210,33 @@ class RawContactImportEnricher
     }
 
     /**
+     * Source-system labels seen leaking into the "name" column instead of a real contact
+     * name (e.g. a CRM/lead-source field got mapped to name by mistake in some export).
+     * Matched as substrings against a normalized (lowercased, symbols stripped) form, since
+     * the raw values carry varying decoration (e.g. "=✅old Crm | -", "✅pf Call |").
+     */
+    private const PLACEHOLDER_LABEL_FRAGMENTS = [
+        'no name', 'na na', 'guest', 'call summary', 'call inquiry',
+        'whatsapp inquiry', 'whatsapp lead', 'property finder', 'pf call', 'pf whatsapp',
+        'call from pfinder', 'instagram dm', 'telegram', 'crm form', 'old crm',
+    ];
+
+    /**
      * Returns true when the stored name looks like a placeholder or garbage value
-     * that should always be overwritten by a real imported name.
+     * that should always be overwritten by a real imported name, and — critically —
+     * should never be used to match/merge this row's identity with another row's via
+     * RawImportProcessor::clientKey(). A handful of "super clients" with hundreds of
+     * unrelated phone numbers attached were caused by exactly this: many different real
+     * people whose row literally said "No Name", "Guest", or "Ahmed Na" (first name +
+     * placeholder last name) all collapsed onto one client record because the name was
+     * treated as a reliable identity key.
      */
     public static function isStubName(string $name): bool
     {
         $trimmed = trim($name);
 
         // Explicit DND / Do Not Call placeholders
-        if (in_array(strtoupper($trimmed), ['DND', 'DO NOT CALL', 'DO NOT DISTURB', 'N/A', '-', '.'], strict: true)) {
+        if (in_array(strtoupper($trimmed), ['DND', 'DO NOT CALL', 'DO NOT DISTURB', 'N/A', '-', '.', 'UNKNOWN', 'AGENT'], strict: true)) {
             return true;
         }
 
@@ -229,6 +247,26 @@ class RawContactImportEnricher
 
         // Ends with a bare dot/space (e.g. "Ahmed .") — truncated or partial
         if (preg_match('/\.\s*$/', $trimmed)) {
+            return true;
+        }
+
+        // "Firstname Na" — a placeholder last name ("N/A") concatenated onto a real first name
+        if (preg_match('/\bna$/i', $trimmed)) {
+            return true;
+        }
+
+        // Source/channel label leaked into the name field
+        $normalized = mb_strtolower(preg_replace('/[^a-z0-9\s]/i', ' ', $trimmed) ?? '');
+        $normalized = trim(preg_replace('/\s+/', ' ', $normalized) ?? '');
+        foreach (self::PLACEHOLDER_LABEL_FRAGMENTS as $fragment) {
+            if (str_contains($normalized, $fragment)) {
+                return true;
+            }
+        }
+
+        // A single word is too weak an identity signal to safely match other rows by —
+        // many unrelated people can share just a first name with no last name on file.
+        if (count(array_filter(explode(' ', $normalized))) <= 1) {
             return true;
         }
 

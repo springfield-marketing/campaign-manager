@@ -28,6 +28,16 @@ class RawImportProcessor
 
     private const SOURCE_INSERT_CHUNK = 1000;
 
+    /**
+     * Once a client has accumulated this many alternate names, stop auto-merging further
+     * conflicting names from imports — log them for manual review instead. A handful of
+     * alternate names is normal (nicknames, typos, a shared line with a few callers); past
+     * this point it's more likely the phone number is shared across many unrelated people
+     * (or a data error), and silently continuing to merge identities is how a handful of
+     * corrupted "super clients" with thousands of merged leads previously went unnoticed.
+     */
+    private const MAX_AUTO_MERGE_ALTERNATE_NAMES = 15;
+
     private const RELATIONSHIP_TYPES = [
         'owner', 'resident', 'tenant', 'buyer_interest',
         'seller_interest', 'investor', 'past_owner', 'prospect', 'unknown',
@@ -422,7 +432,7 @@ class RawImportProcessor
 
         if ($items !== []) {
             $this->assignClients($items);
-            $this->enrichExistingClients($items);
+            $errors = array_merge($errors, $this->enrichExistingClients($items, $import));
             $duplicates = $this->upsertPhones($items);
             $this->syncPrimaryEmails($items);
             $this->syncRelationshipTags($items);
@@ -484,14 +494,14 @@ class RawImportProcessor
         ];
     }
 
-    private function makeErrorRow(IvrImport $import, int $rowNumber, string $message, array $row): array
+    private function makeErrorRow(IvrImport $import, int $rowNumber, string $message, array $row, string $errorType = 'row_validation'): array
     {
         $now = now()->toDateTimeString();
 
         return [
             'ivr_import_id' => $import->id,
             'row_number' => $rowNumber,
-            'error_type' => 'row_validation',
+            'error_type' => $errorType,
             'error_message' => $message,
             'row_payload' => json_encode($row),
             'created_at' => $now,
@@ -532,6 +542,26 @@ class RawImportProcessor
             if ($phone?->client_id) {
                 $items[$index]['client_id'] = $phone->client_id;
                 $items[$index]['existing_client'] = true;
+                continue;
+            }
+
+            $name = trim((string) ($item['payload']['name'] ?? ''));
+
+            // A stub/placeholder name ("No Name", "Guest", "Ahmed Na", a bare single word, a
+            // source-label leak, etc.) is too weak an identity signal to match against other
+            // rows — doing so is how unrelated people ended up sharing one client record with
+            // hundreds of unrelated phone numbers attached. Always create a fresh client for
+            // these rather than risking an incorrect merge via the key-matching path below.
+            if (RawContactImportEnricher::isStubName($name)) {
+                $client = Client::create([
+                    'full_name' => $name ?: null,
+                    'emirate' => $item['emirate'] ?: null,
+                    'country_iso' => $this->normalizeCountryIso($item['payload']['country_iso'] ?? null),
+                    'nationality' => $this->blankToNull($item['payload']['nationality'] ?? null),
+                    'gender' => $this->blankToNull($item['payload']['gender'] ?? null),
+                    'tier' => $this->normalizeTier($item['payload']['tier'] ?? null),
+                ]);
+                $items[$index]['client_id'] = $client->id;
                 continue;
             }
 
@@ -951,7 +981,11 @@ class RawImportProcessor
      *
      * @param  array<int, array<string, mixed>>  $items
      */
-    private function enrichExistingClients(array &$items): void
+    /**
+     * @param  array<int, array<string, mixed>>  $items
+     * @return array<int, array<string, mixed>> Quarantine error rows for ivr_import_errors
+     */
+    private function enrichExistingClients(array &$items, IvrImport $import): array
     {
         $enrichMap = [];
 
@@ -963,7 +997,7 @@ class RawImportProcessor
         }
 
         if ($enrichMap === []) {
-            return;
+            return [];
         }
 
         $clients = Client::query()
@@ -975,6 +1009,7 @@ class RawImportProcessor
 
         // --- Per-item conflict detection (loops all items, not just the enrichMap first-per-client) ---
         $newAlternateNames = []; // [client_id => [normalised_name, ...]]
+        $alternateNameItems = []; // [client_id => [item_index, ...]] — for quarantine error rows
 
         foreach ($items as $index => $item) {
             if (! ($item['existing_client'] ?? false) || ! $item['client_id']) {
@@ -1003,6 +1038,7 @@ class RawImportProcessor
                     'imported' => $importedName,
                 ];
                 $newAlternateNames[$item['client_id']][] = $importedName;
+                $alternateNameItems[$item['client_id']][] = $index;
             }
 
             // Other field conflicts: both sides non-blank and different
@@ -1031,10 +1067,32 @@ class RawImportProcessor
             }
         }
 
-        // --- Merge new alternate names onto clients ---
+        // --- Merge new alternate names onto clients, unless this client has already
+        // accumulated too many to keep auto-merging safely (see MAX_AUTO_MERGE_ALTERNATE_NAMES) ---
+        $quarantineErrors = [];
+
         foreach ($newAlternateNames as $clientId => $names) {
             $existing = $clients->get($clientId)?->alternate_names ?? [];
-            $merged   = array_values(array_unique(array_merge($existing, $names)));
+
+            if (count($existing) >= self::MAX_AUTO_MERGE_ALTERNATE_NAMES) {
+                foreach ($alternateNameItems[$clientId] ?? [] as $itemIndex) {
+                    $item = $items[$itemIndex];
+                    $quarantineErrors[] = $this->makeErrorRow(
+                        $import,
+                        $item['row_number'],
+                        "Client #{$clientId} already has ".count($existing)." alternate names on file — ".
+                        "name conflict (\"{$names[0]}\" vs stored \"{$clients->get($clientId)?->full_name}\") ".
+                        'was not auto-merged. Needs manual review (likely a shared phone number).',
+                        $item['row'],
+                        'name_conflict_quarantined',
+                    );
+                    $items[$itemIndex]['quarantined'] = true;
+                }
+
+                continue;
+            }
+
+            $merged = array_values(array_unique(array_merge($existing, $names)));
 
             DB::table('clients')->where('id', $clientId)->update([
                 'alternate_names' => json_encode($merged),
@@ -1110,6 +1168,8 @@ class RawImportProcessor
                 );
             }
         }
+
+        return $quarantineErrors;
     }
 
     /**
