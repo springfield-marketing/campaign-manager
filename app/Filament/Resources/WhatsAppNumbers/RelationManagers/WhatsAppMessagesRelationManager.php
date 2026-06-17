@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\WhatsAppNumbers\RelationManagers;
 
+use App\Filament\Resources\WhatsAppCampaigns\WhatsAppCampaignResource;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -26,7 +27,11 @@ class WhatsAppMessagesRelationManager extends RelationManager
                 TextColumn::make('campaign.name')
                     ->label('Campaign')
                     ->placeholder('—')
-                    ->limit(30),
+                    ->limit(30)
+                    ->color('primary')
+                    ->url(fn ($record): ?string => $record->whatsapp_campaign_id
+                        ? WhatsAppCampaignResource::getUrl('edit', ['record' => $record->whatsapp_campaign_id])
+                        : null),
 
                 TextColumn::make('delivery_status')
                     ->label('Status')
