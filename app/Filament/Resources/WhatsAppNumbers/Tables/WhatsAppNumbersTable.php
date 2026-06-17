@@ -7,6 +7,7 @@ use App\Filament\Resources\Clients\ClientResource;
 use App\Models\ClientPhoneNumber;
 use App\Models\ContactSuppression;
 use App\Models\MarketingArea;
+use App\Models\Tag;
 use Filament\Actions\Action;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
@@ -235,6 +236,24 @@ class WhatsAppNumbersTable
                                     ->from('ownerships')
                                     ->whereColumn('ownerships.client_id', 'client_phone_numbers.client_id')
                                     ->whereIn('ownerships.marketing_area_id', $data['values'])
+                            )
+                        )
+                    ),
+
+                SelectFilter::make('tags')
+                    ->label('Tags')
+                    ->multiple()
+                    ->searchable()
+                    ->preload()
+                    ->options(fn () => Tag::orderBy('name')->pluck('name', 'id'))
+                    ->query(fn (Builder $query, array $data): Builder =>
+                        $query->when(
+                            filled($data['values'] ?? []),
+                            fn (Builder $q): Builder => $q->whereExists(fn ($tag) =>
+                                $tag->selectRaw('1')
+                                    ->from('client_tags')
+                                    ->whereColumn('client_tags.client_id', 'client_phone_numbers.client_id')
+                                    ->whereIn('client_tags.tag_id', $data['values'])
                             )
                         )
                     ),
