@@ -2,10 +2,12 @@
 
 namespace Tests\Feature\Modules;
 
+use App\Models\Client;
 use App\Models\MarketingArea;
 use App\Models\Project;
 use App\Modules\IVR\Models\IvrImport;
 use App\Modules\IVR\Support\RawImportProcessor;
+use App\Support\RawContactImportEnricher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -108,5 +110,41 @@ class RawContactImportEnrichmentTest extends TestCase
         $this->assertDatabaseHas('client_phone_numbers', [
             'normalized_phone' => '+971500023490',
         ]);
+    }
+
+    /**
+     * IMP-001 — regression for the client 496904 incident: 8 unrelated Iranian numbers
+     * collapsed onto one "✅ Instagram Dm |" client because resolveClient matched on the
+     * (name, emirate, country) tuple and the placeholder name made distinct leads collide.
+     * See docs/data-rules/imports.md.
+     */
+    #[Test]
+    public function imp_001_stub_named_rows_never_merge_distinct_leads(): void
+    {
+        $enricher = app(RawContactImportEnricher::class);
+
+        // Two unrelated leads, both arriving with the same placeholder name and no location,
+        // each with a brand-new phone (no existing ClientPhoneNumber to match on).
+        $a = $enricher->resolveClient(['name' => '✅ Instagram Dm |', 'normalized_phone' => '+989121260734']);
+        $b = $enricher->resolveClient(['name' => '✅ Instagram Dm |', 'normalized_phone' => '+989125209034']);
+
+        $this->assertNotSame($a->id, $b->id, 'Stub-named leads must not be merged onto one client');
+        $this->assertSame(2, Client::where('full_name', '✅ Instagram Dm |')->count());
+    }
+
+    /**
+     * IMP-001 guard rail: real names must still merge on the identity tuple, otherwise the
+     * fix would fragment every legitimate repeat contact into duplicate client records.
+     */
+    #[Test]
+    public function imp_001_real_named_rows_still_merge_on_the_identity_tuple(): void
+    {
+        $enricher = app(RawContactImportEnricher::class);
+
+        $a = $enricher->resolveClient(['name' => 'Aisha Rahman', 'emirate' => 'Dubai', 'country_iso' => 'AE', 'normalized_phone' => '+971500000001']);
+        $b = $enricher->resolveClient(['name' => 'Aisha Rahman', 'emirate' => 'Dubai', 'country_iso' => 'AE', 'normalized_phone' => '+971500000002']);
+
+        $this->assertSame($a->id, $b->id, 'Real names sharing the identity tuple should still merge');
+        $this->assertSame(1, Client::where('full_name', 'Aisha Rahman')->count());
     }
 }

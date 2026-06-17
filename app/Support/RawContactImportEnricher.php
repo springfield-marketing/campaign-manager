@@ -64,6 +64,27 @@ class RawContactImportEnricher
         $emirate    = trim((string) ($payload['emirate'] ?? ''));
         $countryIso = strtoupper(substr(trim((string) ($payload['country_iso'] ?? '')), 0, 2)) ?: null;
 
+        // IMP-001: a stub/placeholder name ("Instagram Dm", "No Name", a bare first name, etc.) is
+        // too weak an identity signal to match other rows by. Matching the (name, emirate, country)
+        // tuple below is how unrelated people collapsed onto one client with many numbers attached.
+        // Mirror RawImportProcessor (the IVR path already guards this) and always create a fresh
+        // client for stub-named rows. See docs/data-rules/imports.md.
+        if (self::isStubName($fullName)) {
+            $client = Client::create([
+                'full_name'   => $fullName ?: null,
+                'emirate'     => $emirate ?: null,
+                'country_iso' => $countryIso,
+                'nationality' => $this->blankToNull($payload['nationality'] ?? null),
+                'gender'      => $this->blankToNull($payload['gender'] ?? null),
+            ]);
+
+            if ($email !== '') {
+                $client->setPrimaryEmailAddress($email);
+            }
+
+            return $client;
+        }
+
         $client = Client::firstOrCreate(
             [
                 'full_name'   => $fullName ?: null,
