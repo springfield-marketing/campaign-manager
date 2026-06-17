@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\WhatsAppCampaigns\RelationManagers;
 
+use App\Filament\Filters\PhoneSearchFilter;
 use App\Filament\Resources\Clients\ClientResource;
 use App\Modules\WhatsApp\Models\WhatsAppMessage;
 use Filament\Resources\RelationManagers\RelationManager;
@@ -10,6 +11,7 @@ use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class MessagesRelationManager extends RelationManager
 {
@@ -27,7 +29,17 @@ class MessagesRelationManager extends RelationManager
             ->columns([
                 TextColumn::make('phoneNumber.normalized_phone')
                     ->label('Phone')
-                    ->searchable()
+                    ->searchable(query: function (Builder $query, string $search): Builder {
+                        $candidates = PhoneSearchFilter::candidates($search);
+
+                        return $query->whereHas('phoneNumber', fn (Builder $q) => $q
+                            ->where(function (Builder $inner) use ($candidates): void {
+                                foreach ($candidates as $candidate) {
+                                    $inner->orWhere('normalized_phone', 'like', '%'.$candidate.'%')
+                                          ->orWhere('raw_phone', 'like', '%'.$candidate.'%');
+                                }
+                            }));
+                    })
                     ->url(fn (WhatsAppMessage $record): ?string => $record->phoneNumber?->client_id
                         ? ClientResource::getUrl('edit', ['record' => $record->phoneNumber->client_id])
                         : null),
@@ -43,7 +55,14 @@ class MessagesRelationManager extends RelationManager
                         default                        => 'gray',
                     })
                     ->formatStateUsing(fn (?string $state) => $state ? ucfirst(strtolower($state)) : '—')
-                    ->placeholder('—'),
+                    ->placeholder('—')
+                    ->tooltip('Click to filter by this status')
+                    ->action(function (WhatsAppMessage $record, $livewire): void {
+                        // Click the badge to apply (or toggle off) the Status filter.
+                        $current = $livewire->tableFilters['delivery_status']['value'] ?? null;
+                        $livewire->tableFilters['delivery_status']['value'] =
+                            $current === $record->delivery_status ? null : $record->delivery_status;
+                    }),
 
                 IconColumn::make('clicked')
                     ->label('Clicked')
