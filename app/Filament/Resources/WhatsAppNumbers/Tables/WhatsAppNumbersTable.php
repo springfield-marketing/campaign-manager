@@ -287,6 +287,10 @@ class WhatsAppNumbersTable
                     )
                     ->searchable(),
 
+                Filter::make('uae_only')
+                    ->label('UAE Only (exclude international)')
+                    ->query(fn (Builder $query): Builder => $query->where('is_uae', true)),
+
                 Filter::make('is_lead')
                     ->label('Leads Only')
                     ->query(fn (Builder $query): Builder => $query->where('is_whatsapp_lead', true)),
