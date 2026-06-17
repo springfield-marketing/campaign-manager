@@ -30,12 +30,10 @@ class IvrUnsubscribersTable
             ->columns([
                 TextColumn::make('phoneNumber.client.full_name')
                     ->label('Name')
-                    ->searchable()
                     ->placeholder('—'),
 
                 TextColumn::make('phoneNumber.normalized_phone')
                     ->label('Phone')
-                    ->searchable()
                     ->url(fn (ContactSuppression $record): ?string => $record->phoneNumber?->client_id
                         ? ClientResource::getUrl('edit', ['record' => $record->phoneNumber->client_id])
                         : null)
@@ -61,12 +59,11 @@ class IvrUnsubscribersTable
             ->defaultSort('suppressed_at', 'desc')
             ->filters([
                 PhoneSearchFilter::make('phone', fn (Builder $query, array $candidates) =>
-                    $query->whereHas('phoneNumber', function (Builder $q) use ($candidates): void {
-                        foreach ($candidates as $candidate) {
-                            $q->orWhere('normalized_phone', 'like', '%'.$candidate.'%')
-                              ->orWhere('raw_phone', 'like', '%'.$candidate.'%');
-                        }
-                    })
+                    // Exact match on the unique `normalized_phone` index — a `LIKE '%…%'` here forces a
+                    // full sequential scan of ~870k phone numbers, which times out the request under load.
+                    $query->whereHas('phoneNumber', fn (Builder $q) =>
+                        $q->whereIn('normalized_phone', $candidates)
+                    )
                 ),
 
                 Filter::make('name')

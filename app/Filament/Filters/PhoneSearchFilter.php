@@ -2,6 +2,7 @@
 
 namespace App\Filament\Filters;
 
+use App\Modules\IVR\Support\PhoneNormalizer;
 use Closure;
 use Filament\Forms\Components\TextInput;
 use Filament\Tables\Filters\Filter;
@@ -12,13 +13,25 @@ class PhoneSearchFilter
     /**
      * Normalise a raw phone string into a list of candidate values to match against.
      *
+     * The first entry, when present, is the canonical `normalized_phone` form (e.g. "+971501234567")
+     * produced by {@see PhoneNormalizer}. Callers that match against the unique `normalized_phone`
+     * index should prefer an exact `whereIn` over a `LIKE` so the index is actually used.
+     *
      * @return list<string>
      */
     public static function candidates(string $phone): array
     {
         $digits = preg_replace('/\D+/', '', $phone) ?? '';
 
+        $canonical = null;
+        try {
+            $canonical = app(PhoneNormalizer::class)->normalize($phone)['normalized'];
+        } catch (\InvalidArgumentException) {
+            // Partial or invalid input (e.g. a few digits): no canonical form to anchor on.
+        }
+
         return array_values(array_filter(array_unique([
+            $canonical,
             $phone,
             $digits,
             $digits !== '' ? '+'.$digits : null,
