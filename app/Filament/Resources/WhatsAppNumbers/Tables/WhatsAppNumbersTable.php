@@ -144,34 +144,16 @@ class WhatsAppNumbersTable
                 SelectFilter::make('wa_status')
                     ->label('WA Status')
                     ->options([
-                        'ready'          => 'Ready to message',
                         'never_messaged' => 'Never Messaged',
                         'active'         => 'Active',
                         'cooldown'       => 'Cooldown',
                         'dead'           => 'Dead',
                         'unsubscribed'   => 'Unsubscribed',
                     ])
-                    ->default('ready')
+                    // Default to engaged numbers that are ready again (active / off-cooldown,
+                    // not dead/unsubscribed). Excludes never-messaged; switch or clear to see more.
+                    ->default('active')
                     ->query(fn (Builder $query, array $data): Builder => match ($data['value'] ?? null) {
-                        // Default view: actionable numbers only — excludes WhatsApp-unsubscribed,
-                        // dead, and currently-resting (cooldown) numbers. Keeps active numbers and
-                        // never-messaged fresh leads (no profile yet).
-                        'ready'          => $query
-                            ->whereNotExists(fn ($q) => $q
-                                ->selectRaw('1')
-                                ->from('contact_suppressions')
-                                ->whereColumn('contact_suppressions.client_phone_number_id', 'client_phone_numbers.id')
-                                ->where('contact_suppressions.channel', 'whatsapp')
-                                ->whereNull('contact_suppressions.released_at')
-                            )
-                            ->whereDoesntHave('whatsAppProfile', fn ($q) => $q
-                                ->where('usage_status', 'dead')
-                                ->orWhere(fn ($q2) => $q2
-                                    ->where('usage_status', 'cooldown')
-                                    ->whereNotNull('cooldown_until')
-                                    ->whereRaw('cooldown_until > NOW()')
-                                )
-                            ),
                         'never_messaged' => $query->whereDoesntHave('whatsAppProfile'),
                         'active'         => $query
                             ->whereHas('whatsAppProfile', fn ($q) => $q->where(fn ($q2) =>
