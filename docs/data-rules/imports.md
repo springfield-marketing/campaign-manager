@@ -46,10 +46,21 @@ See [README.md](README.md) for how this registry works. Newest entries at the to
   and `::imp_001_real_named_rows_still_merge_on_the_identity_tuple`.
 - **Code:** [`app/Support/RawContactImportEnricher.php`](../../app/Support/RawContactImportEnricher.php)
   — the `IMP-001` guard in `resolveClient()`. Detector: `RawContactImportEnricher::isStubName()`.
+- **Cleanup (historical residue):** 2026-06-17, ran `clients:split-name-collisions --threshold=5
+  --stub-only --apply` (the `--stub-only` flag was added for this — it restricts the splitter to
+  placeholder-named clients so banks/shared lines/real repeat contacts are left alone). Split
+  **171 stub-named clients holding 1,023 phone numbers** into one client per phone. 0 numbers
+  lost (all reassigned, 0 placeholder deletions); each split client was snapshotted to
+  `client_audit_logs` (action `split`) first, so it is reversible. After: 0 stub-named clients
+  with ≥5 phones; the 52 non-stub high-volume clients were untouched.
+- **Detector:** `clients:audit-data-quality --phone-threshold=N` flags this pattern; scheduled
+  weekly. Re-running it should now report 0.
 - **Watch out for:**
-  - This does **not** retroactively fix already-merged clients (e.g. 496904). Those need a
-    one-off cleanup (split the mis-merged numbers into their own clients).
   - Two genuinely-same people who both arrive with only a stub name will **not** be merged —
     an accepted gap (we'd rather under-merge than merge strangers).
-  - `isStubName()` is heuristic. New placeholder labels leaking into the name column should be
-    added to `PLACEHOLDER_LABEL_FRAGMENTS`.
+  - `isStubName()` is heuristic. Labels seen slipping past it during cleanup — **"Missed Call",
+    "Pflead Pflead", "Whatsapp From Bayut"** — should be added to `PLACEHOLDER_LABEL_FRAGMENTS`
+    so both the import guard and the detector catch them.
+  - The detector query is capped at `LIMIT 500` candidates before the stub filter; fine while
+    well under 500 clients have ≥`phone-threshold` numbers (223 at the time of writing), but
+    revisit if that grows.

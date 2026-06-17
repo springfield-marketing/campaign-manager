@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Client;
 use App\Models\ClientAuditLog;
+use App\Support\RawContactImportEnricher;
 use Illuminate\Console\Command;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -12,6 +13,7 @@ class SplitNameCollisionClients extends Command
 {
     protected $signature = 'clients:split-name-collisions
                             {--threshold=10 : Minimum phone-number count to treat a client as a name collision}
+                            {--stub-only : Only split clients whose name is a stub/placeholder (IMP-001) — leaves real-named high-volume clients (shared lines, institutions) untouched}
                             {--apply : Actually split (default is dry run)}';
 
     protected $description = 'Split a client that absorbed many unrelated phone numbers via a stub/placeholder name (e.g. "No Name", "Guest") back into one client per phone number';
@@ -28,6 +30,16 @@ class SplitNameCollisionClients extends Command
             HAVING count(cpn.id) >= ?
             ORDER BY phone_count DESC
         ', [$threshold]);
+
+        // IMP-001: with --stub-only, restrict to placeholder-named clients so real high-volume
+        // clients (banks, shared reception lines, genuine repeat contacts) are never split.
+        // See docs/data-rules/imports.md.
+        if ($this->option('stub-only')) {
+            $candidates = array_values(array_filter(
+                $candidates,
+                fn ($c) => RawContactImportEnricher::isStubName((string) $c->full_name),
+            ));
+        }
 
         if ($candidates === []) {
             $this->info("No clients found with {$threshold}+ phone numbers.");
