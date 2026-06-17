@@ -42,7 +42,6 @@ class CampaignResultsProcessor
             'started_at' => now(),
             'error_message' => null,
         ]);
-        $import->broadcastProgress();
 
         Log::channel('ivr')->info('Starting IVR campaign results import.', ['import_id' => $import->id]);
 
@@ -54,7 +53,6 @@ class CampaignResultsProcessor
             $inspection = $this->inspectFile($file);
 
             $import->update(['total_rows' => $inspection['total_rows']]);
-            $import->broadcastProgress();
 
             $file->rewind();
 
@@ -139,7 +137,6 @@ class CampaignResultsProcessor
                         'failed_rows' => $failed,
                         'duplicate_rows' => $duplicates,
                     ]);
-                    $import->broadcastProgress();
                 }
             }
 
@@ -183,7 +180,6 @@ class CampaignResultsProcessor
                     'header_row' => $headerRowNumber,
                 ]),
             ]);
-            $import->broadcastProgress();
 
             Log::channel('ivr')->info('Completed IVR campaign results import.', ['import_id' => $import->id]);
         } catch (Throwable $throwable) {
@@ -192,7 +188,6 @@ class CampaignResultsProcessor
                 'error_message' => $throwable->getMessage(),
                 'completed_at' => now(),
             ]);
-            $import->broadcastProgress();
 
             Log::channel('ivr')->error('Campaign results import failed.', [
                 'import_id' => $import->id,

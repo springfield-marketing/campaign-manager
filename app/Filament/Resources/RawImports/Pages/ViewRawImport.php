@@ -50,7 +50,6 @@ class ViewRawImport extends ViewRecord
                         'status'        => IvrImportStatus::Deleting,
                         'error_message' => null,
                     ]);
-                    $record->broadcastProgress();
 
                     DeleteRawIvrImport::dispatch(
                         $record->id,

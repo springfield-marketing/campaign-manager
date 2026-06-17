@@ -111,7 +111,6 @@ class IvrUnsubscribersTable
                             'summary'            => ['format' => 'phone,name'],
                         ]);
 
-                        $import->broadcastProgress();
                         ProcessUnsubscriberImport::dispatch($import->id);
 
                         Notification::make()->title('Do Not Call import queued')->success()->send();

@@ -137,7 +137,6 @@ class RawContactImportProgressWidget extends TableWidget
                             ),
                         ]);
 
-                        $record->broadcastProgress();
                         ProcessRawIvrImport::dispatch($record->id)->onQueue('imports');
 
                         Notification::make()

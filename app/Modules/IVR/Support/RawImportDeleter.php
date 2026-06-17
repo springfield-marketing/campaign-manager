@@ -225,13 +225,11 @@ class RawImportDeleter
                     ]),
                 ]);
             });
-            $import->broadcastProgress();
         } catch (Throwable $exception) {
             $import->forceFill([
                 'status' => IvrImportStatus::DeleteFailed,
                 'error_message' => $exception->getMessage(),
             ])->save();
-            $import->broadcastProgress();
 
             throw $exception;
         }
@@ -343,7 +341,6 @@ class RawImportDeleter
                 'error_message' => null,
             ]);
         });
-        $import->broadcastProgress();
 
         return [$affectedPhoneCount, $deletedPhoneCount, $deletedClientCount];
     }
@@ -368,7 +365,6 @@ class RawImportDeleter
         $import->forceFill([
             'summary' => $summary,
         ])->save();
-        $import->broadcastProgress();
     }
 
     private function logDelete(IvrImport $import, int $affectedPhoneCount, int $deletedPhoneCount, int $deletedClientCount): void

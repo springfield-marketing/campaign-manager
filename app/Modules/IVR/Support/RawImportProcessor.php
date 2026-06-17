@@ -144,7 +144,6 @@ class RawImportProcessor
             'started_at' => now(),
             'error_message' => null,
         ]);
-        $import->broadcastProgress();
 
         Log::channel('ivr')->info('Starting raw IVR import.', ['import_id' => $import->id]);
 
@@ -161,7 +160,6 @@ class RawImportProcessor
             }
 
             $import->update(['total_rows' => $this->countDataRows($file)]);
-            $import->broadcastProgress();
             $file->rewind();
             $this->readHeader($file);
 
@@ -205,7 +203,6 @@ class RawImportProcessor
                         'failed_rows' => $failed,
                         'duplicate_rows' => $duplicates,
                     ]);
-                    $import->broadcastProgress();
                 }
             }
 
@@ -234,7 +231,6 @@ class RawImportProcessor
                     'staging_batch_id' => $staged > 0 ? $batchId : null,
                 ],
             ]);
-            $import->broadcastProgress();
 
             // Rescore all clients touched by this import
             $affectedClientIds = DB::table('client_sources')
@@ -257,7 +253,6 @@ class RawImportProcessor
                 'error_message' => $throwable->getMessage(),
                 'completed_at' => now(),
             ]);
-            $import->broadcastProgress();
 
             Log::channel('ivr')->error('Raw IVR import failed.', [
                 'import_id' => $import->id,

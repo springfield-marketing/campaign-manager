@@ -28,9 +28,6 @@ class ValidateEnvironment extends Command
     private array $requiredInProduction = [
         'REDIS_HOST',
         'REDIS_PORT',
-        'REVERB_APP_ID',
-        'REVERB_APP_KEY',
-        'REVERB_APP_SECRET',
         'MAIL_FROM_ADDRESS',
     ];
 

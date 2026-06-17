@@ -150,7 +150,6 @@ class IvrImportsTable
                             'uploaded_by'        => auth()->id(),
                         ]);
 
-                        $import->broadcastProgress();
                         ProcessIvrCampaignResultsImport::dispatch($import->id)->onQueue('imports-high');
 
                         Notification::make()->title('Campaign results import queued — status will update automatically')->success()->send();
@@ -190,7 +189,6 @@ class IvrImportsTable
                             'summary'            => ['format' => 'phone,name'],
                         ]);
 
-                        $import->broadcastProgress();
                         ProcessUnsubscriberImport::dispatch($import->id)->onQueue('imports');
 
                         Notification::make()->title('Do Not Call import queued — status will update automatically')->success()->send();

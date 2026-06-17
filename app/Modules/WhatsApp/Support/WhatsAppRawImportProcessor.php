@@ -42,7 +42,6 @@ class WhatsAppRawImportProcessor
             'started_at' => now(),
             'error_message' => null,
         ]);
-        $import->broadcastProgress();
 
         Log::channel('whatsapp')->info('Starting WhatsApp raw import.', ['import_id' => $import->id]);
 
@@ -64,7 +63,6 @@ class WhatsAppRawImportProcessor
             }
 
             $import->update(['total_rows' => $this->countDataRows($file)]);
-            $import->broadcastProgress();
             $file->rewind();
             $this->readHeader($file);
 
@@ -116,7 +114,6 @@ class WhatsAppRawImportProcessor
                         'failed_rows'     => $failed,
                         'duplicate_rows'  => $duplicates,
                     ]);
-                    $import->broadcastProgress();
                 }
             }
 
@@ -133,7 +130,6 @@ class WhatsAppRawImportProcessor
                     'mapped_columns'   => array_keys($mapping['mapped']),
                 ],
             ]);
-            $import->broadcastProgress();
 
             $affectedClientIds = DB::table('client_sources')
                 ->where('source_reference', (string) $import->id)
@@ -155,7 +151,6 @@ class WhatsAppRawImportProcessor
                 'error_message' => $e->getMessage(),
                 'completed_at' => now(),
             ]);
-            $import->broadcastProgress();
 
             Log::channel('whatsapp')->error('WhatsApp raw import failed.', [
                 'import_id' => $import->id,

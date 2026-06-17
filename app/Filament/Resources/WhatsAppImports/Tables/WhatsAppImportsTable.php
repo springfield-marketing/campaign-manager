@@ -163,7 +163,6 @@ class WhatsAppImportsTable
                             'uploaded_by'         => auth()->id(),
                         ]);
 
-                        $import->broadcastProgress();
                         ProcessWhatsAppCampaignResultsImport::dispatch($import->id)->onQueue('imports');
 
                         Notification::make()->title('Campaign results import queued — status updates automatically')->success()->send();

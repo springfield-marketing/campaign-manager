@@ -156,7 +156,6 @@ class ListImportStagings extends ListRecords
                         'uploaded_by'        => auth()->id(),
                     ]);
 
-                    $import->broadcastProgress();
                     ProcessRawIvrImport::dispatch($import->id)->onQueue('imports');
 
                     Notification::make()

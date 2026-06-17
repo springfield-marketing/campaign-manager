@@ -69,11 +69,6 @@ class WhatsAppImport extends Model
         return WhatsAppPlatform::tryFrom($this->source_name ?? '');
     }
 
-    public function broadcastProgress(): void
-    {
-        // HTTP polling is used instead of WebSocket for WhatsApp imports
-    }
-
     public function deleteProgress(): array
     {
         $default = [
