@@ -2,18 +2,40 @@
 
 namespace App\Filament\Resources\WhatsAppCampaigns\Tables;
 
+use App\Modules\WhatsApp\Models\WhatsAppMessage;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class WhatsAppCampaignsTable
 {
     public static function configure(Table $table): Table
     {
         return $table
+            // Derive a display label from the template(s) used: the single template name,
+            // or "N templates" when a campaign mixes several. Correlated subquery runs only
+            // for the rows on the current page.
+            ->modifyQueryUsing(fn (Builder $query): Builder => $query->addSelect(['template_label' =>
+                WhatsAppMessage::query()
+                    ->selectRaw(
+                        "CASE WHEN count(DISTINCT template_name) = 1 THEN max(template_name) ".
+                        "WHEN count(DISTINCT template_name) = 0 THEN NULL ".
+                        "ELSE count(DISTINCT template_name) || ' templates' END"
+                    )
+                    ->whereColumn('whatsapp_messages.whatsapp_campaign_id', 'whatsapp_campaigns.id'),
+            ]))
             ->columns([
                 TextColumn::make('name')
-                    ->searchable()
+                    ->label('Campaign')
+                    // Show the template name as the primary label, campaign name as subtitle.
+                    ->state(fn ($record): ?string => $record->template_label ?: $record->name)
+                    ->description(fn ($record): ?string => $record->template_label ? $record->name : null)
+                    ->searchable(query: fn (Builder $query, string $search): Builder => $query->where(
+                        fn (Builder $q) => $q
+                            ->where('whatsapp_campaigns.name', 'like', '%'.$search.'%')
+                            ->orWhereHas('messages', fn (Builder $m) => $m->where('template_name', 'like', '%'.$search.'%'))
+                    ))
                     ->sortable(),
 
                 TextColumn::make('platform')

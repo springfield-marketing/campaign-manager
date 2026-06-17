@@ -24,8 +24,12 @@ class WhatsAppMessagesRelationManager extends RelationManager
                     ->sortable()
                     ->placeholder('—'),
 
-                TextColumn::make('campaign.name')
+                TextColumn::make('template_name')
                     ->label('Campaign')
+                    // Show the (meaningful) template name as the label, with the campaign's own
+                    // name as a subtitle; still links to the campaign.
+                    ->state(fn ($record): ?string => $record->template_name ?: $record->campaign?->name)
+                    ->description(fn ($record): ?string => $record->template_name ? $record->campaign?->name : null)
                     ->placeholder('—')
                     ->limit(30)
                     ->color('primary')
@@ -44,12 +48,6 @@ class WhatsAppMessagesRelationManager extends RelationManager
                     })
                     ->formatStateUsing(fn (?string $state): string => ucfirst(strtolower((string) $state)))
                     ->placeholder('—'),
-
-                TextColumn::make('template_name')
-                    ->label('Template')
-                    ->placeholder('—')
-                    ->limit(25)
-                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('failure_reason')
                     ->label('Failure Reason')
