@@ -12,7 +12,6 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -74,55 +73,15 @@ class ListWhatsAppNumbers extends ListRecords
                     $batchName      = $data['batch_name'];
                     $excludeBatchIds = $data['exclude_batches'] ?? [];
 
-                    $query   = WhatsAppNumberResource::getEloquentQuery();
                     $filters = $this->tableFilters ?? [];
 
-                    // Re-apply all active table filters
-                    $emirate = $filters['emirate']['value'] ?? null;
-                    if (filled($emirate)) {
-                        $query->whereExists(fn ($q) => $q
-                            ->selectRaw('1')
-                            ->from('clients')
-                            ->whereColumn('clients.id', 'client_phone_numbers.client_id')
-                            ->where('clients.emirate', $emirate)
-                        );
-                    }
-
-                    $communityIds = $filters['communities']['values'] ?? [];
-                    if (filled($communityIds)) {
-                        $query->whereExists(fn ($q) => $q
-                            ->selectRaw('1')
-                            ->from('ownerships')
-                            ->whereColumn('ownerships.client_id', 'client_phone_numbers.client_id')
-                            ->whereIn('ownerships.marketing_area_id', $communityIds)
-                        );
-                    }
-
-                    $country = $filters['country']['value'] ?? null;
-                    if (filled($country)) {
-                        $query->where('is_uae', false)->where('detected_country', $country);
-                    }
-
-                    $campaignHistory = $filters['campaign_history']['value'] ?? null;
-                    if ($campaignHistory === 'messaged') {
-                        $query->whereHas('whatsAppMessages');
-                    } elseif ($campaignHistory === 'new') {
-                        $query->whereDoesntHave('whatsAppMessages');
-                    }
-
-                    $waStatus = $filters['wa_status']['value'] ?? null;
-                    if ($waStatus === 'never_messaged') {
-                        $query->whereDoesntHave('whatsAppProfile');
-                    } elseif (in_array($waStatus, ['active', 'cooldown', 'dead'], true)) {
-                        $query->whereHas('whatsAppProfile', fn ($q) => $q->where('usage_status', $waStatus));
-                    }
-
-                    $lastMessageStatus = $filters['last_message_status']['value'] ?? null;
-                    if (filled($lastMessageStatus)) {
-                        $query->whereHas('whatsAppProfile', fn ($p) =>
-                            $p->whereRaw('upper(last_message_status) = ?', [strtoupper($lastMessageStatus)])
-                        );
-                    }
+                    // EXP-001: start from the exact query the table is showing so the export can
+                    // never drift out of sync with the on-screen filters. The previous version
+                    // re-implemented a subset of filters by hand and silently dropped tags,
+                    // uae_only, is_lead and suppressed — exporting the wrong numbers. Reusing the
+                    // table's filtered query means any filter added to the table applies here for
+                    // free. See docs/data-rules/exports.md.
+                    $query = $this->getFilteredTableQuery();
 
                     // Exclude numbers that appeared in any of the selected previous batches
                     if (filled($excludeBatchIds)) {
@@ -134,8 +93,19 @@ class ListWhatsAppNumbers extends ListRecords
                         );
                     }
 
-                    // Apply active-only eligibility conditions, then collect IDs
-                    $ids = self::applyActiveConditions($query)
+                    // EXP-001 compliance guard: never export an active WhatsApp suppression,
+                    // regardless of which filters are set. The table's 'active' bucket already
+                    // excludes these, but keep it hard here so an export can never message an
+                    // unsubscribed contact. See docs/data-rules/exports.md.
+                    $query->whereNotExists(fn ($q) => $q
+                        ->selectRaw('1')
+                        ->from('contact_suppressions')
+                        ->whereColumn('contact_suppressions.client_phone_number_id', 'client_phone_numbers.id')
+                        ->where('contact_suppressions.channel', 'whatsapp')
+                        ->whereNull('contact_suppressions.released_at')
+                    );
+
+                    $ids = $query
                         ->select('client_phone_numbers.id')
                         ->distinct()
                         ->reorder()
@@ -203,7 +173,7 @@ class ListWhatsAppNumbers extends ListRecords
                     }, $fileName, ['Content-Type' => 'text/csv']);
                 })
                 ->modalHeading('Export WhatsApp Numbers')
-                ->modalDescription('Exports eligible numbers matching the current filters. Numbers from selected previous batches are excluded to prevent overlap.'),
+                ->modalDescription('Exports exactly the numbers matching the filters currently applied to the table (unsubscribed numbers are always excluded). Numbers from selected previous batches are excluded to prevent overlap.'),
 
             Action::make('export_history')
                 ->label('Export History')
@@ -309,31 +279,5 @@ class ListWhatsAppNumbers extends ListRecords
         }
 
         return implode(' · ', $parts);
-    }
-
-    private static function applyActiveConditions(Builder $query): Builder
-    {
-        return $query
-            ->whereNotExists(fn ($q) => $q
-                ->selectRaw('1')
-                ->from('contact_suppressions')
-                ->whereColumn('contact_suppressions.client_phone_number_id', 'client_phone_numbers.id')
-                ->where('contact_suppressions.channel', 'whatsapp')
-                ->whereNull('contact_suppressions.released_at')
-            )
-            ->where(fn (Builder $q) => $q
-                ->whereDoesntHave('whatsAppProfile')
-                ->orWhereHas('whatsAppProfile', fn (Builder $p) =>
-                    $p->where('usage_status', 'active')
-                )
-            );
-    }
-
-    private static function activeExportQuery(Builder $query): Builder
-    {
-        return self::applyActiveConditions($query)
-            ->select('client_phone_numbers.normalized_phone')
-            ->distinct()
-            ->reorder('client_phone_numbers.normalized_phone');
     }
 }
