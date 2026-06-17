@@ -10,9 +10,3 @@ Artisan::command('inspire', function () {
 
 // Daily database backup at 02:00; keeps the last BACKUP_KEEP_DAYS days
 Schedule::command('backup:database')->dailyAt('02:00')->withoutOverlapping();
-
-// Horizon job-throughput snapshots (powers the metrics graphs in /horizon)
-Schedule::command('horizon:snapshot')->everyFiveMinutes();
-
-// Prune Telescope entries older than 48 hours so the table stays manageable
-Schedule::command('telescope:prune --hours=48')->daily();
