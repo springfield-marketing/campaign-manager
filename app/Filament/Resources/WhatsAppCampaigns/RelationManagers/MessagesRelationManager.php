@@ -30,15 +30,12 @@ class MessagesRelationManager extends RelationManager
                 TextColumn::make('phoneNumber.normalized_phone')
                     ->label('Phone')
                     ->searchable(query: function (Builder $query, string $search): Builder {
+                        // Exact match on the unique `normalized_phone` index — a `LIKE '%…%'` here forces a
+                        // full sequential scan of ~870k phone numbers, which times out the request under load.
                         $candidates = PhoneSearchFilter::candidates($search);
 
-                        return $query->whereHas('phoneNumber', fn (Builder $q) => $q
-                            ->where(function (Builder $inner) use ($candidates): void {
-                                foreach ($candidates as $candidate) {
-                                    $inner->orWhere('normalized_phone', 'like', '%'.$candidate.'%')
-                                          ->orWhere('raw_phone', 'like', '%'.$candidate.'%');
-                                }
-                            }));
+                        return $query->whereHas('phoneNumber', fn (Builder $q) =>
+                            $q->whereIn('normalized_phone', $candidates));
                     })
                     ->url(fn (WhatsAppMessage $record): ?string => $record->phoneNumber?->client_id
                         ? ClientResource::getUrl('edit', ['record' => $record->phoneNumber->client_id])

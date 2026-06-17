@@ -29,7 +29,8 @@ class WhatsAppNumbersTable
             ->columns([
                 TextColumn::make('normalized_phone')
                     ->label('Phone')
-                    ->searchable()
+                    ->searchable(query: fn (Builder $query, string $search): Builder =>
+                        $query->whereIn('client_phone_numbers.normalized_phone', PhoneSearchFilter::candidates($search)))
                     ->url(fn (ClientPhoneNumber $record): ?string => $record->client_id
                         ? ClientResource::getUrl('edit', ['record' => $record->client_id])
                         : null),
@@ -134,12 +135,9 @@ class WhatsAppNumbersTable
             ])
             ->filters([
                 PhoneSearchFilter::make('phone', fn (Builder $query, array $candidates) =>
-                    $query->where(function (Builder $q) use ($candidates): void {
-                        foreach ($candidates as $candidate) {
-                            $q->orWhere('client_phone_numbers.normalized_phone', 'like', '%'.$candidate.'%')
-                              ->orWhere('client_phone_numbers.raw_phone', 'like', '%'.$candidate.'%');
-                        }
-                    })
+                    // Exact match on the unique `normalized_phone` index — a `LIKE '%…%'` here forces a
+                    // full sequential scan of ~870k phone numbers, which times out the request under load.
+                    $query->whereIn('client_phone_numbers.normalized_phone', $candidates)
                 ),
 
                 SelectFilter::make('wa_status')
