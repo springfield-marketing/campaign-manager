@@ -12,6 +12,7 @@ use App\Modules\IVR\Models\IvrCampaign;
 use App\Modules\IVR\Models\IvrImport;
 use App\Modules\IVR\Support\IvrBatchEligibilityUpdater;
 use App\Modules\IVR\Support\IvrSummaryService;
+use App\Support\PhoneVerificationStatus;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Laravel\Telescope\Telescope;
@@ -376,6 +377,9 @@ class CampaignResultsProcessor
                 ],
             ]);
         }
+
+        // A connected call proves the number is real — keep verification self-maintaining.
+        PhoneVerificationStatus::recordIvrOutcome($phoneNumber->id, $callRecord->call_status);
 
         if ($dtmfOutcome === 'unsubscribe') {
             $hasActive = ContactSuppression::where('client_phone_number_id', $phoneNumber->id)

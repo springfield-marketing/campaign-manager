@@ -20,6 +20,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Postgres-only: uses DISTINCT ON and a partial unique index.
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            return;
+        }
+
         DB::statement('UPDATE client_phone_numbers SET is_primary = false WHERE is_primary = true');
 
         DB::statement(<<<'SQL'
@@ -50,6 +55,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            return;
+        }
+
         DB::statement('DROP INDEX IF EXISTS client_phone_numbers_one_primary_per_client');
     }
 };

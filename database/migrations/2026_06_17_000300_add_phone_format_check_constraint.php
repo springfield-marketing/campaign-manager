@@ -5,6 +5,8 @@ use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
+    public $withinTransaction = false;
+
     /**
      * Replace the old placeholder-only guard with a validated format constraint that keeps
      * the corruption we just cleaned out from ever re-entering:
@@ -24,6 +26,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Postgres-only: uses regex operators, regexp_replace and VALIDATE CONSTRAINT.
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            return;
+        }
+
         DB::statement(<<<'SQL'
             ALTER TABLE client_phone_numbers
             ADD CONSTRAINT client_phone_numbers_format_check
@@ -43,6 +50,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            return;
+        }
+
         DB::statement('ALTER TABLE client_phone_numbers DROP CONSTRAINT IF EXISTS client_phone_numbers_format_check');
     }
 };

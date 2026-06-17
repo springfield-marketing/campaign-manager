@@ -10,6 +10,7 @@ use App\Modules\WhatsApp\Enums\WhatsAppPlatform;
 use App\Modules\WhatsApp\Jobs\BatchAnalyseWhatsAppNumbers;
 use App\Modules\WhatsApp\Models\WhatsAppCampaign;
 use App\Modules\WhatsApp\Models\WhatsAppImport;
+use App\Support\PhoneVerificationStatus;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -176,6 +177,10 @@ class WhatsAppCampaignResultsProcessor
             // One batch job covers all unique numbers from this import.
             // Runs on the 'analysis' queue so it never blocks the next import.
             $phoneNumberIds = array_values($phoneIdCache);
+
+            // Promote any number this import reached on a real device to "verified".
+            PhoneVerificationStatus::recordWhatsAppImport($import->id, $phoneNumberIds);
+
             BatchAnalyseWhatsAppNumbers::dispatch($phoneNumberIds)->onQueue('analysis');
 
             $clientIds = ClientPhoneNumber::whereIn('id', $phoneNumberIds)->pluck('client_id')->all();

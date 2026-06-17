@@ -22,6 +22,11 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Postgres-only: uses regex operators / regexp_replace and ALTER TABLE DROP CONSTRAINT.
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            return;
+        }
+
         DB::statement('ALTER TABLE client_phone_numbers DROP CONSTRAINT IF EXISTS client_phone_numbers_not_placeholder_check');
 
         DB::statement(<<<'SQL'
@@ -50,6 +55,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            return;
+        }
+
         // Re-add the legacy guard (NOT VALID) so the schema matches its prior shape.
         // The verification_status data backfill itself is not reverted.
         DB::statement(<<<'SQL'
