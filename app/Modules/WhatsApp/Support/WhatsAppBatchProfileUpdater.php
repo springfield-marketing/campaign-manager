@@ -26,7 +26,6 @@ class WhatsAppBatchProfileUpdater
         $settings = WhatsAppSettings::current();
 
         $hardFailThreshold = $settings->hard_fail_threshold;
-        $bulkDeadThreshold = $settings->bulk_dead_threshold;
         // The single cooldown window (days): a number messaged within this many days is on
         // cooldown. All other historical cooldown variables (no-engagement, quality-hold,
         // experiment, regional) were removed in favour of this one rule.
@@ -76,11 +75,6 @@ class WhatsAppBatchProfileUpdater
                           AND c.rn < COALESCE(sc.first_non_system_rn, 2147483647)
                     )                                                                   AS consecutive_hard_fail_count,
 
-                    COUNT(*)                                                             AS total_messages,
-                    COUNT(*) FILTER (WHERE c.fail_class = 'hard_fail')                  AS total_hard_fails,
-                    COUNT(*) FILTER (WHERE c.fail_class NOT IN ('system_error','delivered'))
-                                                                                        AS total_non_system_fails,
-
                     MAX(CASE WHEN c.rn = 1 THEN c.delivery_status END)                 AS last_message_status,
                     MAX(CASE WHEN c.rn = 1 THEN NULLIF(c.failure_reason, '') END)       AS last_failure_reason,
                     MAX(CASE WHEN c.rn = 1 THEN c.scheduled_at END)                    AS last_messaged_at
@@ -97,18 +91,18 @@ class WhatsAppBatchProfileUpdater
                     a.last_failure_reason,
                     a.last_messaged_at,
 
-                    -- Single cooldown rule: a number messaged within the last {$cooldownDays}
-                    -- days is on cooldown, expiring {$cooldownDays} days after its last message
-                    -- (anchored to last_messaged_at, so it cannot self-renew). 'dead'
-                    -- (undeliverable hard-failers) is kept untouched as a separate terminal state.
+                    -- Two states drive usage_status:
+                    --   'dead'     = the last {$hardFailThreshold} delivery attempts in a row all
+                    --                hard-failed (system_errors are skipped/transparent). This is
+                    --                recency-based and self-healing — a later successful attempt
+                    --                resets the streak and revives the number on the next run. The
+                    --                old volume-based bulk-dead rule was removed (it retired
+                    --                numbers that had previously been delivered/read).
+                    --   'cooldown' = messaged within the last {$cooldownDays} days, expiring
+                    --                {$cooldownDays} days after the last message (anchored to
+                    --                last_messaged_at, so it cannot self-renew).
                     CASE
-                        WHEN a.consecutive_hard_fail_count >= {$hardFailThreshold}
-                          OR (
-                              a.total_messages >= {$bulkDeadThreshold}
-                              AND a.total_non_system_fails > 0
-                              AND a.total_hard_fails = a.total_non_system_fails
-                          )
-                        THEN 'dead'
+                        WHEN a.consecutive_hard_fail_count >= {$hardFailThreshold} THEN 'dead'
                         WHEN {$cooldownDays} > 0
                           AND a.last_messaged_at > NOW() - ({$cooldownDays} * INTERVAL '1 day')
                         THEN 'cooldown'
@@ -116,13 +110,7 @@ class WhatsAppBatchProfileUpdater
                     END AS usage_status,
 
                     CASE
-                        WHEN a.consecutive_hard_fail_count >= {$hardFailThreshold}
-                          OR (
-                              a.total_messages >= {$bulkDeadThreshold}
-                              AND a.total_non_system_fails > 0
-                              AND a.total_hard_fails = a.total_non_system_fails
-                          )
-                        THEN NULL
+                        WHEN a.consecutive_hard_fail_count >= {$hardFailThreshold} THEN NULL
                         WHEN {$cooldownDays} > 0
                           AND a.last_messaged_at > NOW() - ({$cooldownDays} * INTERVAL '1 day')
                         THEN a.last_messaged_at + ({$cooldownDays} * INTERVAL '1 day')
