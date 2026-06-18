@@ -4,6 +4,7 @@ namespace App\Filament\Resources\IvrUnsubscribers\Tables;
 
 use App\Filament\Filters\PhoneSearchFilter;
 use App\Filament\Resources\Clients\ClientResource;
+use App\Filament\Resources\IvrUnsubscribers\IvrUnsubscriberResource;
 use App\Models\ClientPhoneNumber;
 use App\Models\ContactSuppression;
 use App\Modules\IVR\Enums\IvrImportStatus;
@@ -174,6 +175,13 @@ class IvrUnsubscribersTable
                     ->modalHeading('Add a number to IVR Do Not Call'),
             ])
             ->recordActions([
+                Action::make('view')
+                    ->label('Details')
+                    ->icon('heroicon-o-eye')
+                    ->color('gray')
+                    ->url(fn (ContactSuppression $record): string =>
+                        IvrUnsubscriberResource::getUrl('view', ['record' => $record])),
+
                 Action::make('remove')
                     ->label('Make Callable')
                     ->icon('heroicon-o-check-circle')

@@ -4,8 +4,10 @@ namespace App\Filament\Resources\WhatsAppUnsubscribers\Tables;
 
 use App\Filament\Filters\PhoneSearchFilter;
 use App\Filament\Resources\Clients\ClientResource;
+use App\Filament\Resources\WhatsAppUnsubscribers\WhatsAppUnsubscriberResource;
 use App\Models\ClientPhoneNumber;
 use App\Models\ContactSuppression;
+use App\Support\WhatsAppSuppressionDisplay;
 use Filament\Tables\Filters\SelectFilter;
 use App\Modules\WhatsApp\Enums\WhatsAppImportStatus;
 use App\Modules\WhatsApp\Enums\WhatsAppImportType;
@@ -47,7 +49,7 @@ class WhatsAppUnsubscribersTable
 
                 TextColumn::make('source')
                     ->label('Source')
-                    ->getStateUsing(fn (ContactSuppression $record): string => self::sourceLabel($record))
+                    ->getStateUsing(fn (ContactSuppression $record): string => WhatsAppSuppressionDisplay::sourceLabel($record))
                     ->placeholder('—'),
 
                 TextColumn::make('platform')
@@ -59,7 +61,7 @@ class WhatsAppUnsubscribersTable
                 TextColumn::make('reason')
                     ->label('Reason')
                     ->badge()
-                    ->formatStateUsing(fn (?string $state) => self::reasonLabel($state))
+                    ->formatStateUsing(fn (?string $state) => WhatsAppSuppressionDisplay::reasonLabel($state))
                     ->color('warning'),
             ])
             ->defaultSort('suppressed_at', 'desc')
@@ -195,6 +197,13 @@ class WhatsAppUnsubscribersTable
                     ->modalHeading('Add a number to WhatsApp Do Not Message list'),
             ])
             ->recordActions([
+                Action::make('view')
+                    ->label('Details')
+                    ->icon('heroicon-o-eye')
+                    ->color('gray')
+                    ->url(fn (ContactSuppression $record): string =>
+                        WhatsAppUnsubscriberResource::getUrl('view', ['record' => $record])),
+
                 Action::make('release')
                     ->label('Make Messageable')
                     ->icon('heroicon-o-check-circle')
@@ -209,28 +218,5 @@ class WhatsAppUnsubscribersTable
                     }),
             ])
             ->toolbarActions([]);
-    }
-
-    private static function reasonLabel(?string $reason): string
-    {
-        return match ($reason) {
-            'opted_out'             => 'Opted Out',
-            'manual'                => 'Manual',
-            'customer_unsubscribed' => 'Customer Opt Out',
-            default                 => $reason ? ucwords(str_replace('_', ' ', $reason)) : 'Suppressed',
-        };
-    }
-
-    private static function sourceLabel(ContactSuppression $suppression): string
-    {
-        $context = $suppression->context ?? [];
-
-        return match (true) {
-            ($context['source'] ?? null) === 'import'      => 'DNC Import',
-            ($context['source'] ?? null) === 'manual'      => 'Manual Entry',
-            ($context['source'] ?? null) === 'manual_bulk' => 'Bulk Action',
-            isset($context['campaign_id'])                 => 'Campaign Opt Out',
-            default                                        => self::reasonLabel($suppression->reason),
-        };
     }
 }
