@@ -94,17 +94,17 @@ class WhatsAppSettingsPage extends Page implements HasForms
                 ]),
 
             Section::make('Engagement-Based Cooldown')
-                ->description('Numbers that never click anything across multiple campaigns are cooled down automatically to protect sender reputation.')
+                ->description('Numbers that have not read their recent messages are cooled down automatically to protect sender reputation.')
                 ->columns(2)
                 ->schema([
                     TextInput::make('no_engagement_threshold')
-                        ->label('Campaigns with No Clicks Before Cooldown')
+                        ->label('Consecutive Unread Messages Before Cooldown')
                         ->numeric()
                         ->required()
                         ->minValue(1)
                         ->maxValue(50)
                         ->extraAttributes(['x-tooltip.raw' =>
-                            'If a number has been sent messages across this many distinct campaigns and never once clicked anything, it enters a long-term cooldown. This protects your sender reputation — repeatedly messaging disengaged numbers increases spam risk. Lower values are more conservative.'
+                            'If a number\'s most recent messages were delivered but never read (no read receipt, no reply, no click) this many times in a row, it enters cooldown. The streak is consecutive — a single read, reply, or click resets it to zero. Undelivered messages (failures) do not count. This protects your sender reputation: repeatedly messaging people who never open your messages increases spam risk.'
                         ]),
 
                     TextInput::make('cooldown_no_engagement_days')
@@ -114,7 +114,7 @@ class WhatsAppSettingsPage extends Page implements HasForms
                         ->minValue(1)
                         ->maxValue(365)
                         ->extraAttributes(['x-tooltip.raw' =>
-                            'How long a no-engagement number is held back before it becomes eligible again. After this period the number returns to active and the engagement count resets — if it still does not click on the next campaign, the cooldown will be applied again.'
+                            'How long a no-engagement number is held back before it becomes eligible again. After this period the number returns to active; if its next messages still go unread, the cooldown is applied again.'
                         ]),
                 ]),
 

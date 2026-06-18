@@ -47,8 +47,8 @@ class WhatsAppSettings extends Model
             [
                 'hard_fail_threshold'        => 3,
                 'bulk_dead_threshold'         => 10,
-                'no_engagement_threshold'     => 5,
-                'cooldown_no_engagement_days' => 90,
+                'no_engagement_threshold'     => 10,
+                'cooldown_no_engagement_days' => 30,
                 'min_days_between_sends'      => 0,
                 'cooldown_quality_hold_days'  => 3,
                 'cooldown_experiment_days'    => 7,
