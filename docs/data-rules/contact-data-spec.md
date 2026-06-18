@@ -232,10 +232,17 @@ point-in-time snapshot and point at a dormant queue (**gap**). Target:
 A clean re-import of contacts + campaign results is acceptable, so we build the target model
 and reprocess rather than migrate in place.
 
-- **Phase 0 — this spec.** Lock the rules. *(this document)*
-- **Phase 1 — canonical core services + tests.** Unify the phone normalizer (§7); extract
-  `NameClassifier` (§5, strengthened for repeated-word/label stubs); add source-trust +
-  survivorship helpers (§3). Pure logic, heavily tested. No behaviour change yet.
+- **Phase 0 — this spec.** ✅ Done. Lock the rules. *(this document)*
+- **Phase 1 — canonical core services + tests.** ✅ Done.
+  - `App\Support\Identity\NameClassifier` (§5) — stub/institution/real, strengthened for
+    repeated-word and leaked-label stubs; `RawContactImportEnricher::isStubName` delegates to it.
+  - `App\Support\Identity\SourceTrust` + `Survivorship` (§3) — trust ranking + winning-value
+    resolution with alternates; `resolveName` enforces "a real name never loses to a stub".
+  - `App\Support\Identity\PhoneNormalizer` (§7) — the canonical normalizer; parity-tested
+    against the legacy IVR normalizer on valid UAE numbers. `WhatsAppPhoneNormalizer` now
+    delegates to it. **Remaining:** the IVR normalizer is still independent (it's `@deprecated`);
+    its cutover is folded into Phase 2 because it changes import *acceptance*.
+  - All pure logic, 64 unit tests, no behaviour change to live imports yet.
 - **Phase 2 — one enforced import pipeline.** Route **all** imports through staging →
   resolve (§4) → write, idempotent and replayable. Remove the direct-to-clients bypass.
 - **Phase 3 — live review queue + UI.** Route identity ambiguity (§6) into the existing queue;
