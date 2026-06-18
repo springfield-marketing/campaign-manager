@@ -2,6 +2,14 @@
 
 namespace App\Modules\IVR\Support;
 
+/**
+ * @deprecated Superseded by {@see \App\Support\Identity\PhoneNormalizer} (contact-data spec §7,
+ * INV-2). This hand-rolled normalizer is retained until the IVR import pipeline is cut over in
+ * Phase 2 — the canonical normalizer validates more strictly (e.g. it resolves bare UAE
+ * landlines and rejects malformed international numbers the hand-rolled one passed through), so
+ * the switch changes import *acceptance* and must be exercised against real import data with
+ * rejects routed to the review queue rather than flipped silently.
+ */
 class PhoneNormalizer
 {
     /**
