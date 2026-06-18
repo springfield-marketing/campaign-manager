@@ -133,18 +133,57 @@ class RawContactImportEnrichmentTest extends TestCase
     }
 
     /**
-     * IMP-001 guard rail: real names must still merge on the identity tuple, otherwise the
-     * fix would fragment every legitimate repeat contact into duplicate client records.
+     * IMP-002 — phone is the identity anchor, a name is not. A real personal name arriving on a
+     * brand-new phone must NOT merge onto an existing same-name client: two people share a name,
+     * and silently merging them is how "super clients" formed. We bias to under-merge (cheap to
+     * reconcile) over over-merge (destructive). Supersedes the old IMP-001 guard rail that merged
+     * real names on the (name, emirate, country) tuple. See docs/data-rules/imports.md.
      */
     #[Test]
-    public function imp_001_real_named_rows_still_merge_on_the_identity_tuple(): void
+    public function imp_002_real_named_rows_with_different_phones_do_not_merge(): void
     {
         $enricher = app(RawContactImportEnricher::class);
 
         $a = $enricher->resolveClient(['name' => 'Aisha Rahman', 'emirate' => 'Dubai', 'country_iso' => 'AE', 'normalized_phone' => '+971500000001']);
         $b = $enricher->resolveClient(['name' => 'Aisha Rahman', 'emirate' => 'Dubai', 'country_iso' => 'AE', 'normalized_phone' => '+971500000002']);
 
-        $this->assertSame($a->id, $b->id, 'Real names sharing the identity tuple should still merge');
-        $this->assertSame(1, Client::where('full_name', 'Aisha Rahman')->count());
+        $this->assertNotSame($a->id, $b->id, 'Different phones with the same name must not be merged');
+        $this->assertSame(2, Client::where('full_name', 'Aisha Rahman')->count());
+    }
+
+    /**
+     * IMP-002 corollary: re-importing the SAME number still resolves to the same client (the
+     * phone match happens before the name branch), so the no-merge rule does not duplicate
+     * legitimate re-imports.
+     */
+    #[Test]
+    public function imp_002_same_phone_still_resolves_to_one_client(): void
+    {
+        $enricher = app(RawContactImportEnricher::class);
+
+        $first  = $enricher->resolveClient(['name' => 'Bilal Khan', 'emirate' => 'Dubai', 'country_iso' => 'AE', 'normalized_phone' => '+971527948051']);
+        \App\Models\ClientPhoneNumber::create([
+            'client_id' => $first->id, 'raw_phone' => '+971527948051', 'normalized_phone' => '+971527948051',
+            'is_uae' => true, 'is_primary' => true, 'priority' => 1,
+        ]);
+        $second = $enricher->resolveClient(['name' => 'Bilal Khan', 'emirate' => 'Dubai', 'country_iso' => 'AE', 'normalized_phone' => '+971527948051']);
+
+        $this->assertSame($first->id, $second->id, 'Same phone must resolve to the same client');
+    }
+
+    /**
+     * Institution names (bank/developer/agency) are real shared entities: they keep one record
+     * per identity tuple so their own lines don't fragment (spec §5), unlike personal names.
+     */
+    #[Test]
+    public function institution_names_keep_a_single_record_per_identity_tuple(): void
+    {
+        $enricher = app(RawContactImportEnricher::class);
+
+        $a = $enricher->resolveClient(['name' => 'Emirates Islamic Bank', 'emirate' => 'Dubai', 'country_iso' => 'AE', 'normalized_phone' => '+971500000010']);
+        $b = $enricher->resolveClient(['name' => 'Emirates Islamic Bank', 'emirate' => 'Dubai', 'country_iso' => 'AE', 'normalized_phone' => '+971500000011']);
+
+        $this->assertSame($a->id, $b->id, 'Institution names should resolve to a single shared record');
+        $this->assertSame(1, Client::where('full_name', 'Emirates Islamic Bank')->count());
     }
 }

@@ -6,6 +6,7 @@ use App\Models\Client;
 use App\Models\ClientPhoneNumber;
 use App\Models\Ownership;
 use App\Models\Tag;
+use App\Support\Identity\NameClassifier;
 use App\Support\NameNormalizer;
 
 /**
@@ -64,19 +65,23 @@ class RawContactImportEnricher
         $emirate    = trim((string) ($payload['emirate'] ?? ''));
         $countryIso = strtoupper(substr(trim((string) ($payload['country_iso'] ?? '')), 0, 2)) ?: null;
 
-        // IMP-001: a stub/placeholder name ("Instagram Dm", "No Name", a bare first name, etc.) is
-        // too weak an identity signal to match other rows by. Matching the (name, emirate, country)
-        // tuple below is how unrelated people collapsed onto one client with many numbers attached.
-        // Mirror RawImportProcessor (the IVR path already guards this) and always create a fresh
-        // client for stub-named rows. See docs/data-rules/imports.md.
-        if (self::isStubName($fullName)) {
-            $client = Client::create([
-                'full_name'   => $fullName ?: null,
-                'emirate'     => $emirate ?: null,
-                'country_iso' => $countryIso,
-                'nationality' => $this->blankToNull($payload['nationality'] ?? null),
-                'gender'      => $this->blankToNull($payload['gender'] ?? null),
-            ]);
+        // Institution names (bank / developer / agency) are real shared entities: keep one
+        // record per (name, emirate, country) so the entity's own lines don't fragment. A stub
+        // takes precedence — an unusable placeholder is never treated as an institution. They
+        // never absorb individuals here, since individual rows carry a personal name, not the
+        // institution's. See docs/data-rules/contact-data-spec.md §5.
+        if (! NameClassifier::isStub($fullName) && NameClassifier::isInstitution($fullName)) {
+            $client = Client::firstOrCreate(
+                [
+                    'full_name'   => $fullName ?: null,
+                    'emirate'     => $emirate ?: null,
+                    'country_iso' => $countryIso,
+                ],
+                [
+                    'nationality' => $this->blankToNull($payload['nationality'] ?? null),
+                    'gender'      => $this->blankToNull($payload['gender'] ?? null),
+                ]
+            );
 
             if ($email !== '') {
                 $client->setPrimaryEmailAddress($email);
@@ -85,17 +90,24 @@ class RawContactImportEnricher
             return $client;
         }
 
-        $client = Client::firstOrCreate(
-            [
-                'full_name'   => $fullName ?: null,
-                'emirate'     => $emirate ?: null,
-                'country_iso' => $countryIso,
-            ],
-            [
-                'nationality' => $this->blankToNull($payload['nationality'] ?? null),
-                'gender'      => $this->blankToNull($payload['gender'] ?? null),
-            ]
-        );
+        // Otherwise create a fresh client and NEVER match/merge by name. Phone is the identity
+        // anchor (matched above); a name is not a safe identity key:
+        //   - IMP-001: a stub/placeholder name ("Instagram Dm", "No Name", a bare first name) is
+        //     too weak — matching the (name, emirate, country) tuple is how unrelated people
+        //     collapsed onto one "super client" with many numbers attached.
+        //   - IMP-002: a real personal name on a brand-new phone is still not a safe merge key —
+        //     the same name is not the same person (two people share a name). We bias to
+        //     under-merge; genuine same-person duplicates are surfaced by
+        //     clients:audit-data-quality and the review queue, not guessed here.
+        // Re-imports of the same number match by phone above, so this does not duplicate them.
+        // See docs/data-rules/imports.md and contact-data-spec.md §4.
+        $client = Client::create([
+            'full_name'   => $fullName ?: null,
+            'emirate'     => $emirate ?: null,
+            'country_iso' => $countryIso,
+            'nationality' => $this->blankToNull($payload['nationality'] ?? null),
+            'gender'      => $this->blankToNull($payload['gender'] ?? null),
+        ]);
 
         if ($email !== '') {
             $client->setPrimaryEmailAddress($email);

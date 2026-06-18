@@ -16,6 +16,49 @@ See [README.md](README.md) for how this registry works. Newest entries at the to
 - **Watch out for:** <known gaps / counter-examples>
 -->
 
+### IMP-002 — A real name is not an identity key either (phone is)
+
+- **Date / trigger:** 2026-06-18, Phase 2 of the contact-data spec
+  ([`contact-data-spec.md`](contact-data-spec.md) §4). Follows the FOUAD GHANDOUR
+  investigation: clients with the *same real name + emirate + country* were collapsed onto one
+  record, and the IMP-001 split cleanup then inherited stub names on the fragments.
+- **Symptom:** Two different real people who happen to share a name (and emirate/country) were
+  merged onto one client, accumulating each other's phone numbers — the same "super client"
+  failure as IMP-001, but with a *real* name rather than a placeholder, so the IMP-001 stub
+  guard didn't catch it.
+- **Root cause:** For a brand-new phone, `RawContactImportEnricher::resolveClient()` matched the
+  client via `Client::firstOrCreate(['full_name','emirate','country_iso'])`. A name — even a real
+  one — is not a reliable identity key: name collisions are common, so the tuple merged
+  strangers. (This was the *intended* behaviour under the old IMP-001 guard rail, which
+  explicitly kept real names merging "to avoid fragmenting repeat contacts." Phase 2 reverses
+  that call.)
+- **Rule we added:** Phone is the identity anchor. `resolveClient()` matches an existing phone
+  first (re-imports are idempotent); for a **brand-new phone with a real personal name it now
+  `Client::create()`s a fresh client and never matches by the name tuple.** Stub names already
+  create-fresh (IMP-001). **Institution** names (bank/developer/agency, via
+  `NameClassifier::isInstitution`) are the one exception — they keep `firstOrCreate` so the
+  entity stays one shared record instead of fragmenting (spec §5).
+- **Why it's safe / trade-offs:** We bias to **under-merge** (one person showing up twice — cheap
+  to reconcile later with `clients:merge`) over **over-merge** (two people fused — destructive and
+  hard to unpick). Re-imports of the same number still resolve to one client (phone match runs
+  first). Trade-off: more thin duplicate clients for a genuine same-person/multi-phone case;
+  these are surfaced by `clients:audit-data-quality` and (Phase 3) the review queue rather than
+  guessed at import time.
+- **Proof:** `RawContactImportEnrichmentTest::imp_002_real_named_rows_with_different_phones_do_not_merge`,
+  `::imp_002_same_phone_still_resolves_to_one_client`,
+  `::institution_names_keep_a_single_record_per_identity_tuple`.
+- **Code:** [`app/Support/RawContactImportEnricher.php`](../../app/Support/RawContactImportEnricher.php)
+  — the `IMP-002` breadcrumb in `resolveClient()`.
+- **Watch out for:**
+  - The IVR **bulk** path (`RawImportProcessor::resolveClients()` via `clientKey()` +
+    `loadClientsByKeys()`) still merges real names on the tuple — it groups new rows by name, so
+    switching it to phone-grouping is a larger rewrite tracked as the next Phase 2 step. **Until
+    that lands, IVR raw imports can still over-merge real names**; the WhatsApp and staging paths
+    (which use `resolveClient`) are fixed.
+  - `NameClassifier::isInstitution` is heuristic; a mislabelled institution would either
+    fragment (treated as a person) or absorb (treated as an org) — neither is destructive, but
+    review-queue routing in Phase 3 should let a human correct it.
+
 ### IMP-001 — Stub/placeholder names must not merge distinct leads
 
 - **Date / trigger:** 2026-06-17. Investigating client **496904 "✅ Instagram Dm |"**,
