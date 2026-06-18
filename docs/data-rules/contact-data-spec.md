@@ -243,8 +243,16 @@ and reprocess rather than migrate in place.
     delegates to it. **Remaining:** the IVR normalizer is still independent (it's `@deprecated`);
     its cutover is folded into Phase 2 because it changes import *acceptance*.
   - All pure logic, 64 unit tests, no behaviour change to live imports yet.
-- **Phase 2 — one enforced import pipeline.** Route **all** imports through staging →
-  resolve (§4) → write, idempotent and replayable. Remove the direct-to-clients bypass.
+- **Phase 2 — one enforced import pipeline.** 🚧 In progress.
+  - ✅ The shared resolver (`RawContactImportEnricher::resolveClient`) now implements §4: phone
+    match first; stub → fresh; institution → single shared record; real personal name on a new
+    phone → fresh (no name-tuple merge). This fixes the WhatsApp and staging paths (IMP-002).
+  - ⏳ The IVR **bulk** path (`RawImportProcessor::resolveClients` via `clientKey`) still merges
+    real names by tuple. Its rewrite needs a performance-preserving phone-grouped create (the
+    current code bulk-inserts clients keyed by name; per-phone fresh clients can't be bulk-loaded
+    back by a client attribute), and must be verified against a large dataset before it ships.
+  - ⏳ Route **all** imports through staging, idempotent/replayable; remove remaining bypass.
+  - ⏳ IVR phone-normalizer cutover to the canonical normalizer (see Phase 1).
 - **Phase 3 — live review queue + UI.** Route identity ambiguity (§6) into the existing queue;
   build the side-by-side resolution actions. *(visual)*
 - **Phase 4 — Data Health dashboard + snapshots.** Trends, funnels, alerts (§10). *(visual)*
