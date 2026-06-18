@@ -139,7 +139,7 @@ class WhatsAppUnsubscribersTable
                         Notification::make()->title('Do Not Message import queued')->success()->send();
                     })
                     ->modalHeading('Upload WhatsApp Do Not Message CSV')
-                    ->modalDescription('Upload a CSV with columns in order: phone number, name, then an optional reason (why they opted out). Phone is required; name and reason can be left blank. The first row is always skipped as a header.')
+                    ->modalDescription('Upload a CSV with three columns in this order: phone, name, reason (why they opted out). Only phone is required — name and reason can be left blank. The first row is always skipped as a header, so the column order is what matters, not the exact header names (a header like "phone,name,reason" is recommended).')
                     ->modalSubmitActionLabel('Upload & Queue'),
 
                 Action::make('add_single')
