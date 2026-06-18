@@ -67,6 +67,7 @@ class WhatsAppUnsubscriberImportProcessor
                 try {
                     $rawPhone = trim((string) ($row[0] ?? ''));
                     $name     = trim((string) ($row[1] ?? ''));
+                    $reason   = trim((string) ($row[2] ?? '')) ?: null;
 
                     if ($rawPhone === '') {
                         throw new \RuntimeException('Phone number is required.');
@@ -96,25 +97,39 @@ class WhatsAppUnsubscriberImportProcessor
                         $phoneNumber->client?->update(['full_name' => $name]);
                     }
 
-                    $alreadySuppressed = ContactSuppression::query()
+                    $existingSuppression = ContactSuppression::query()
                         ->where('client_phone_number_id', $phoneNumber->id)
                         ->activeWhatsApp($platform?->value)
-                        ->exists();
+                        ->first();
 
-                    if ($alreadySuppressed) {
+                    if ($existingSuppression) {
+                        // Backfill the opt-out reason onto an existing DNC entry that doesn't have
+                        // one yet (re-import to add reasons); never clobber a reason already on record.
+                        if ($reason !== null && ($existingSuppression->context['reason'] ?? null) === null) {
+                            $existingSuppression->forceFill([
+                                'context' => array_merge($existingSuppression->context ?? [], ['reason' => $reason]),
+                            ])->save();
+                        }
+
                         $duplicates++;
                         $successful++;
                     } else {
+                        $context = [
+                            'source'      => 'import',
+                            'source_file' => $import->original_file_name,
+                        ];
+
+                        if ($reason !== null) {
+                            $context['reason'] = $reason;
+                        }
+
                         ContactSuppression::create([
                             'client_phone_number_id' => $phoneNumber->id,
                             'channel'                => 'whatsapp',
                             'platform'               => $platform?->value,
                             'reason'                 => 'opted_out',
                             'suppressed_at'          => now(),
-                            'context'                => [
-                                'source'      => 'import',
-                                'source_file' => $import->original_file_name,
-                            ],
+                            'context'                => $context,
                         ]);
 
                         $successful++;

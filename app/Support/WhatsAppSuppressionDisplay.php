@@ -41,6 +41,17 @@ class WhatsAppSuppressionDisplay
             return (string) $context['reason'];
         }
 
+        return self::provenanceLabel($suppression);
+    }
+
+    /**
+     * Where the opt-out came from (file / campaign), excluding the free-text reason — used where
+     * the reason is shown in its own field (e.g. the DNC detail page) to avoid duplicating it.
+     */
+    public static function provenanceLabel(ContactSuppression $suppression): string
+    {
+        $context = $suppression->context ?? [];
+
         if ($context['source_file'] ?? null) {
             return (string) $context['source_file'];
         }

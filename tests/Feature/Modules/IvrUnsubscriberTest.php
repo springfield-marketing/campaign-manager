@@ -153,4 +153,104 @@ class IvrUnsubscriberTest extends TestCase
         $this->assertNotNull($suppression->fresh()->released_at);
         $this->assertNull($phoneNumber->fresh()->unsubscribed_at);
     }
+
+    #[Test]
+    public function import_stores_the_optional_reason_column_and_backfills_existing_entries(): void
+    {
+        $user = User::factory()->create();
+
+        // A number already on the DNC list, with no reason recorded yet.
+        $existingClient = Client::create(['full_name' => 'Existing DNC']);
+        $existingNumber = ClientPhoneNumber::create([
+            'client_id' => $existingClient->id,
+            'raw_phone' => '0500000300',
+            'normalized_phone' => '+971500000300',
+            'is_uae' => true,
+            'is_primary' => true,
+            'priority' => 1,
+        ]);
+        ContactSuppression::create([
+            'client_phone_number_id' => $existingNumber->id,
+            'channel' => 'ivr',
+            'reason' => 'unsubscribe',
+            'context' => ['source' => 'unsubscriber_import'],
+            'suppressed_at' => now(),
+        ]);
+
+        // Row 1: new number with a reason. Row 2: existing number, reason should backfill.
+        // Row 3: no reason column at all (must still import — reason is optional).
+        $csv = "phone,name,reason\n"
+            ."0500000301,New With Reason,Asked to stop calling\n"
+            ."0500000300,Existing DNC,Complained on call\n"
+            ."0500000302,No Reason Given\n";
+        $path = 'ivr/imports/unsubscribers/test-reason.csv';
+        Storage::disk('local')->put($path, $csv);
+
+        $import = IvrImport::create([
+            'type'               => IvrImportType::Unsubscribers,
+            'status'             => IvrImportStatus::Pending,
+            'original_file_name' => 'test-reason.csv',
+            'stored_file_name'   => 'test-reason.csv',
+            'storage_path'       => $path,
+            'uploaded_by'        => $user->id,
+            'summary'            => ['format' => 'phone,name,reason'],
+        ]);
+
+        ProcessUnsubscriberImport::dispatchSync($import->id);
+
+        $newReason = ContactSuppression::query()
+            ->whereHas('phoneNumber', fn ($q) => $q->where('normalized_phone', '+971500000301'))
+            ->value('context');
+        $this->assertSame('Asked to stop calling', $newReason['reason'] ?? null);
+
+        // Existing entry had no reason -> backfilled from the import.
+        $this->assertSame('Complained on call', $existingNumber->suppressions()->first()->context['reason'] ?? null);
+
+        // Row with no reason column still imported, with no reason stored.
+        $noReason = ContactSuppression::query()
+            ->whereHas('phoneNumber', fn ($q) => $q->where('normalized_phone', '+971500000302'))
+            ->value('context');
+        $this->assertArrayNotHasKey('reason', $noReason ?? []);
+    }
+
+    #[Test]
+    public function import_never_clobbers_an_existing_reason(): void
+    {
+        $user = User::factory()->create();
+
+        $client = Client::create(['full_name' => 'Has Reason']);
+        $number = ClientPhoneNumber::create([
+            'client_id' => $client->id,
+            'raw_phone' => '0500000400',
+            'normalized_phone' => '+971500000400',
+            'is_uae' => true,
+            'is_primary' => true,
+            'priority' => 1,
+        ]);
+        ContactSuppression::create([
+            'client_phone_number_id' => $number->id,
+            'channel' => 'ivr',
+            'reason' => 'unsubscribe',
+            'context' => ['source' => 'manual', 'reason' => 'Original reason'],
+            'suppressed_at' => now(),
+        ]);
+
+        $csv = "phone,name,reason\n0500000400,Has Reason,New reason from import\n";
+        $path = 'ivr/imports/unsubscribers/test-no-clobber.csv';
+        Storage::disk('local')->put($path, $csv);
+
+        $import = IvrImport::create([
+            'type'               => IvrImportType::Unsubscribers,
+            'status'             => IvrImportStatus::Pending,
+            'original_file_name' => 'test-no-clobber.csv',
+            'stored_file_name'   => 'test-no-clobber.csv',
+            'storage_path'       => $path,
+            'uploaded_by'        => $user->id,
+            'summary'            => ['format' => 'phone,name,reason'],
+        ]);
+
+        ProcessUnsubscriberImport::dispatchSync($import->id);
+
+        $this->assertSame('Original reason', $number->suppressions()->first()->context['reason']);
+    }
 }

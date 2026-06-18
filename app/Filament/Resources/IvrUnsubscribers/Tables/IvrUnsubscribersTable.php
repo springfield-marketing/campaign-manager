@@ -106,7 +106,7 @@ class IvrUnsubscribersTable
                             'stored_file_name'   => $originalName,
                             'storage_path'       => $finalRelative,
                             'uploaded_by'        => auth()->id(),
-                            'summary'            => ['format' => 'phone,name'],
+                            'summary'            => ['format' => 'phone,name,reason'],
                         ]);
 
                         ProcessUnsubscriberImport::dispatch($import->id);
@@ -114,7 +114,7 @@ class IvrUnsubscribersTable
                         Notification::make()->title('Do Not Call import queued')->success()->send();
                     })
                     ->modalHeading('Upload IVR Do Not Call CSV')
-                    ->modalDescription('Upload a CSV with two columns in order: phone number, then name. Header row is optional.')
+                    ->modalDescription('Upload a CSV with columns in order: phone number, name, then an optional reason (why they opted out). Phone is required; name and reason can be left blank. Header row is optional.')
                     ->modalSubmitActionLabel('Upload & Queue'),
 
                 Action::make('add_single')

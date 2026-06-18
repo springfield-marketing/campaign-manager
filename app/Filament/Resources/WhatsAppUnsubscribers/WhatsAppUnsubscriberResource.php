@@ -91,7 +91,13 @@ class WhatsAppUnsubscriberResource extends Resource
 
                     TextEntry::make('detail')
                         ->label('Detail')
-                        ->getStateUsing(fn (ContactSuppression $record): string => WhatsAppSuppressionDisplay::detailLabel($record)),
+                        ->getStateUsing(fn (ContactSuppression $record): string => WhatsAppSuppressionDisplay::provenanceLabel($record)),
+
+                    TextEntry::make('opt_out_reason')
+                        ->label('Opt-out reason')
+                        ->columnSpanFull()
+                        ->getStateUsing(fn (ContactSuppression $record): ?string => $record->context['reason'] ?? null)
+                        ->placeholder('Not provided'),
 
                     TextEntry::make('suppressed_at')
                         ->label('Opted out')

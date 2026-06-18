@@ -42,7 +42,7 @@ class UnsubscriberImportProcessor
             $import->update([
                 'total_rows' => $totalRows,
                 'summary' => [
-                    'format' => 'phone,name',
+                    'format' => 'phone,name,reason',
                     'created_rows' => 0,
                     'existing_rows' => 0,
                 ],
@@ -74,6 +74,7 @@ class UnsubscriberImportProcessor
                     $wasCreated = $this->upsertUnsubscriber(
                         phone: trim((string) ($row[0] ?? '')),
                         name: trim((string) ($row[1] ?? '')) ?: null,
+                        reason: trim((string) ($row[2] ?? '')) ?: null,
                         sourceFile: $import->original_file_name,
                         rowNumber: $rowNumber,
                     );
@@ -104,7 +105,7 @@ class UnsubscriberImportProcessor
                 'duplicate_rows' => $existing,
                 'completed_at' => now(),
                 'summary' => [
-                    'format' => 'phone,name',
+                    'format' => 'phone,name,reason',
                     'created_rows' => $created,
                     'existing_rows' => $existing,
                 ],
@@ -160,7 +161,7 @@ class UnsubscriberImportProcessor
         return $count;
     }
 
-    private function upsertUnsubscriber(string $phone, ?string $name, string $sourceFile, int $rowNumber): bool
+    private function upsertUnsubscriber(string $phone, ?string $name, ?string $reason, string $sourceFile, int $rowNumber): bool
     {
         if ($phone === '') {
             throw new \RuntimeException('Phone number is required.');
@@ -168,7 +169,7 @@ class UnsubscriberImportProcessor
 
         $normalized = $this->phoneNormalizer->normalize($phone);
 
-        return DB::transaction(function () use ($phone, $name, $sourceFile, $rowNumber, $normalized): bool {
+        return DB::transaction(function () use ($phone, $name, $reason, $sourceFile, $rowNumber, $normalized): bool {
             $phoneNumber = ClientPhoneNumber::query()
                 ->where('normalized_phone', $normalized['normalized'])
                 ->first();
@@ -212,21 +213,35 @@ class UnsubscriberImportProcessor
                 ->first();
 
             if ($existing) {
+                // Backfill the opt-out reason onto an existing DNC entry that doesn't have one yet
+                // (re-import to add reasons), but never clobber a reason already on record.
+                if ($reason !== null && ($existing->context['reason'] ?? null) === null) {
+                    $existing->forceFill([
+                        'context' => array_merge($existing->context ?? [], ['reason' => $reason]),
+                    ])->save();
+                }
+
                 $this->eligibilityService->refresh($phoneNumber->refresh());
 
                 return false;
+            }
+
+            $context = [
+                'source' => 'unsubscriber_import',
+                'source_file' => $sourceFile,
+                'row_number' => $rowNumber,
+                'name' => $name,
+            ];
+
+            if ($reason !== null) {
+                $context['reason'] = $reason;
             }
 
             ContactSuppression::create([
                 'client_phone_number_id' => $phoneNumber->id,
                 'channel' => 'ivr',
                 'reason' => 'unsubscribe',
-                'context' => [
-                    'source' => 'unsubscriber_import',
-                    'source_file' => $sourceFile,
-                    'row_number' => $rowNumber,
-                    'name' => $name,
-                ],
+                'context' => $context,
                 'suppressed_at' => now(),
             ]);
 
