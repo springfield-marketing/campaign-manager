@@ -25,14 +25,12 @@ class WhatsAppBatchProfileUpdater
 
         $settings = WhatsAppSettings::current();
 
-        $hardFailThreshold      = $settings->hard_fail_threshold;
-        $bulkDeadThreshold      = $settings->bulk_dead_threshold;
-        $noEngagementThreshold  = $settings->no_engagement_threshold;
-        $noEngagementDays       = $settings->cooldown_no_engagement_days;
-        $qualityHoldDays        = $settings->cooldown_quality_hold_days;
-        $experimentDays         = $settings->cooldown_experiment_days;
-        $regionalDays           = $settings->cooldown_regional_days;
-        $minDaysBetweenSends    = $settings->min_days_between_sends;
+        $hardFailThreshold = $settings->hard_fail_threshold;
+        $bulkDeadThreshold = $settings->bulk_dead_threshold;
+        // The single cooldown window (days): a number messaged within this many days is on
+        // cooldown. All other historical cooldown variables (no-engagement, quality-hold,
+        // experiment, regional) were removed in favour of this one rule.
+        $cooldownDays      = $settings->min_days_between_sends;
 
         DB::statement("
             WITH classified AS (
@@ -45,12 +43,8 @@ class WhatsAppBatchProfileUpdater
                     wm.delivery_status,
                     COALESCE(wm.failure_reason, '') AS failure_reason,
                     wm.scheduled_at,
-                    wm.clicked,
-                    wm.whatsapp_campaign_id,
-                    wm.has_quick_replies,
-                    wm.quick_reply_1,
-                    wm.quick_reply_2,
-                    wm.quick_reply_3,
+                    -- fail_class is kept only to drive the unchanged 'dead' classification
+                    -- (consecutive hard fails / bulk-dead). It no longer feeds any cooldown.
                     CASE
                         WHEN wm.delivery_status != 'FAILED' THEN 'delivered'
                         WHEN wm.failure_reason LIKE '%chosen to stop receiving marketing messages%' THEN 'opted_out'
@@ -61,18 +55,7 @@ class WhatsAppBatchProfileUpdater
                           OR wm.failure_reason LIKE '%Something went wrong%'
                           OR wm.failure_reason LIKE '%OAuthException%'                               THEN 'system_error'
                         ELSE 'hard_fail'
-                    END AS fail_class,
-                    -- Engagement classification for the consecutive-unread cooldown:
-                    --   engaged      = the recipient read or replied or clicked (resets the streak)
-                    --   unread       = delivered to the device but not read (counts toward the streak)
-                    --   transparent  = not actually delivered (failed/pending/stopped) — neither counts
-                    --                  nor breaks the streak; deliverability is handled by the
-                    --                  dead / failure-cooldown logic instead.
-                    CASE
-                        WHEN wm.delivery_status IN ('READ', 'REPLIED') OR wm.clicked THEN 'engaged'
-                        WHEN wm.delivery_status IN ('DELIVERED', 'SENT')             THEN 'unread'
-                        ELSE 'transparent'
-                    END AS engage_class
+                    END AS fail_class
                 FROM whatsapp_messages wm
                 WHERE 1=1 {$idFilter}
             ),
@@ -84,14 +67,6 @@ class WhatsAppBatchProfileUpdater
                 WHERE fail_class NOT IN ('hard_fail', 'system_error')
                 GROUP BY client_phone_number_id
             ),
-            engagement_cutoff AS (
-                -- First row (newest-first) where the recipient engaged — this ends the
-                -- consecutive-unread streak. Transparent rows neither end nor count.
-                SELECT client_phone_number_id, MIN(rn) AS first_engaged_rn
-                FROM classified
-                WHERE engage_class = 'engaged'
-                GROUP BY client_phone_number_id
-            ),
             aggregated AS (
                 SELECT
                     c.client_phone_number_id,
@@ -101,45 +76,10 @@ class WhatsAppBatchProfileUpdater
                           AND c.rn < COALESCE(sc.first_non_system_rn, 2147483647)
                     )                                                                   AS consecutive_hard_fail_count,
 
-                    -- Most-recent run of consecutive unread (delivered-but-not-read) messages,
-                    -- before the first engagement. Transparent rows are skipped.
-                    COUNT(*) FILTER (
-                        WHERE c.engage_class = 'unread'
-                          AND c.rn < COALESCE(ec.first_engaged_rn, 2147483647)
-                    )                                                                   AS consecutive_unread_count,
-
                     COUNT(*)                                                             AS total_messages,
                     COUNT(*) FILTER (WHERE c.fail_class = 'hard_fail')                  AS total_hard_fails,
                     COUNT(*) FILTER (WHERE c.fail_class NOT IN ('system_error','delivered'))
                                                                                         AS total_non_system_fails,
-                    COUNT(DISTINCT c.whatsapp_campaign_id)                              AS distinct_campaigns,
-                    COUNT(*) FILTER (WHERE c.clicked)                                   AS total_clicks,
-
-                    BOOL_OR(c.fail_class = 'opted_out')                                 AS has_opted_out,
-
-                    BOOL_OR(
-                        c.has_quick_replies
-                        AND c.quick_reply_3 IS NOT NULL AND c.quick_reply_3 != ''
-                    )                                                                   AS is_spam,
-
-                    BOOL_OR(
-                        c.has_quick_replies
-                        AND (c.quick_reply_3 IS NULL OR c.quick_reply_3 = '')
-                        AND (
-                            (c.quick_reply_1 IS NOT NULL AND c.quick_reply_1 != '')
-                            OR (c.quick_reply_2 IS NOT NULL AND c.quick_reply_2 != '')
-                        )
-                    )                                                                   AS is_lead,
-
-                    -- Latest expiry across all cooldown-triggering failure types
-                    GREATEST(
-                        MAX(CASE WHEN c.fail_class = 'quality_hold'
-                            THEN c.scheduled_at + ({$qualityHoldDays} * INTERVAL '1 day') END),
-                        MAX(CASE WHEN c.fail_class = 'experiment'
-                            THEN c.scheduled_at + ({$experimentDays} * INTERVAL '1 day') END),
-                        MAX(CASE WHEN c.fail_class = 'regional'
-                            THEN c.scheduled_at + ({$regionalDays} * INTERVAL '1 day') END)
-                    )                                                                   AS failure_cooldown_until,
 
                     MAX(CASE WHEN c.rn = 1 THEN c.delivery_status END)                 AS last_message_status,
                     MAX(CASE WHEN c.rn = 1 THEN NULLIF(c.failure_reason, '') END)       AS last_failure_reason,
@@ -147,7 +87,6 @@ class WhatsAppBatchProfileUpdater
 
                 FROM classified c
                 LEFT JOIN streak_cutoff sc ON sc.client_phone_number_id = c.client_phone_number_id
-                LEFT JOIN engagement_cutoff ec ON ec.client_phone_number_id = c.client_phone_number_id
                 GROUP BY c.client_phone_number_id
             ),
             profiles AS (
@@ -158,6 +97,10 @@ class WhatsAppBatchProfileUpdater
                     a.last_failure_reason,
                     a.last_messaged_at,
 
+                    -- Single cooldown rule: a number messaged within the last {$cooldownDays}
+                    -- days is on cooldown, expiring {$cooldownDays} days after its last message
+                    -- (anchored to last_messaged_at, so it cannot self-renew). 'dead'
+                    -- (undeliverable hard-failers) is kept untouched as a separate terminal state.
                     CASE
                         WHEN a.consecutive_hard_fail_count >= {$hardFailThreshold}
                           OR (
@@ -166,10 +109,8 @@ class WhatsAppBatchProfileUpdater
                               AND a.total_hard_fails = a.total_non_system_fails
                           )
                         THEN 'dead'
-                        WHEN a.failure_cooldown_until > NOW() THEN 'cooldown'
-                        WHEN a.consecutive_unread_count >= {$noEngagementThreshold} THEN 'cooldown'
-                        WHEN {$minDaysBetweenSends} > 0
-                          AND a.last_messaged_at > NOW() - ({$minDaysBetweenSends} * INTERVAL '1 day')
+                        WHEN {$cooldownDays} > 0
+                          AND a.last_messaged_at > NOW() - ({$cooldownDays} * INTERVAL '1 day')
                         THEN 'cooldown'
                         ELSE 'active'
                     END AS usage_status,
@@ -182,12 +123,9 @@ class WhatsAppBatchProfileUpdater
                               AND a.total_hard_fails = a.total_non_system_fails
                           )
                         THEN NULL
-                        WHEN a.failure_cooldown_until > NOW() THEN a.failure_cooldown_until
-                        WHEN a.consecutive_unread_count >= {$noEngagementThreshold}
-                        THEN NOW() + ({$noEngagementDays} * INTERVAL '1 day')
-                        WHEN {$minDaysBetweenSends} > 0
-                          AND a.last_messaged_at > NOW() - ({$minDaysBetweenSends} * INTERVAL '1 day')
-                        THEN a.last_messaged_at + ({$minDaysBetweenSends} * INTERVAL '1 day')
+                        WHEN {$cooldownDays} > 0
+                          AND a.last_messaged_at > NOW() - ({$cooldownDays} * INTERVAL '1 day')
+                        THEN a.last_messaged_at + ({$cooldownDays} * INTERVAL '1 day')
                         ELSE NULL
                     END AS cooldown_until
 
