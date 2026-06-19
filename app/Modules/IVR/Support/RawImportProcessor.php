@@ -6,7 +6,6 @@ use App\Jobs\RecomputeClientScoresJob;
 use App\Models\Client;
 use App\Models\ClientEmail;
 use App\Models\ClientPhoneNumber;
-use App\Models\ClientSource;
 use App\Models\ImportStaging;
 use App\Models\Ownership;
 use App\Models\Tag;
@@ -96,14 +95,6 @@ class RawImportProcessor
 
     private LocationResolver $resolver;
 
-    private RawContactImportEnricher $enricher;
-
-    /** @var array<string, Tag> Cached tags keyed by name to avoid a query per row */
-    private array $tagCache = [];
-
-    /** @var array<int, array<string, mixed>> Buffered ClientSource rows for bulk insert */
-    private array $sourceBuffer = [];
-
     /** @var array<string, true> Normalized phones seen earlier in this import */
     private array $seenPhones = [];
 
@@ -112,7 +103,6 @@ class RawImportProcessor
         private readonly PhoneNormalizer $phoneNormalizer,
     ) {
         $this->resolver = new LocationResolver;
-        $this->enricher = new RawContactImportEnricher;
     }
 
     public function process(IvrImport $import): void
@@ -166,8 +156,6 @@ class RawImportProcessor
             $staged = 0;
             $rowNumber = 1;
             $sourceFallback = $import->source_name ?: pathinfo($import->original_file_name, PATHINFO_FILENAME);
-            $this->tagCache = [];
-            $this->sourceBuffer = [];
             $this->seenPhones = [];
             $chunk = [];
 
