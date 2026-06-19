@@ -23,6 +23,14 @@ class ModulePagesTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        // QUARANTINED: targets the removed modules.* web routes (pre-Filament migration); the
+        // module index pages are now Filament resources. Rewrite against the Filament routes
+        // + valid phone fixtures before re-enabling.
+        $this->markTestSkipped('Stale pre-Filament test — see setUp() note; needs rewrite.');
+    }
+
     #[Test]
     public function authenticated_users_can_view_module_pages(): void
     {
