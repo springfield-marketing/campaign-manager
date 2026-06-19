@@ -46,12 +46,6 @@ class RawImportProcessor
 
     private const CONFIDENCE_LEVELS = ['high', 'medium', 'low'];
 
-    /** Canonical emirate names. */
-    private const VALID_EMIRATES = [
-        'Abu Dhabi', 'Dubai', 'Sharjah',
-        'Ajman', 'Umm Al Quwain', 'Ras Al Khaimah', 'Fujairah',
-    ];
-
     /**
      * Lowercase aliases → canonical emirate name.
      * Covers common district/community names that sometimes appear in CSV
@@ -333,38 +327,6 @@ class RawImportProcessor
         $payload['name'] = NameNormalizer::normalize($payload['name']);
 
         return $payload;
-    }
-
-    private function stageForReview(array $payload, string $batchId, string $sourceName): void
-    {
-        $emirate = $this->normalizeEmirate($payload['emirate'] ?? '');
-        $officialAreaId = $this->resolver->officialAreaId($emirate, $payload['official_area_name'] ?? '');
-        $marketingAreaId = $this->resolver->marketingAreaId($emirate, $payload['marketing_area_name'] ?? '');
-        $projectId = $this->resolver->projectId($marketingAreaId, $payload['project_name'] ?? '');
-        $buildingId = $this->resolver->buildingId($projectId, $payload['building_name'] ?? '');
-
-        ImportStaging::create([
-            'batch_id' => $batchId,
-            'name' => $payload['name'] ?? null,
-            'phone' => null,
-            'email' => null,
-            'country_iso' => $payload['country_iso'] ?? null,
-            'emirate' => $emirate ?: null,
-            'raw_official_area' => $payload['official_area_name'] ?? null,
-            'raw_marketing_area' => $payload['marketing_area_name'] ?? null,
-            'raw_project_name' => $payload['project_name'] ?? null,
-            'raw_building_name' => $payload['building_name'] ?? null,
-            'raw_unit_reference' => $payload['unit_reference'] ?? null,
-            'official_area_id' => $officialAreaId,
-            'marketing_area_id' => $marketingAreaId,
-            'project_id' => $projectId,
-            'building_id' => $buildingId,
-            'relationship_type' => $payload['relationship_type'] ?? null,
-            'confidence_level' => $payload['confidence_level'] ?? null,
-            'source' => $sourceName,
-            'status' => ImportStaging::STATUS_NEEDS_REVIEW,
-            'status_reason' => 'Name only — no phone or email in source data.',
-        ]);
     }
 
     /**
@@ -1271,113 +1233,5 @@ class RawImportProcessor
         }
 
         return self::EMIRATE_ALIASES[mb_strtolower($v)] ?? '';
-    }
-
-    private function flushSourceBuffer(): void
-    {
-        if ($this->sourceBuffer === []) {
-            return;
-        }
-
-        DB::table('client_sources')->insert($this->sourceBuffer);
-        $this->sourceBuffer = [];
-    }
-
-    private function applyRelationshipTag(Client $client, ?string $relationshipType): void
-    {
-        $normalized = strtolower(trim((string) $relationshipType));
-
-        if ($normalized === '' || $normalized === 'unknown') {
-            return;
-        }
-
-        // "buyer_interest" → "Buyer Interest", "owner" → "Owner"
-        $tagName = ucwords(str_replace('_', ' ', $normalized));
-
-        if (! isset($this->tagCache[$tagName])) {
-            $this->tagCache[$tagName] = Tag::firstOrCreate(['name' => $tagName]);
-        }
-
-        $client->tags()->syncWithoutDetaching([$this->tagCache[$tagName]->id]);
-    }
-
-    private function upsertClientFromPayload(array $payload, string $sourceName, IvrImport $import): bool
-    {
-        $phone = ($payload['phone'] ?? '') !== '' ? $payload['phone'] : null;
-        $normalized = $phone ? $this->phoneNormalizer->normalize($phone) : null;
-
-        $phoneNumber = $normalized
-            ? ClientPhoneNumber::query()->where('normalized_phone', $normalized['normalized'])->first()
-            : null;
-
-        $duplicate = $phoneNumber !== null;
-
-        $emirate = $this->normalizeEmirate($payload['emirate'] ?? '');
-
-        $officialAreaId = $this->resolver->officialAreaId($emirate, $payload['official_area_name'] ?? '');
-        $marketingAreaId = $this->resolver->marketingAreaId($emirate, $payload['marketing_area_name'] ?? '');
-        $projectId = $this->resolver->projectId($marketingAreaId, $payload['project_name'] ?? '');
-        $buildingId = $this->resolver->buildingId($projectId, $payload['building_name'] ?? '');
-
-        $enrichPayload = array_merge($payload, [
-            'normalized_phone' => $normalized['normalized'] ?? null,
-            'emirate' => $emirate,
-        ]);
-
-        $client = $this->enricher->resolveClient($enrichPayload, $phoneNumber);
-
-        $this->applyRelationshipTag($client, $payload['relationship_type'] ?? null);
-
-        if ($normalized) {
-            if (! $phoneNumber) {
-                $phoneNumber = ClientPhoneNumber::create([
-                    'client_id' => $client->id,
-                    'raw_phone' => $phone,
-                    'normalized_phone' => $normalized['normalized'],
-                    'country_code' => $normalized['country_code'],
-                    'national_number' => $normalized['national_number'],
-                    'detected_country' => $normalized['detected_country'],
-                    'is_uae' => $normalized['is_uae'],
-                    'is_primary' => true,
-                    'priority' => 1,
-                    'last_source_name' => $sourceName,
-                    'last_imported_at' => now(),
-                ]);
-            } else {
-                $phoneNumber->forceFill([
-                    'client_id' => $client->id,
-                    'last_source_name' => $sourceName,
-                    'last_imported_at' => now(),
-                ])->save();
-            }
-        }
-
-        if ($marketingAreaId) {
-            $this->enricher->syncOwnership(
-                client: $client,
-                payload: $enrichPayload,
-                officialAreaId: $officialAreaId,
-                marketingAreaId: $marketingAreaId,
-                projectId: $projectId,
-                buildingId: $buildingId,
-                sourceName: $sourceName,
-            );
-        }
-
-        $now = now()->toDateTimeString();
-        $this->sourceBuffer[] = [
-            'client_id' => $client->id,
-            'client_phone_number_id' => $phoneNumber?->id,
-            'channel' => 'ivr',
-            'source_type' => 'raw_import',
-            'source_name' => $sourceName,
-            'source_file_name' => $import->original_file_name,
-            'source_reference' => (string) $import->id,
-            'metadata' => json_encode(['duplicate' => $duplicate]),
-            'created_at' => $now,
-            'updated_at' => $now,
-        ];
-
-        return $duplicate;
     }
 }
