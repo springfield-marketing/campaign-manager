@@ -21,14 +21,4 @@ class ClientInteraction extends Model
     {
         return $this->belongsTo(Client::class);
     }
-
-    public static function log(int $clientId, InteractionType $type, ?string $source = null, ?string $description = null): self
-    {
-        return self::create([
-            'client_id'   => $clientId,
-            'type'        => $type,
-            'source'      => $source,
-            'description' => $description,
-        ]);
-    }
 }
