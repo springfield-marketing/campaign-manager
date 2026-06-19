@@ -32,8 +32,6 @@ class IvrStatsWidget extends StatsOverviewWidget
         $data = app(IvrReportData::class)->forPeriod($this->year, $this->month);
         $s    = $data['summary'];
 
-        $didNotProcess = $s['total_calls'] - $s['answered_calls'] - $s['missed_calls'];
-
         return [
             Stat::make('Total Calls', number_format($s['total_calls']))
                 ->icon('heroicon-o-phone')
@@ -52,12 +50,6 @@ class IvrStatsWidget extends StatsOverviewWidget
                 ->icon('heroicon-o-x-circle')
                 ->color('warning')
                 ->extraAttributes(['x-tooltip.raw' => 'Calls that were attempted but not answered — the line rang or connected but the recipient did not pick up.']),
-
-            Stat::make('Did Not Process', number_format(max(0, $didNotProcess)))
-                ->icon('heroicon-o-minus-circle')
-                ->color('gray')
-                ->description('Filtered before dialing')
-                ->extraAttributes(['x-tooltip.raw' => 'Call records that were submitted to the system but never actually dialed — typically suppressed numbers, duplicates, or numbers excluded by campaign rules.']),
 
             Stat::make('Interested', number_format($s['leads']))
                 ->icon('heroicon-o-star')
