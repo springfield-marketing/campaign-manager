@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict dwh2fxw5KtikvB3ZkeHZpm96hVgJKkqfAlQ20H1qbPG6BXpVUNArXmMeLfVjkco
+\restrict D6Fzhbdy08xKSoZ9wWO2qtJbAER0OLgTYLQaadl1q4xniuq4wPMkekrT9QhwkVf
 
 -- Dumped from database version 18.3 (Homebrew)
 -- Dumped by pg_dump version 18.3 (Homebrew)
@@ -2794,6 +2794,13 @@ CREATE INDEX client_phone_numbers_client_delete_idx ON public.client_phone_numbe
 
 
 --
+-- Name: client_phone_numbers_created_at_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX client_phone_numbers_created_at_index ON public.client_phone_numbers USING btree (created_at);
+
+
+--
 -- Name: client_phone_numbers_is_ivr_index; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2987,6 +2994,13 @@ CREATE INDEX contact_suppressions_phone_delete_idx ON public.contact_suppression
 --
 
 CREATE INDEX contact_suppressions_platform_index ON public.contact_suppressions USING btree (platform);
+
+
+--
+-- Name: contact_suppressions_suppressed_at_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX contact_suppressions_suppressed_at_index ON public.contact_suppressions USING btree (suppressed_at);
 
 
 --
@@ -3775,13 +3789,13 @@ ALTER TABLE ONLY public.whatsapp_phone_profiles
 -- PostgreSQL database dump complete
 --
 
-\unrestrict dwh2fxw5KtikvB3ZkeHZpm96hVgJKkqfAlQ20H1qbPG6BXpVUNArXmMeLfVjkco
+\unrestrict D6Fzhbdy08xKSoZ9wWO2qtJbAER0OLgTYLQaadl1q4xniuq4wPMkekrT9QhwkVf
 
 --
 -- PostgreSQL database dump
 --
 
-\restrict APkd3WHrUR3bDjswGO5aVy2Batsm52kSreG84HK7r3Z8TIuGNdTs7VCwHC3OS04
+\restrict isFlEbDcgiQB08HPTTjzvE9h65f5RS38A0haGAISBVNhdbojPKX24U9itRY0am7
 
 -- Dumped from database version 18.3 (Homebrew)
 -- Dumped by pg_dump version 18.3 (Homebrew)
@@ -3896,6 +3910,7 @@ COPY public.migrations (id, migration, batch) FROM stdin;
 94	2026_06_19_000300_add_is_ivr_to_client_phone_numbers	65
 95	2026_06_19_000400_backfill_channel_flags_from_activity	65
 96	2026_06_19_000500_add_full_name_index_to_clients	66
+97	2026_06_19_000600_add_sort_indexes_for_filament_tables	67
 \.
 
 
@@ -3903,12 +3918,12 @@ COPY public.migrations (id, migration, batch) FROM stdin;
 -- Name: migrations_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.migrations_id_seq', 96, true);
+SELECT pg_catalog.setval('public.migrations_id_seq', 97, true);
 
 
 --
 -- PostgreSQL database dump complete
 --
 
-\unrestrict APkd3WHrUR3bDjswGO5aVy2Batsm52kSreG84HK7r3Z8TIuGNdTs7VCwHC3OS04
+\unrestrict isFlEbDcgiQB08HPTTjzvE9h65f5RS38A0haGAISBVNhdbojPKX24U9itRY0am7
 
