@@ -2,15 +2,18 @@
 
 namespace App\Filament\Resources\Clients\Tables;
 
-use App\Models\ClientPhoneNumber;
+use App\Models\Client;
+use App\Support\Identity\ClientSplitter;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\SelectFilter;
-use Filament\Tables\Filters\Filter;
-use Filament\Tables\Table;
 use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
 class ClientsTable
@@ -55,31 +58,31 @@ class ClientsTable
                     ->label('Tier')
                     ->badge()
                     ->formatStateUsing(fn (?string $state) => match ($state) {
-                        'vip'            => 'VIP',
+                        'vip' => 'VIP',
                         'high_net_worth' => 'High Net Worth',
-                        'premium'        => 'Premium',
-                        'standard'       => 'Standard',
-                        default          => '—',
+                        'premium' => 'Premium',
+                        'standard' => 'Standard',
+                        default => '—',
                     })
                     ->color(fn (?string $state) => match ($state) {
-                        'vip'            => 'warning',
+                        'vip' => 'warning',
                         'high_net_worth' => 'success',
-                        'premium'        => 'info',
-                        'standard'       => 'gray',
-                        default          => 'gray',
+                        'premium' => 'info',
+                        'standard' => 'gray',
+                        default => 'gray',
                     })
                     ->sortable()
                     ->placeholder('—'),
 
                 TextColumn::make('completeness_score')
                     ->label('Completeness')
-                    ->formatStateUsing(fn (?int $state) => $state !== null ? $state . '%' : '—')
+                    ->formatStateUsing(fn (?int $state) => $state !== null ? $state.'%' : '—')
                     ->sortable()
                     ->color(fn (?int $state) => match (true) {
-                        $state === null  => 'gray',
-                        $state >= 75     => 'success',
-                        $state >= 50     => 'warning',
-                        default          => 'danger',
+                        $state === null => 'gray',
+                        $state >= 75 => 'success',
+                        $state >= 50 => 'warning',
+                        default => 'danger',
                     })
                     ->toggleable(isToggledHiddenByDefault: true),
 
@@ -99,31 +102,30 @@ class ClientsTable
             ->filters([
                 SelectFilter::make('emirate')
                     ->options([
-                        'Dubai'          => 'Dubai',
-                        'Abu Dhabi'      => 'Abu Dhabi',
-                        'Sharjah'        => 'Sharjah',
-                        'Ajman'          => 'Ajman',
+                        'Dubai' => 'Dubai',
+                        'Abu Dhabi' => 'Abu Dhabi',
+                        'Sharjah' => 'Sharjah',
+                        'Ajman' => 'Ajman',
                         'Ras Al Khaimah' => 'Ras Al Khaimah',
-                        'Fujairah'       => 'Fujairah',
-                        'Umm Al Quwain'  => 'Umm Al Quwain',
+                        'Fujairah' => 'Fujairah',
+                        'Umm Al Quwain' => 'Umm Al Quwain',
                     ]),
 
                 SelectFilter::make('country_iso')
                     ->label('Country')
-                    ->options(fn () =>
-                        \App\Models\Client::whereNotNull('country_iso')
-                            ->distinct()
-                            ->orderBy('country_iso')
-                            ->pluck('country_iso', 'country_iso')
-                            ->all()
+                    ->options(fn () => Client::whereNotNull('country_iso')
+                        ->distinct()
+                        ->orderBy('country_iso')
+                        ->pluck('country_iso', 'country_iso')
+                        ->all()
                     ),
 
                 SelectFilter::make('tier')
                     ->options([
-                        'vip'            => 'VIP',
+                        'vip' => 'VIP',
                         'high_net_worth' => 'High Net Worth',
-                        'premium'        => 'Premium',
-                        'standard'       => 'Standard',
+                        'premium' => 'Premium',
+                        'standard' => 'Standard',
                     ])
                     ->placeholder('All tiers'),
 
@@ -135,6 +137,13 @@ class ClientsTable
                     ->label('Has Property')
                     ->query(fn (Builder $query) => $query->whereHas('ownerships')),
 
+                // Surfaces "super clients" — one record holding multiple distinct numbers, the
+                // signature of a pre-IMP-003 bad merge (a bank/stub/shared name that absorbed many
+                // unrelated people). Review and split via the row's Split action.
+                Filter::make('multi_number')
+                    ->label('Multiple numbers (possible bad merge)')
+                    ->query(fn (Builder $query) => $query->whereHas('phoneNumbers', null, '>=', 2)),
+
                 Filter::make('phone_search')
                     ->label('Search by Phone')
                     ->form([
@@ -142,18 +151,48 @@ class ClientsTable
                             ->label('Phone number')
                             ->placeholder('+971501234567'),
                     ])
-                    ->query(fn (Builder $query, array $data) =>
-                        $query->when(
-                            filled($data['phone'] ?? null),
-                            fn ($q) => $q->whereHas('phoneNumbers', fn ($q2) =>
-                                $q2->where('normalized_phone', 'like', '%'.ltrim($data['phone'], '+').'%')
-                                   ->orWhere('raw_phone', 'like', '%'.$data['phone'].'%')
-                            )
+                    ->query(fn (Builder $query, array $data) => $query->when(
+                        filled($data['phone'] ?? null),
+                        fn ($q) => $q->whereHas('phoneNumbers', fn ($q2) => $q2->where('normalized_phone', 'like', '%'.ltrim($data['phone'], '+').'%')
+                            ->orWhere('raw_phone', 'like', '%'.$data['phone'].'%')
                         )
+                    )
                     ),
             ])
             ->defaultSort('full_name')
-            ->recordActions([EditAction::make()])
+            ->recordActions([
+                EditAction::make(),
+
+                // Manual remediation for a pre-IMP-003 super-client: split one record holding many
+                // unrelated numbers into one client per phone. Audit-only by policy — never
+                // automatic; the operator reviews each client and triggers this deliberately.
+                Action::make('split_phones')
+                    ->label('Split numbers')
+                    ->icon('heroicon-o-scissors')
+                    ->color('warning')
+                    ->visible(fn (Client $record): bool => ($record->phone_numbers_count ?? $record->phoneNumbers()->count()) > 1
+                    )
+                    ->requiresConfirmation()
+                    ->modalHeading('Split this client into one client per phone number')
+                    ->modalDescription(fn (Client $record): string => "\"{$record->full_name}\" holds ".
+                        ($record->phone_numbers_count ?? $record->phoneNumbers()->count()).
+                        ' phone numbers. Each number becomes its own client (carrying its own '.
+                        'sources, calls and messages). Client-level data — emails, tags, properties, '.
+                        'alternate names — stays on this original record, since it cannot be '.
+                        'attributed to a specific number. A snapshot is saved first, so this is reversible.'
+                    )
+                    ->modalSubmitActionLabel('Split')
+                    ->action(function (Client $record): void {
+                        $result = app(ClientSplitter::class)->split($record);
+
+                        Notification::make()
+                            ->title('Client split')
+                            ->body("{$result['split']} number(s) moved to their own client".
+                                ($result['deleted'] > 0 ? ", {$result['deleted']} placeholder number(s) removed." : '.'))
+                            ->success()
+                            ->send();
+                    }),
+            ])
             ->toolbarActions([
                 BulkActionGroup::make([DeleteBulkAction::make()]),
             ]);
