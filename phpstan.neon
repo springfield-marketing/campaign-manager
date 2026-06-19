@@ -42,3 +42,7 @@ parameters:
         -
             identifier: larastan.noEnvCallsOutsideOfConfig
             path: app/Console/Commands/ValidateEnvironment.php
+        # String-backed enum cases are populated from DB values via Eloquent casts (and request
+        # input) — the detector can't trace that, so it reports cases as unused even though they're
+        # reachable at runtime. (Their human-label helpers were removed as genuinely dead.)
+        - identifier: shipmonk.deadEnumCase

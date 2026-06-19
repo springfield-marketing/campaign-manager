@@ -67,9 +67,4 @@ class WhatsAppImport extends Model
     {
         return WhatsAppPlatform::tryFrom($this->source_name ?? '');
     }
-
-    public function statusLabel(): string
-    {
-        return str_replace('_', ' ', $this->status);
-    }
 }
