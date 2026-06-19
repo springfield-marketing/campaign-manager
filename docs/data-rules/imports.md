@@ -16,6 +16,43 @@ See [README.md](README.md) for how this registry works. Newest entries at the to
 - **Watch out for:** <known gaps / counter-examples>
 -->
 
+### IMP-003 — An institution name is not an identity anchor either
+
+- **Date / trigger:** 2026-06-19. Investigating client **178965 "Emirates Islamic Bank"**, which
+  held **9 phone numbers** drawn from 6 different source files (Falcon City, Arabian Ranches ×3,
+  The Valley, Owners, Dafala…) and an `alternate_names` list of ~18 *unrelated real people*
+  (Saeed Abdulla, Ishiqa Multani, Rockville Ventures, Shams Faiz…).
+- **Symptom:** Same "super client" failure as IMP-001/002, but the anchor was an **institution
+  name**. One client accumulated the mobiles of many different individuals; the personal names
+  leaked into `alternate_names` because phone-match enrichment refuses to overwrite a non-stub
+  stored name.
+- **Root cause:** IMP-002 left one carve-out — institution names (bank/developer/agency, via
+  `NameClassifier::isInstitution`) still resolved via
+  `Client::firstOrCreate(['full_name','emirate','country_iso'])`, on the theory that an
+  institution is one shared entity. But in DLD/owner data a bank is the *registered
+  owner/mortgagee* of hundreds of unrelated properties, so every individual's mobile on those
+  properties got filed under the bank. The institution name is many-to-one with real people — the
+  exact property that makes a name a bad identity key, amplified.
+- **Rule we added:** Institution names now **create-fresh per phone**, exactly like stub and real
+  personal names. There is no longer any name-tuple `firstOrCreate` in `resolveClient()` — phone
+  is the only identity anchor. A bank/developer never "owns" a contact's number.
+- **Why it's safe / trade-offs:** Same under-merge bias as IMP-001/002. A genuine institution
+  landline imported from several sources will now produce one thin client per *distinct number*
+  rather than one shared record — acceptable, and far better than absorbing strangers. If we ever
+  want a true "organisation" entity, it belongs in a separate org table, not as a contact-graph
+  merge anchor.
+- **Proof:** `RawContactImportEnrichmentTest::imp_003_institution_names_do_not_anchor_a_shared_record`.
+- **Code:** [`app/Support/RawContactImportEnricher.php`](../../app/Support/RawContactImportEnricher.php)
+  — the `IMP-003` breadcrumb in `resolveClient()` (the institution branch was removed).
+- **Cleanup (historical residue):** the pre-fix institution/stub super-clients (≈52 clients with
+  ≥5 numbers at time of writing, plus ~15k with ≥2) are surfaced for **manual** review/split — no
+  auto-split. Detector: `clients:audit-data-quality`; remediation via the review UI / 
+  `clients:split-name-collisions` per-client. See spec §5.
+- **Watch out for:**
+  - The IVR **bulk** path (`RawImportProcessor::resolveClients()`) still merges on the name tuple
+    — same outstanding Phase-2 rewrite called out in IMP-002. Institution over-merge can still
+    occur there until that lands.
+
 ### IMP-002 — A real name is not an identity key either (phone is)
 
 - **Date / trigger:** 2026-06-18, Phase 2 of the contact-data spec
@@ -35,9 +72,9 @@ See [README.md](README.md) for how this registry works. Newest entries at the to
 - **Rule we added:** Phone is the identity anchor. `resolveClient()` matches an existing phone
   first (re-imports are idempotent); for a **brand-new phone with a real personal name it now
   `Client::create()`s a fresh client and never matches by the name tuple.** Stub names already
-  create-fresh (IMP-001). **Institution** names (bank/developer/agency, via
-  `NameClassifier::isInstitution`) are the one exception — they keep `firstOrCreate` so the
-  entity stays one shared record instead of fragmenting (spec §5).
+  create-fresh (IMP-001). **Institution** names were initially kept as the one `firstOrCreate`
+  exception here — **that carve-out was later removed by IMP-003** (institutions over-merged
+  worse than anything); there is now no name-tuple match at all.
 - **Why it's safe / trade-offs:** We bias to **under-merge** (one person showing up twice — cheap
   to reconcile later with `clients:merge`) over **over-merge** (two people fused — destructive and
   hard to unpick). Re-imports of the same number still resolve to one client (phone match runs

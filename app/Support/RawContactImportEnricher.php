@@ -7,7 +7,6 @@ use App\Models\ClientPhoneNumber;
 use App\Models\Ownership;
 use App\Models\Tag;
 use App\Support\Identity\NameClassifier;
-use App\Support\NameNormalizer;
 
 /**
  * Creates or updates a Client + Ownership row from a fully-resolved import payload.
@@ -42,6 +41,7 @@ class RawContactImportEnricher
             if ($email !== '') {
                 $client->setPrimaryEmailAddress($email);
             }
+
             return $client;
         }
 
@@ -57,41 +57,17 @@ class RawContactImportEnricher
                 if ($email !== '') {
                     $client->setPrimaryEmailAddress($email);
                 }
+
                 return $client;
             }
         }
 
-        $fullName   = trim((string) ($payload['name'] ?? ''));
-        $emirate    = trim((string) ($payload['emirate'] ?? ''));
+        $fullName = trim((string) ($payload['name'] ?? ''));
+        $emirate = trim((string) ($payload['emirate'] ?? ''));
         $countryIso = strtoupper(substr(trim((string) ($payload['country_iso'] ?? '')), 0, 2)) ?: null;
 
-        // Institution names (bank / developer / agency) are real shared entities: keep one
-        // record per (name, emirate, country) so the entity's own lines don't fragment. A stub
-        // takes precedence — an unusable placeholder is never treated as an institution. They
-        // never absorb individuals here, since individual rows carry a personal name, not the
-        // institution's. See docs/data-rules/contact-data-spec.md §5.
-        if (! NameClassifier::isStub($fullName) && NameClassifier::isInstitution($fullName)) {
-            $client = Client::firstOrCreate(
-                [
-                    'full_name'   => $fullName ?: null,
-                    'emirate'     => $emirate ?: null,
-                    'country_iso' => $countryIso,
-                ],
-                [
-                    'nationality' => $this->blankToNull($payload['nationality'] ?? null),
-                    'gender'      => $this->blankToNull($payload['gender'] ?? null),
-                ]
-            );
-
-            if ($email !== '') {
-                $client->setPrimaryEmailAddress($email);
-            }
-
-            return $client;
-        }
-
-        // Otherwise create a fresh client and NEVER match/merge by name. Phone is the identity
-        // anchor (matched above); a name is not a safe identity key:
+        // Create a fresh client and NEVER match/merge by name. Phone is the identity anchor
+        // (matched above); a name — of ANY kind — is not a safe identity key:
         //   - IMP-001: a stub/placeholder name ("Instagram Dm", "No Name", a bare first name) is
         //     too weak — matching the (name, emirate, country) tuple is how unrelated people
         //     collapsed onto one "super client" with many numbers attached.
@@ -99,14 +75,20 @@ class RawContactImportEnricher
         //     the same name is not the same person (two people share a name). We bias to
         //     under-merge; genuine same-person duplicates are surfaced by
         //     clients:audit-data-quality and the review queue, not guessed here.
+        //   - IMP-003: an institution name (bank / developer / agency) is the WORST anchor of
+        //     all. In DLD/owner data a bank is the registered owner/mortgagee of hundreds of
+        //     unrelated properties, so firstOrCreate on the institution tuple filed every
+        //     individual's mobile under "Emirates Islamic Bank" et al. — a super-client of
+        //     strangers. Institutions now create-fresh per phone like everything else; a bank
+        //     never "owns" a contact's number. (Reverses the one carve-out IMP-002 kept.)
         // Re-imports of the same number match by phone above, so this does not duplicate them.
-        // See docs/data-rules/imports.md and contact-data-spec.md §4.
+        // See docs/data-rules/imports.md and contact-data-spec.md §4–§5.
         $client = Client::create([
-            'full_name'   => $fullName ?: null,
-            'emirate'     => $emirate ?: null,
+            'full_name' => $fullName ?: null,
+            'emirate' => $emirate ?: null,
             'country_iso' => $countryIso,
             'nationality' => $this->blankToNull($payload['nationality'] ?? null),
-            'gender'      => $this->blankToNull($payload['gender'] ?? null),
+            'gender' => $this->blankToNull($payload['gender'] ?? null),
         ]);
 
         if ($email !== '') {
@@ -130,10 +112,10 @@ class RawContactImportEnricher
         ?int $buildingId,
         string $sourceName,
     ): Ownership {
-        $emirate          = trim((string) ($payload['emirate'] ?? ''));
-        $unitReference    = $this->blankToNull($payload['unit_reference'] ?? null);
+        $emirate = trim((string) ($payload['emirate'] ?? ''));
+        $unitReference = $this->blankToNull($payload['unit_reference'] ?? null);
         $relationshipType = $this->normalizeRelationshipType($payload['relationship_type'] ?? null);
-        $confidenceLevel  = $this->normalizeConfidenceLevel($payload['confidence_level'] ?? null);
+        $confidenceLevel = $this->normalizeConfidenceLevel($payload['confidence_level'] ?? null);
 
         if (! $emirate) {
             throw new \InvalidArgumentException('emirate is required for ownership');
@@ -143,12 +125,12 @@ class RawContactImportEnricher
         }
 
         $matchFields = [
-            'client_id'         => $client->id,
-            'emirate'           => $emirate,
+            'client_id' => $client->id,
+            'emirate' => $emirate,
             'marketing_area_id' => $marketingAreaId,
-            'project_id'        => $projectId,
-            'building_id'       => $buildingId,
-            'unit_reference'    => $unitReference,
+            'project_id' => $projectId,
+            'building_id' => $buildingId,
+            'unit_reference' => $unitReference,
             'relationship_type' => $relationshipType,
         ];
 
@@ -164,17 +146,17 @@ class RawContactImportEnricher
                 'official_area_id' => $officialAreaId,
                 'confidence_level' => Ownership::higherConfidence($existing->confidence_level, $confidenceLevel),
                 'last_source_name' => $sourceName,
-                'source_names'     => $sourceNames,
+                'source_names' => $sourceNames,
             ])->save();
 
             return $existing;
         }
 
         return Ownership::create(array_merge($matchFields, [
-            'official_area_id'  => $officialAreaId,
-            'confidence_level'  => $confidenceLevel,
-            'last_source_name'  => $sourceName,
-            'source_names'      => [$sourceName],
+            'official_area_id' => $officialAreaId,
+            'confidence_level' => $confidenceLevel,
+            'last_source_name' => $sourceName,
+            'source_names' => [$sourceName],
             'first_confirmed_at' => now(),
         ]));
     }
@@ -214,7 +196,7 @@ class RawContactImportEnricher
             if (blank($client->notes)) {
                 $updates['notes'] = $val;
             } elseif (! str_contains((string) $client->notes, $val)) {
-                $updates['notes'] = trim((string) $client->notes) . "\n\n" . now()->format('d M Y') . ': ' . $val;
+                $updates['notes'] = trim((string) $client->notes)."\n\n".now()->format('d M Y').': '.$val;
             }
         }
         if (blank($client->country_iso)) {
@@ -250,13 +232,13 @@ class RawContactImportEnricher
      * real people whose row literally said "No Name", "Guest", or "Ahmed Na" all collapsed onto
      * one client record because the name was treated as a reliable identity key (IMP-001).
      *
-     * The detection itself lives in the canonical {@see \App\Support\Identity\NameClassifier}
+     * The detection itself lives in the canonical {@see NameClassifier}
      * so the import path, the data-quality audit, and the review queue all agree. This method
      * is kept as a thin alias for existing callers.
      */
     public static function isStubName(string $name): bool
     {
-        return \App\Support\Identity\NameClassifier::isStub($name);
+        return NameClassifier::isStub($name);
     }
 
     private function normalizeRelationshipType(?string $value): string

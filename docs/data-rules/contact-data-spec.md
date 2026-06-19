@@ -106,8 +106,10 @@ heart of the "algorithm," and it directly answers the three policy questions:
      NO  → continue.
 3. Name is a stub/placeholder (NameClassifier, §5)?
      YES → create a FRESH Person for this new Contact. Never match by stub name. [IMP-001]
-4. Name looks like an INSTITUTION or the phone is a known SHARED LINE (§5)?
-     YES → create/attach Contact but DO NOT merge individuals under it; flag for review. [Q2]
+4. Name looks like an INSTITUTION (§5)?
+     YES → create a FRESH Person too. An institution name is the worst anchor — a bank is the
+           registered owner of hundreds of unrelated properties — so it never merges. [IMP-003]
+           (A known SHARED LINE is still flagged via is_shared_line and routed to review.)
 5. Otherwise (a real personal name, new phone):
      Default = create a NEW Person (phone is identity; same name ≠ same person). [Q2]
      Only link this new phone to an EXISTING person on a STRONG signal:
@@ -128,10 +130,12 @@ blind-keep. Apply survivorship (§3): keep the higher-trust value as the display
 the other as an alternate, and **raise a review item** so a human can confirm whether it's the
 same person, two people sharing a number, or a data error.
 
-> **(gap)** Today step 5's default is `firstOrCreate(name, emirate, country)` — i.e. it *does*
-> merge two real people who share a name + emirate. The target default is create-new + review.
-> Steps 2–3 already exist in `RawContactImportEnricher::resolveClient()`; step 4 and the
-> review routing are new.
+> **(done)** Steps 2–5 are implemented in `RawContactImportEnricher::resolveClient()`: phone
+> match first, then create-fresh for stub (IMP-001), real (IMP-002), and institution (IMP-003)
+> names alike — no name-tuple `firstOrCreate` remains. The strong-signal linking in step 5 and
+> the review-queue routing are still to come. **Caveat:** the IVR *bulk* path
+> (`RawImportProcessor::resolveClients()`) still merges on the name tuple — outstanding Phase-2
+> rewrite.
 
 ---
 
@@ -147,9 +151,12 @@ review alike.)*
   identity key.** *(Repeated-word and a few labels are known gaps — see IMP-001 "watch out
   for".)*
 - **Institution** — bank / developer / agency / hotline names. Real entities, but they must
-  **not absorb individuals**; their shared lines are flagged (`client_phone_numbers
-  .is_shared_line`, set by `clients:mark-shared-line`, **exists**) and excluded from
-  person-merging.
+  **never anchor identity**: on import an institution name now creates a fresh client per phone
+  exactly like a stub (IMP-003), because in owner data a bank is the registered owner of hundreds
+  of unrelated properties. A genuine shared/reception line is flagged separately
+  (`client_phone_numbers.is_shared_line`, set by `clients:mark-shared-line`) and excluded from
+  person-merging. If a true "organisation" entity is ever needed, it belongs in its own table,
+  not as a merge anchor in the contact graph.
 - **Real personal name** — eligible for survivorship and strong-signal linking.
 
 ---

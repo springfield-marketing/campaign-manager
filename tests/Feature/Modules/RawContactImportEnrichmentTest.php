@@ -3,6 +3,7 @@
 namespace Tests\Feature\Modules;
 
 use App\Models\Client;
+use App\Models\ClientPhoneNumber;
 use App\Models\MarketingArea;
 use App\Models\Project;
 use App\Modules\IVR\Models\IvrImport;
@@ -161,8 +162,8 @@ class RawContactImportEnrichmentTest extends TestCase
     {
         $enricher = app(RawContactImportEnricher::class);
 
-        $first  = $enricher->resolveClient(['name' => 'Bilal Khan', 'emirate' => 'Dubai', 'country_iso' => 'AE', 'normalized_phone' => '+971527948051']);
-        \App\Models\ClientPhoneNumber::create([
+        $first = $enricher->resolveClient(['name' => 'Bilal Khan', 'emirate' => 'Dubai', 'country_iso' => 'AE', 'normalized_phone' => '+971527948051']);
+        ClientPhoneNumber::create([
             'client_id' => $first->id, 'raw_phone' => '+971527948051', 'normalized_phone' => '+971527948051',
             'is_uae' => true, 'is_primary' => true, 'priority' => 1,
         ]);
@@ -172,18 +173,22 @@ class RawContactImportEnrichmentTest extends TestCase
     }
 
     /**
-     * Institution names (bank/developer/agency) are real shared entities: they keep one record
-     * per identity tuple so their own lines don't fragment (spec §5), unlike personal names.
+     * IMP-003 — an institution name is the worst identity anchor of all. In DLD/owner data a bank
+     * is the registered owner/mortgagee of hundreds of unrelated properties, so firstOrCreate on
+     * the institution tuple filed every individual's mobile under one "Emirates Islamic Bank"
+     * super-client of strangers. Institutions now create-fresh per phone like everything else — a
+     * bank never "owns" a contact's number. Reverses the carve-out IMP-002 left in place.
+     * See docs/data-rules/imports.md.
      */
     #[Test]
-    public function institution_names_keep_a_single_record_per_identity_tuple(): void
+    public function imp_003_institution_names_do_not_anchor_a_shared_record(): void
     {
         $enricher = app(RawContactImportEnricher::class);
 
-        $a = $enricher->resolveClient(['name' => 'Emirates Islamic Bank', 'emirate' => 'Dubai', 'country_iso' => 'AE', 'normalized_phone' => '+971500000010']);
-        $b = $enricher->resolveClient(['name' => 'Emirates Islamic Bank', 'emirate' => 'Dubai', 'country_iso' => 'AE', 'normalized_phone' => '+971500000011']);
+        $a = $enricher->resolveClient(['name' => 'Emirates Islamic Bank', 'emirate' => 'Dubai', 'country_iso' => 'AE', 'normalized_phone' => '+971527948052']);
+        $b = $enricher->resolveClient(['name' => 'Emirates Islamic Bank', 'emirate' => 'Dubai', 'country_iso' => 'AE', 'normalized_phone' => '+971527948053']);
 
-        $this->assertSame($a->id, $b->id, 'Institution names should resolve to a single shared record');
-        $this->assertSame(1, Client::where('full_name', 'Emirates Islamic Bank')->count());
+        $this->assertNotSame($a->id, $b->id, 'Institution names must not collapse distinct phones onto one client');
+        $this->assertSame(2, Client::where('full_name', 'Emirates Islamic Bank')->count());
     }
 }
