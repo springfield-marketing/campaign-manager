@@ -170,25 +170,25 @@ class ClientsTable
                     ->label('Split numbers')
                     ->icon('heroicon-o-scissors')
                     ->color('warning')
-                    ->visible(fn (Client $record): bool => ($record->phone_numbers_count ?? $record->phoneNumbers()->count()) > 1
-                    )
+                    ->visible(fn (Client $record): bool => ($record->phone_numbers_count ?? $record->phoneNumbers()->count()) > 1)
                     ->requiresConfirmation()
-                    ->modalHeading('Split this client into one client per phone number')
+                    ->modalHeading('Split this contact into one contact per number')
                     ->modalDescription(fn (Client $record): string => "\"{$record->full_name}\" holds ".
                         ($record->phone_numbers_count ?? $record->phoneNumbers()->count()).
-                        ' phone numbers. Each number becomes its own client (carrying its own '.
-                        'sources, calls and messages). Client-level data — emails, tags, properties, '.
-                        'alternate names — stays on this original record, since it cannot be '.
-                        'attributed to a specific number. A snapshot is saved first, so this is reversible.'
-                    )
+                        ' phone numbers. Review the plan below before splitting.')
+                    // Dry-run preview: shows the anchor, the recovered name per moved number, and
+                    // the campaign history that travels with each — computed without mutating.
+                    ->modalContent(fn (Client $record) => view('filament.actions.split-preview', [
+                        'plan' => app(ClientSplitter::class)->preview($record),
+                    ]))
                     ->modalSubmitActionLabel('Split')
                     ->action(function (Client $record): void {
                         $result = app(ClientSplitter::class)->split($record);
 
                         Notification::make()
-                            ->title('Client split')
-                            ->body("{$result['split']} number(s) moved to their own client".
-                                ($result['deleted'] > 0 ? ", {$result['deleted']} placeholder number(s) removed." : '.'))
+                            ->title('Contact split')
+                            ->body("Kept the anchor number; moved {$result['moved']} number(s) to their own contact".
+                                ($result['deleted'] > 0 ? ", removed {$result['deleted']} placeholder number(s)." : '.'))
                             ->success()
                             ->send();
                     }),

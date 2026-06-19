@@ -54,15 +54,17 @@ class SplitNameCollisionClients extends Command
         if (! $this->option('apply')) {
             $this->info('Dry run only. Re-run with --apply to actually split.');
             $this->warn(
-                'Note: client-level data (emails, tags, ownerships, alternate_names) is NOT split — '.
-                "it stays on the original client since there's no reliable way to attribute it to a specific phone. ".
-                'Only phone-tied data (sources, call records, messages, suppressions) is split out.'
+                'On split: the ANCHOR number (the one whose source produced this client\'s name) '.
+                'stays on the original, keeping its name, history and client-level data (emails, '.
+                'tags, ownerships). Every OTHER number moves to its own client, named from that '.
+                'number\'s own source provenance (or blank if none). All campaign history follows '.
+                'each number. A reversible snapshot is saved first.'
             );
 
             return self::SUCCESS;
         }
 
-        $totalSplit = 0;
+        $totalMoved = 0;
         $totalDeletedAsPlaceholder = 0;
 
         foreach ($candidates as $candidate) {
@@ -72,13 +74,13 @@ class SplitNameCollisionClients extends Command
             }
 
             $result = $splitter->split($client);
-            $totalSplit += $result['split'];
+            $totalMoved += $result['moved'];
             $totalDeletedAsPlaceholder += $result['deleted'];
 
-            $this->line("Split client #{$candidate->id} (\"{$client->full_name}\") into {$candidate->phone_count} separate clients.");
+            $this->line("Split client #{$candidate->id} (\"{$client->full_name}\"): kept anchor, moved {$result['moved']} number(s) out.");
         }
 
-        $this->info("Done. {$totalSplit} phone number(s) moved to their own client, {$totalDeletedAsPlaceholder} legacy placeholder number(s) deleted.");
+        $this->info("Done. {$totalMoved} number(s) moved to their own client, {$totalDeletedAsPlaceholder} legacy placeholder number(s) deleted.");
 
         return self::SUCCESS;
     }

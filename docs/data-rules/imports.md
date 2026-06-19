@@ -46,8 +46,18 @@ See [README.md](README.md) for how this registry works. Newest entries at the to
   — the `IMP-003` breadcrumb in `resolveClient()` (the institution branch was removed).
 - **Cleanup (historical residue):** the pre-fix institution/stub super-clients (≈52 clients with
   ≥5 numbers at time of writing, plus ~15k with ≥2) are surfaced for **manual** review/split — no
-  auto-split. Detector: `clients:audit-data-quality`; remediation via the review UI / 
-  `clients:split-name-collisions` per-client. See spec §5.
+  auto-split. Detector: `clients:audit-data-quality` (flags both stub and institution clusters).
+  Remediation: the Contacts table's **"Split numbers"** record action (with a dry-run preview), or
+  `clients:split-name-collisions` per-client — both run the shared
+  [`ClientSplitter`](../../app/Support/Identity/ClientSplitter.php). The split is **provenance-based,
+  not destructive**: the number whose source produced the client's current name stays as the
+  **anchor** (keeping the name, its history and client-level data), and every other number moves
+  to its own client **named from that number's own `client_sources.metadata.raw_name`** — which
+  recovers the real owner (e.g. "Saeed Abdulla", "Fatima Rashed") instead of leaving a placeholder.
+  No-name numbers (IVR-only/blank/"N/A") get their own client with a blank name. Campaign history
+  is untouched — every history table keys off `client_phone_number_id`, so reassigning a number
+  carries its WhatsApp/IVR/suppression records with it. Reversible via a `client_audit_logs`
+  snapshot. See spec §5.
 - **Watch out for:**
   - The IVR **bulk** path (`RawImportProcessor::resolveClients()`) still merges on the name tuple
     — same outstanding Phase-2 rewrite called out in IMP-002. Institution over-merge can still
