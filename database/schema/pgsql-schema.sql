@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict D6Fzhbdy08xKSoZ9wWO2qtJbAER0OLgTYLQaadl1q4xniuq4wPMkekrT9QhwkVf
+\restrict UvofWCd3FP6wbyr0piMG5mkbG3YDHJWbip2ljqJIlLjcoNdy5I22Yd6NUV3LO7W
 
 -- Dumped from database version 18.3 (Homebrew)
 -- Dumped by pg_dump version 18.3 (Homebrew)
@@ -18,6 +18,20 @@ SET check_function_bodies = false;
 SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
+
+--
+-- Name: pg_trgm; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION pg_trgm; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON EXTENSION pg_trgm IS 'text similarity measurement and index searching based on trigrams';
+
 
 SET default_tablespace = '';
 
@@ -2843,6 +2857,13 @@ CREATE INDEX client_phone_numbers_is_whatsapp_lead_index ON public.client_phone_
 
 
 --
+-- Name: client_phone_numbers_normalized_phone_trgm_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX client_phone_numbers_normalized_phone_trgm_index ON public.client_phone_numbers USING gin (normalized_phone public.gin_trgm_ops);
+
+
+--
 -- Name: client_phone_numbers_one_primary_per_client; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2854,6 +2875,13 @@ CREATE UNIQUE INDEX client_phone_numbers_one_primary_per_client ON public.client
 --
 
 CREATE INDEX client_phone_numbers_priority_index ON public.client_phone_numbers USING btree (priority);
+
+
+--
+-- Name: client_phone_numbers_raw_phone_trgm_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX client_phone_numbers_raw_phone_trgm_index ON public.client_phone_numbers USING gin (raw_phone public.gin_trgm_ops);
 
 
 --
@@ -2945,6 +2973,13 @@ CREATE INDEX clients_emirate_index ON public.clients USING btree (emirate);
 --
 
 CREATE INDEX clients_full_name_index ON public.clients USING btree (full_name);
+
+
+--
+-- Name: clients_full_name_trgm_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clients_full_name_trgm_index ON public.clients USING gin (full_name public.gin_trgm_ops);
 
 
 --
@@ -3789,13 +3824,13 @@ ALTER TABLE ONLY public.whatsapp_phone_profiles
 -- PostgreSQL database dump complete
 --
 
-\unrestrict D6Fzhbdy08xKSoZ9wWO2qtJbAER0OLgTYLQaadl1q4xniuq4wPMkekrT9QhwkVf
+\unrestrict UvofWCd3FP6wbyr0piMG5mkbG3YDHJWbip2ljqJIlLjcoNdy5I22Yd6NUV3LO7W
 
 --
 -- PostgreSQL database dump
 --
 
-\restrict isFlEbDcgiQB08HPTTjzvE9h65f5RS38A0haGAISBVNhdbojPKX24U9itRY0am7
+\restrict RrXSJZH4EYeCwx6Xvs6Q2moUMoEXGsw5aimTEAQ0TmDZxga2J68V1yJeBrYg5EV
 
 -- Dumped from database version 18.3 (Homebrew)
 -- Dumped by pg_dump version 18.3 (Homebrew)
@@ -3911,6 +3946,7 @@ COPY public.migrations (id, migration, batch) FROM stdin;
 95	2026_06_19_000400_backfill_channel_flags_from_activity	65
 96	2026_06_19_000500_add_full_name_index_to_clients	66
 97	2026_06_19_000600_add_sort_indexes_for_filament_tables	67
+98	2026_06_19_000700_add_trigram_search_indexes	68
 \.
 
 
@@ -3918,12 +3954,12 @@ COPY public.migrations (id, migration, batch) FROM stdin;
 -- Name: migrations_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.migrations_id_seq', 97, true);
+SELECT pg_catalog.setval('public.migrations_id_seq', 98, true);
 
 
 --
 -- PostgreSQL database dump complete
 --
 
-\unrestrict isFlEbDcgiQB08HPTTjzvE9h65f5RS38A0haGAISBVNhdbojPKX24U9itRY0am7
+\unrestrict RrXSJZH4EYeCwx6Xvs6Q2moUMoEXGsw5aimTEAQ0TmDZxga2J68V1yJeBrYg5EV
 
