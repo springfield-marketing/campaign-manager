@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Client;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class ClientScoringService
@@ -32,27 +33,18 @@ class ClientScoringService
     ];
 
     public const TIERS = [
-        'standard'        => [0,  24],
-        'premium'         => [25, 49],
-        'high_net_worth'  => [50, 74],
-        'vip'             => [75, 100],
+        'standard' => [0,  24],
+        'premium' => [25, 49],
+        'high_net_worth' => [50, 74],
+        'vip' => [75, 100],
     ];
 
     public const TIER_LABELS = [
-        'standard'       => 'Standard',
-        'premium'        => 'Premium',
+        'standard' => 'Standard',
+        'premium' => 'Premium',
         'high_net_worth' => 'High Net Worth',
-        'vip'            => 'VIP',
+        'vip' => 'VIP',
     ];
-
-    /**
-     * Recompute wealth_score, completeness_score and (if not manually set) tier
-     * for a single client. Saves directly to the database.
-     */
-    public function recompute(int $clientId): void
-    {
-        $this->recomputeBulk([$clientId]);
-    }
 
     /**
      * Recompute scores for multiple clients efficiently.
@@ -120,14 +112,14 @@ class ClientScoringService
             ->groupBy('client_id');
 
         $premiumSet = array_flip(self::PREMIUM_AREAS);
-        $now        = now()->toDateTimeString();
+        $now = now()->toDateTimeString();
 
         $updates = [];
 
         foreach ($clients as $clientId => $client) {
             $clientOwnerships = $ownerships->get($clientId, collect());
 
-            $wealth      = $this->computeWealth($clientOwnerships, $premiumSet);
+            $wealth = $this->computeWealth($clientOwnerships, $premiumSet);
             $completeness = $this->computeCompleteness(
                 $client,
                 (int) ($phoneCounts[$clientId] ?? 0),
@@ -140,11 +132,11 @@ class ClientScoringService
             $tier = $client->tier ?? $this->tierFromScore($wealth);
 
             $updates[] = [
-                'id'                 => $clientId,
-                'wealth_score'       => $wealth,
+                'id' => $clientId,
+                'wealth_score' => $wealth,
                 'completeness_score' => $completeness,
-                'tier'               => $tier,
-                'updated_at'         => $now,
+                'tier' => $tier,
+                'updated_at' => $now,
             ];
         }
 
@@ -158,7 +150,7 @@ class ClientScoringService
         }
     }
 
-    private function computeWealth(\Illuminate\Support\Collection $ownerships, array $premiumSet): int
+    private function computeWealth(Collection $ownerships, array $premiumSet): int
     {
         if ($ownerships->isEmpty()) {
             return 0;
@@ -172,7 +164,7 @@ class ClientScoringService
             $count >= 5 => 40,
             $count >= 3 => 30,
             $count >= 2 => 20,
-            default     => 10,
+            default => 10,
         };
 
         // Premium area bonus — up to 30 pts (10 per premium area, max 3)
@@ -188,24 +180,28 @@ class ClientScoringService
         $typeScore = 0;
         foreach ($types as $type) {
             $typeScore = max($typeScore, match ($type) {
-                'investor'        => 20,
-                'owner'           => 15,
-                'past_owner'      => 10,
-                'buyer_interest'  => 8,
+                'investor' => 20,
+                'owner' => 15,
+                'past_owner' => 10,
+                'buyer_interest' => 8,
                 'seller_interest' => 8,
-                'tenant'          => 5,
-                'resident'        => 3,
-                default           => 0,
+                'tenant' => 5,
+                'resident' => 3,
+                default => 0,
             });
         }
         $score += $typeScore;
 
         // Portfolio diversity bonus (up to 10 pts)
         $distinctEmirates = $ownerships->pluck('emirate')->filter()->unique()->count();
-        $distinctAreas    = $ownerships->pluck('area_name')->unique()->count();
+        $distinctAreas = $ownerships->pluck('area_name')->unique()->count();
 
-        if ($distinctEmirates >= 2) $score += 5;
-        if ($distinctAreas >= 3)    $score += 5;
+        if ($distinctEmirates >= 2) {
+            $score += 5;
+        }
+        if ($distinctAreas >= 3) {
+            $score += 5;
+        }
 
         return min($score, 100);
     }
@@ -219,13 +215,27 @@ class ClientScoringService
     ): int {
         $score = 0;
 
-        if (filled($client->full_name))   $score += 25; // Most important
-        if ($phoneCount > 0)              $score += 25;
-        if ($emailCount > 0)              $score += 15;
-        if (filled($client->emirate))     $score += 15;
-        if ($ownershipCount > 0)          $score += 10;
-        if (filled($client->nationality)) $score += 5;
-        if ($sourceCount > 0)             $score += 5;
+        if (filled($client->full_name)) {
+            $score += 25;
+        } // Most important
+        if ($phoneCount > 0) {
+            $score += 25;
+        }
+        if ($emailCount > 0) {
+            $score += 15;
+        }
+        if (filled($client->emirate)) {
+            $score += 15;
+        }
+        if ($ownershipCount > 0) {
+            $score += 10;
+        }
+        if (filled($client->nationality)) {
+            $score += 5;
+        }
+        if ($sourceCount > 0) {
+            $score += 5;
+        }
 
         return $score;
     }
@@ -236,7 +246,7 @@ class ClientScoringService
             $score >= 75 => 'vip',
             $score >= 50 => 'high_net_worth',
             $score >= 25 => 'premium',
-            default      => 'standard',
+            default => 'standard',
         };
     }
 }

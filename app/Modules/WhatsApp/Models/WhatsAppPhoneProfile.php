@@ -25,35 +25,13 @@ class WhatsAppPhoneProfile extends Model
     {
         return [
             'last_messaged_at' => 'datetime',
-            'cooldown_until'   => 'datetime',
-            'manually_dead'    => 'boolean',
+            'cooldown_until' => 'datetime',
+            'manually_dead' => 'boolean',
         ];
-    }
-
-    public function isQuarantined(): bool
-    {
-        return $this->usage_status === 'quarantine';
     }
 
     public function phoneNumber(): BelongsTo
     {
         return $this->belongsTo(ClientPhoneNumber::class);
-    }
-
-    public function isActive(): bool
-    {
-        return $this->usage_status === 'active';
-    }
-
-    public function isDead(): bool
-    {
-        return $this->usage_status === 'dead';
-    }
-
-    public function isOnCooldown(): bool
-    {
-        return $this->usage_status === 'cooldown'
-            && $this->cooldown_until !== null
-            && $this->cooldown_until->isFuture();
     }
 }
