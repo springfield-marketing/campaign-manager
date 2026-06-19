@@ -12,4 +12,27 @@ parameters:
 
     # The dead-code detector ships Laravel/Eloquent/Blade/PHPUnit usage providers (enabled by
     # default), so framework-invoked code (controllers, commands, jobs, model methods, Blade
-    # references) is recognised as used. Filament false positives, if any, get triaged manually.
+    # references) is recognised as used.
+    ignoreErrors:
+        # Filament/Livewire classes are framework-instantiated and their methods/properties are
+        # invoked dynamically — Livewire lifecycle hooks (mount), action callbacks (save/apply),
+        # #[On] event listeners (onFilterChanged), widget overrides (getHeading), and wire:model /
+        # Blade-bound public properties. The dead-code detector can't trace these, so its findings
+        # under app/Filament are noise, not dead code.
+        - identifier: shipmonk.deadMethod
+          path: app/Filament/*
+        - identifier: shipmonk.deadProperty.neverRead
+          path: app/Filament/*
+        - identifier: shipmonk.deadProperty.neverWritten
+          path: app/Filament/*
+        # Service classes are resolved through the container (app(X::class) / injection), which the
+        # detector doesn't recognise as instantiation — so it flags their constructors. The class's
+        # other methods would still flag if it were genuinely dead.
+        -
+            identifier: shipmonk.deadMethod
+            message: '#::__construct$#'
+        # Laravel queue jobs expose $timeout/$tries/$failOnTimeout/$backoff/$maxExceptions, which
+        # the queue worker reads via reflection (a framework contract), not application code.
+        -
+            identifier: shipmonk.deadProperty.neverRead
+            message: '#::\$(timeout|tries|failOnTimeout|backoff|maxExceptions) is never read#'
