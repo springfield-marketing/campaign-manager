@@ -68,7 +68,7 @@ class RawContactImportEnrichmentTest extends TestCase
             'project_id' => $project->id,
             'relationship_type' => 'buyer_interest',
             'confidence_level' => 'high',
-            'source' => 'June Leads',
+            'last_source_name' => 'June Leads',
         ]);
 
         $this->assertDatabaseHas('client_sources', [
