@@ -75,7 +75,7 @@ class WhatsAppCampaignResultsProcessor
 
             $now = now()->toDateTimeString();
 
-            $platform  = $import->platform();
+            $platform = $import->platform();
             $isGupshup = $platform === WhatsAppPlatform::Gupshup1;
 
             while (! $file->eof()) {
@@ -88,6 +88,7 @@ class WhatsAppCampaignResultsProcessor
 
                 if ($header === null) {
                     $header = $row;
+
                     continue;
                 }
 
@@ -133,10 +134,10 @@ class WhatsAppCampaignResultsProcessor
                     $failed++;
 
                     $import->errors()->create([
-                        'row_number'    => $rowNumber,
-                        'error_type'    => 'row_validation',
+                        'row_number' => $rowNumber,
+                        'error_type' => 'row_validation',
                         'error_message' => $throwable->getMessage(),
-                        'row_payload'   => $row ?? null,
+                        'row_payload' => $row ?? null,
                     ]);
 
                     Log::channel('whatsapp')->warning('Campaign results row failed.', [
@@ -231,6 +232,7 @@ class WhatsAppCampaignResultsProcessor
 
             if (! $headerSeen) {
                 $headerSeen = true;
+
                 continue;
             }
 
@@ -272,7 +274,7 @@ class WhatsAppCampaignResultsProcessor
         $campaign = WhatsAppCampaign::firstOrCreate(
             ['name' => (string) $payload['CampaignName']],
             [
-                'platform'   => $platform,
+                'platform' => $platform,
                 'started_at' => $this->parseScheduledAt($payload['ScheduleAt'] ?? null),
             ],
         );
@@ -303,6 +305,14 @@ class WhatsAppCampaignResultsProcessor
             ->value('id');
 
         if ($phoneNumber !== null) {
+            // Appearing in a WhatsApp campaign result is the authoritative signal that this number
+            // is reachable on WhatsApp — flag it (channel membership is earned by activity, not by
+            // raw import). Existing numbers were previously missed here (only newly-created ones
+            // got the flag), which is why is_whatsapp lagged actual WhatsApp activity.
+            ClientPhoneNumber::whereKey($phoneNumber)
+                ->where('is_whatsapp', false)
+                ->update(['is_whatsapp' => true]);
+
             return $phoneNumber;
         }
 
@@ -388,15 +398,15 @@ class WhatsAppCampaignResultsProcessor
             ->first();
 
         $campaign->forceFill([
-            'total_messages'    => (int) ($row->total_messages ?? 0),
-            'sent_count'        => (int) ($row->sent_count ?? 0),
-            'delivered_count'   => (int) ($row->delivered_count ?? 0),
-            'read_count'        => (int) ($row->read_count ?? 0),
-            'replied_count'     => (int) ($row->replied_count ?? 0),
-            'failed_count'      => (int) ($row->failed_count ?? 0),
+            'total_messages' => (int) ($row->total_messages ?? 0),
+            'sent_count' => (int) ($row->sent_count ?? 0),
+            'delivered_count' => (int) ($row->delivered_count ?? 0),
+            'read_count' => (int) ($row->read_count ?? 0),
+            'replied_count' => (int) ($row->replied_count ?? 0),
+            'failed_count' => (int) ($row->failed_count ?? 0),
             'unsubscribed_count' => (int) ($row->unsubscribed_count ?? 0),
-            'started_at'        => $row->first_scheduled_at ?? $campaign->started_at,
-            'completed_at'      => $row->last_scheduled_at ?? $campaign->completed_at,
+            'started_at' => $row->first_scheduled_at ?? $campaign->started_at,
+            'completed_at' => $row->last_scheduled_at ?? $campaign->completed_at,
         ])->save();
     }
 
@@ -409,13 +419,16 @@ class WhatsAppCampaignResultsProcessor
         // Wati format: "01/15/2025 09:30"
         try {
             return Carbon::createFromFormat('m/d/Y H:i', $value);
-        } catch (Throwable) {}
+        } catch (Throwable) {
+        }
 
         // Gupshup format: "12 Feb 2025 19:09:22 GST" — strip timezone suffix, parse as Gulf time
         try {
             $clean = preg_replace('/\s+[A-Z]{2,4}$/', '', trim($value));
+
             return Carbon::createFromFormat('d M Y H:i:s', $clean, 'Asia/Dubai');
-        } catch (Throwable) {}
+        } catch (Throwable) {
+        }
 
         // Generic fallback
         try {
@@ -432,7 +445,7 @@ class WhatsAppCampaignResultsProcessor
      * Read Status). We collapse them into a single Status value matching the Wati vocabulary
      * so the rest of the processor can run unchanged.
      *
-     * @param  array<int, string>       $header
+     * @param  array<int, string>  $header
      * @param  array<int, string|null>  $row
      * @return array<string, string|null>
      */
@@ -451,23 +464,23 @@ class WhatsAppCampaignResultsProcessor
         }
 
         // Build a unique, human-readable campaign name from template + short campaign UUID.
-        $campaignId   = (string) ($mapped['Campaign Id'] ?? '');
-        $shortId      = $campaignId !== '' ? ' (' . substr($campaignId, 0, 8) . ')' : '';
-        $campaignName = $mapped['Template Name'] . $shortId;
+        $campaignId = (string) ($mapped['Campaign Id'] ?? '');
+        $shortId = $campaignId !== '' ? ' ('.substr($campaignId, 0, 8).')' : '';
+        $campaignName = $mapped['Template Name'].$shortId;
 
         return [
-            'PhoneNumber'   => $mapped['Phone'],
-            'CampaignName'  => $campaignName,
-            'ScheduleAt'    => $mapped['Sent Time'] ?? null,
-            'TemplateName'  => $mapped['Template Name'],
-            'Status'        => $this->deriveGupshupStatus($mapped),
+            'PhoneNumber' => $mapped['Phone'],
+            'CampaignName' => $campaignName,
+            'ScheduleAt' => $mapped['Sent Time'] ?? null,
+            'TemplateName' => $mapped['Template Name'],
+            'Status' => $this->deriveGupshupStatus($mapped),
             'Failure reason' => ($mapped['Failed Reason'] ?? '') !== '' ? $mapped['Failed Reason'] : null,
-            'Quick replies'  => null,
-            'Quick reply 1'  => null,
-            'Quick reply 2'  => null,
-            'Quick reply 3'  => null,
-            'Clicked'        => null,
-            'Retried'        => null,
+            'Quick replies' => null,
+            'Quick reply 1' => null,
+            'Quick reply 2' => null,
+            'Quick reply 3' => null,
+            'Clicked' => null,
+            'Retried' => null,
         ];
     }
 
@@ -488,6 +501,7 @@ class WhatsAppCampaignResultsProcessor
         if (strtoupper((string) ($mapped['Send Status'] ?? '')) === 'SENT') {
             return 'SENT';
         }
+
         return 'FAILED';
     }
 

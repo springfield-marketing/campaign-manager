@@ -10,8 +10,6 @@ use App\Modules\IVR\Enums\IvrImportStatus;
 use App\Modules\IVR\Models\IvrCallRecord;
 use App\Modules\IVR\Models\IvrCampaign;
 use App\Modules\IVR\Models\IvrImport;
-use App\Modules\IVR\Support\IvrBatchEligibilityUpdater;
-use App\Modules\IVR\Support\IvrSummaryService;
 use App\Support\PhoneVerificationStatus;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -26,8 +24,7 @@ class CampaignResultsProcessor
     public function __construct(
         private readonly PhoneNormalizer $phoneNormalizer,
         private readonly IvrBatchEligibilityUpdater $batchUpdater,
-    ) {
-    }
+    ) {}
 
     public function process(IvrImport $import): void
     {
@@ -73,8 +70,12 @@ class CampaignResultsProcessor
                 $row = $file->fgetcsv();
                 $rowNumber++;
 
-                if (! is_array($row) || ($row === [null] && $file->eof())) break;
-                if ($this->rowIsEmpty($row)) continue;
+                if (! is_array($row) || ($row === [null] && $file->eof())) {
+                    break;
+                }
+                if ($this->rowIsEmpty($row)) {
+                    continue;
+                }
 
                 $firstCell = trim((string) ($row[0] ?? ''));
 
@@ -86,6 +87,7 @@ class CampaignResultsProcessor
                     if ($firstCell === 'Call UUID') {
                         $header = $row;
                         $headerRowNumber = $rowNumber;
+
                         continue;
                     }
 
@@ -154,9 +156,9 @@ class CampaignResultsProcessor
                     $campaign->update(['ivr_script_id' => $import->ivr_script_id]);
                 } elseif ($import->audio_file_path || $import->audio_script) {
                     $campaign->update([
-                        'audio_file_path'    => $import->audio_file_path,
+                        'audio_file_path' => $import->audio_file_path,
                         'audio_original_name' => $import->audio_original_name,
-                        'audio_script'       => $import->audio_script,
+                        'audio_script' => $import->audio_script,
                     ]);
                 }
 
@@ -256,8 +258,12 @@ class CampaignResultsProcessor
         while (! $file->eof()) {
             $row = $file->fgetcsv();
 
-            if (! is_array($row) || $row === [null]) break;
-            if ($this->rowIsEmpty($row)) continue;
+            if (! is_array($row) || $row === [null]) {
+                break;
+            }
+            if ($this->rowIsEmpty($row)) {
+                continue;
+            }
 
             $firstCell = trim((string) ($row[0] ?? ''));
 
@@ -268,6 +274,7 @@ class CampaignResultsProcessor
 
                 if ($firstCell === 'Call UUID') {
                     $hasReachedDetails = true;
+
                     continue;
                 }
 
@@ -301,8 +308,8 @@ class CampaignResultsProcessor
         // with the phone column formatted as Text before saving.
         if (preg_match('/^[\d.]+[Ee][+\-]?\d+$/i', $rawCustomer)) {
             throw new \RuntimeException(
-                "Phone number '{$rawCustomer}' is in scientific notation. " .
-                "Excel truncated the number when saving as CSV — re-export with the phone column formatted as Text."
+                "Phone number '{$rawCustomer}' is in scientific notation. ".
+                'Excel truncated the number when saving as CSV — re-export with the phone column formatted as Text.'
             );
         }
 
@@ -320,7 +327,12 @@ class CampaignResultsProcessor
                 'national_number' => $normalized['national_number'],
                 'detected_country' => $normalized['detected_country'],
                 'is_uae' => $normalized['is_uae'],
+                // Appearing in an IVR campaign result is the authoritative signal that this number
+                // is an IVR target — channel membership is earned by activity, not raw import.
+                'is_ivr' => true,
             ]);
+        } elseif (! $phoneNumber->is_ivr) {
+            $phoneNumber->forceFill(['is_ivr' => true])->save();
         }
 
         $dtmfExtensions = $this->parseDtmfExtensions($payload['DTMF Extensions'] ?? null);
@@ -386,10 +398,10 @@ class CampaignResultsProcessor
             if (! $hasActive) {
                 ContactSuppression::create([
                     'client_phone_number_id' => $phoneNumber->id,
-                    'channel'                => 'ivr',
-                    'reason'                 => 'customer_unsubscribed',
-                    'context'                => ['campaign_id' => $campaign->external_campaign_id],
-                    'suppressed_at'          => $callTime ?: now(),
+                    'channel' => 'ivr',
+                    'reason' => 'customer_unsubscribed',
+                    'context' => ['campaign_id' => $campaign->external_campaign_id],
+                    'suppressed_at' => $callTime ?: now(),
                 ]);
             }
 
@@ -409,10 +421,10 @@ class CampaignResultsProcessor
             ->first();
 
         $campaign->forceFill([
-            'leads_count'        => (int)   ($row->leads_count ?? 0),
-            'more_info_count'    => (int)   ($row->more_info_count ?? 0),
-            'unsubscribed_count' => (int)   ($row->unsubscribed_count ?? 0),
-            'credits_used'       => (float) ($row->credits_used ?? 0),
+            'leads_count' => (int) ($row->leads_count ?? 0),
+            'more_info_count' => (int) ($row->more_info_count ?? 0),
+            'unsubscribed_count' => (int) ($row->unsubscribed_count ?? 0),
+            'credits_used' => (float) ($row->credits_used ?? 0),
         ])->save();
     }
 
@@ -425,7 +437,7 @@ class CampaignResultsProcessor
             return [];
         }
 
-        preg_match_all("/[A-Za-z0-9_]+/", $raw, $matches);
+        preg_match_all('/[A-Za-z0-9_]+/', $raw, $matches);
 
         return array_values(array_filter($matches[0] ?? []));
     }
@@ -498,5 +510,4 @@ class CampaignResultsProcessor
             return null;
         }
     }
-
 }
