@@ -36,3 +36,9 @@ parameters:
         -
             identifier: shipmonk.deadProperty.neverRead
             message: '#::\$(timeout|tries|failOnTimeout|backoff|maxExceptions) is never read#'
+        # ValidateEnvironment intentionally reads raw env() values — its job is to audit the .env
+        # during deployment (required keys set, no placeholders, prod-safe values), so config()
+        # would defeat the purpose.
+        -
+            identifier: larastan.noEnvCallsOutsideOfConfig
+            path: app/Console/Commands/ValidateEnvironment.php

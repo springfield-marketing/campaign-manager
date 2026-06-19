@@ -32,20 +32,6 @@ class ClientScoringService
         'Ramhan Island',
     ];
 
-    public const TIERS = [
-        'standard' => [0,  24],
-        'premium' => [25, 49],
-        'high_net_worth' => [50, 74],
-        'vip' => [75, 100],
-    ];
-
-    public const TIER_LABELS = [
-        'standard' => 'Standard',
-        'premium' => 'Premium',
-        'high_net_worth' => 'High Net Worth',
-        'vip' => 'VIP',
-    ];
-
     /**
      * Recompute scores for multiple clients efficiently.
      * Processes in chunks to avoid loading large datasets into memory.

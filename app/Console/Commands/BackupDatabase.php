@@ -3,12 +3,12 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Storage;
 use Symfony\Component\Process\Process;
 
 class BackupDatabase extends Command
 {
-    protected $signature   = 'backup:database {--keep= : Override how many days of backups to retain}';
+    protected $signature = 'backup:database {--keep= : Override how many days of backups to retain}';
+
     protected $description = 'Dump the PostgreSQL database to storage/backups and prune old backups';
 
     public function handle(): int
@@ -17,6 +17,7 @@ class BackupDatabase extends Command
 
         if ($connection !== 'pgsql') {
             $this->error("backup:database only supports PostgreSQL. Current connection: $connection");
+
             return self::FAILURE;
         }
 
@@ -26,11 +27,11 @@ class BackupDatabase extends Command
             mkdir($backupDir, 0750, true);
         }
 
-        $filename  = 'db_' . now()->format('Y-m-d_His') . '.sql.gz';
-        $filepath  = $backupDir . '/' . $filename;
+        $filename = 'db_'.now()->format('Y-m-d_His').'.sql.gz';
+        $filepath = $backupDir.'/'.$filename;
 
-        $host     = config('database.connections.pgsql.host');
-        $port     = config('database.connections.pgsql.port', 5432);
+        $host = config('database.connections.pgsql.host');
+        $port = config('database.connections.pgsql.port', 5432);
         $database = config('database.connections.pgsql.database');
         $username = config('database.connections.pgsql.username');
         $password = config('database.connections.pgsql.password');
@@ -51,7 +52,8 @@ class BackupDatabase extends Command
         $process->run();
 
         if (! $process->isSuccessful()) {
-            $this->error('pg_dump failed: ' . $process->getErrorOutput());
+            $this->error('pg_dump failed: '.$process->getErrorOutput());
+
             return self::FAILURE;
         }
 
@@ -65,11 +67,11 @@ class BackupDatabase extends Command
 
     private function pruneOldBackups(string $backupDir): void
     {
-        $keepDays = (int) ($this->option('keep') ?? env('BACKUP_KEEP_DAYS', 30));
-        $cutoff   = now()->subDays($keepDays)->getTimestamp();
-        $pruned   = 0;
+        $keepDays = (int) ($this->option('keep') ?? config('backup.keep_days'));
+        $cutoff = now()->subDays($keepDays)->getTimestamp();
+        $pruned = 0;
 
-        foreach (glob($backupDir . '/db_*.sql.gz') as $file) {
+        foreach (glob($backupDir.'/db_*.sql.gz') as $file) {
             if (filemtime($file) < $cutoff) {
                 unlink($file);
                 $pruned++;

@@ -23,8 +23,6 @@ class RestoreIvrUnsubscriberSuppressions extends Command
 
     protected $description = 'Restore active IVR unsubscriber suppressions from historical unsubscriber import files';
 
-    private const ACTIVE_REASONS = ['unsubscribe', 'customer_unsubscribed'];
-
     public function handle(PhoneNormalizer $normalizer, NumberEligibilityService $eligibilityService): int
     {
         ini_set('memory_limit', '512M');
@@ -46,6 +44,7 @@ class RestoreIvrUnsubscriberSuppressions extends Command
 
         if ($imports->isEmpty()) {
             $this->warn('No completed IVR unsubscriber imports found.');
+
             return self::SUCCESS;
         }
 
@@ -59,6 +58,7 @@ class RestoreIvrUnsubscriberSuppressions extends Command
 
             if (! is_file($path)) {
                 $missingFiles[] = "{$import->id}: {$import->storage_path}";
+
                 continue;
             }
 
@@ -92,6 +92,7 @@ class RestoreIvrUnsubscriberSuppressions extends Command
                     $normalized = $normalizer->normalize($phone);
                 } catch (Throwable) {
                     $badRows++;
+
                     continue;
                 }
 
@@ -123,9 +124,9 @@ class RestoreIvrUnsubscriberSuppressions extends Command
 
         foreach (array_chunk($normalizedPhones, 2000) as $chunk) {
             $phoneIdsByNormalized += ClientPhoneNumber::query()
-                    ->whereIn('normalized_phone', $chunk)
-                    ->pluck('id', 'normalized_phone')
-                    ->all();
+                ->whereIn('normalized_phone', $chunk)
+                ->pluck('id', 'normalized_phone')
+                ->all();
         }
 
         $existingPhoneIds = array_values($phoneIdsByNormalized);
@@ -133,12 +134,12 @@ class RestoreIvrUnsubscriberSuppressions extends Command
 
         foreach (array_chunk($existingPhoneIds, 2000) as $chunk) {
             $activeSuppressedIds += ContactSuppression::query()
-                    ->whereIn('client_phone_number_id', $chunk)
-                    ->whereNull('released_at')
-                    ->where(fn ($query) => $query->whereNull('channel')->orWhere('channel', 'ivr'))
-                    ->pluck('client_phone_number_id')
-                    ->mapWithKeys(fn ($id) => [$id => true])
-                    ->all();
+                ->whereIn('client_phone_number_id', $chunk)
+                ->whereNull('released_at')
+                ->where(fn ($query) => $query->whereNull('channel')->orWhere('channel', 'ivr'))
+                ->pluck('client_phone_number_id')
+                ->mapWithKeys(fn ($id) => [$id => true])
+                ->all();
         }
 
         $existingNeedingSuppression = 0;
@@ -149,6 +150,7 @@ class RestoreIvrUnsubscriberSuppressions extends Command
 
             if (! $phoneId) {
                 $missingPhoneCount++;
+
                 continue;
             }
 
@@ -182,6 +184,7 @@ class RestoreIvrUnsubscriberSuppressions extends Command
 
         if (! $apply) {
             $this->info('Dry run only. Re-run with --apply to write changes.');
+
             return self::SUCCESS;
         }
 
