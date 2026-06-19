@@ -7,7 +7,6 @@ use App\Models\MarketingArea;
 use App\Models\OfficialArea;
 use App\Models\PlaceAlias;
 use App\Models\Project;
-use Illuminate\Support\Facades\Cache;
 
 /**
  * Resolves raw string location names to FK IDs using:
@@ -159,11 +158,5 @@ class LocationResolver
         }
 
         return $this->cache[$key] = $id;
-    }
-
-    /** Clear the in-memory cache (useful between test cases). */
-    public function flush(): void
-    {
-        $this->cache = [];
     }
 }

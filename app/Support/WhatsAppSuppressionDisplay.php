@@ -13,10 +13,10 @@ class WhatsAppSuppressionDisplay
     public static function reasonLabel(?string $reason): string
     {
         return match ($reason) {
-            'opted_out'             => 'Opted Out',
-            'manual'                => 'Manual',
+            'opted_out' => 'Opted Out',
+            'manual' => 'Manual',
             'customer_unsubscribed' => 'Customer Opt Out',
-            default                 => $reason ? ucwords(str_replace('_', ' ', $reason)) : 'Suppressed',
+            default => $reason ? ucwords(str_replace('_', ' ', $reason)) : 'Suppressed',
         };
     }
 
@@ -25,23 +25,12 @@ class WhatsAppSuppressionDisplay
         $context = $suppression->context ?? [];
 
         return match (true) {
-            ($context['source'] ?? null) === 'import'      => 'DNC Import',
-            ($context['source'] ?? null) === 'manual'      => 'Manual Entry',
+            ($context['source'] ?? null) === 'import' => 'DNC Import',
+            ($context['source'] ?? null) === 'manual' => 'Manual Entry',
             ($context['source'] ?? null) === 'manual_bulk' => 'Bulk Action',
-            isset($context['campaign_id'])                 => 'Campaign Opt Out',
-            default                                        => self::reasonLabel($suppression->reason),
+            isset($context['campaign_id']) => 'Campaign Opt Out',
+            default => self::reasonLabel($suppression->reason),
         };
-    }
-
-    public static function detailLabel(ContactSuppression $suppression): string
-    {
-        $context = $suppression->context ?? [];
-
-        if ($context['reason'] ?? null) {
-            return (string) $context['reason'];
-        }
-
-        return self::provenanceLabel($suppression);
     }
 
     /**
