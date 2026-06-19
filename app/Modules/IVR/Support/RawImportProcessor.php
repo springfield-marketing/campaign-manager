@@ -8,13 +8,14 @@ use App\Models\ClientEmail;
 use App\Models\ClientPhoneNumber;
 use App\Models\ClientSource;
 use App\Models\ImportStaging;
+use App\Models\Ownership;
 use App\Models\Tag;
-use Illuminate\Support\Facades\DB;
 use App\Modules\IVR\Enums\IvrImportStatus;
 use App\Modules\IVR\Models\IvrImport;
 use App\Support\LocationResolver;
 use App\Support\NameNormalizer;
 use App\Support\RawContactImportEnricher;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Laravel\Telescope\Telescope;
 use SplFileObject;
@@ -60,46 +61,47 @@ class RawImportProcessor
      */
     private const EMIRATE_ALIASES = [
         // Abu Dhabi
-        'abu dhabi'          => 'Abu Dhabi',
+        'abu dhabi' => 'Abu Dhabi',
         'abu dhabi district' => 'Abu Dhabi',
-        'abu dhabi city'     => 'Abu Dhabi',
-        'abudhabi'           => 'Abu Dhabi',
-        'ad'                 => 'Abu Dhabi',
-        'ras al hekma'       => 'Abu Dhabi',
-        'ras al hikma'       => 'Abu Dhabi',
+        'abu dhabi city' => 'Abu Dhabi',
+        'abudhabi' => 'Abu Dhabi',
+        'ad' => 'Abu Dhabi',
+        'ras al hekma' => 'Abu Dhabi',
+        'ras al hikma' => 'Abu Dhabi',
         // Dubai
-        'dubai'              => 'Dubai',
-        'dxb'                => 'Dubai',
+        'dubai' => 'Dubai',
+        'dxb' => 'Dubai',
         'dubailand district' => 'Dubai',
-        'downtown district'  => 'Dubai',
-        'downtown dubai'     => 'Dubai',
-        'al barsha south'    => 'Dubai',
-        'meydan district'    => 'Dubai',
-        'creek district'     => 'Dubai',
-        'dubai creek'        => 'Dubai',
-        'dubai marina'       => 'Dubai',
-        'warsan first'       => 'Dubai',
+        'downtown district' => 'Dubai',
+        'downtown dubai' => 'Dubai',
+        'al barsha south' => 'Dubai',
+        'meydan district' => 'Dubai',
+        'creek district' => 'Dubai',
+        'dubai creek' => 'Dubai',
+        'dubai marina' => 'Dubai',
+        'warsan first' => 'Dubai',
         'bur dubai district' => 'Dubai',
-        'bur dubai'          => 'Dubai',
-        'deira district'     => 'Dubai',
-        'deira'              => 'Dubai',
+        'bur dubai' => 'Dubai',
+        'deira district' => 'Dubai',
+        'deira' => 'Dubai',
         // Sharjah
-        'sharjah'            => 'Sharjah',
+        'sharjah' => 'Sharjah',
         // Ajman
-        'ajman'              => 'Ajman',
+        'ajman' => 'Ajman',
         // Umm Al Quwain
-        'umm al quwain'      => 'Umm Al Quwain',
-        'umm al-quwain'      => 'Umm Al Quwain',
-        'uaq'                => 'Umm Al Quwain',
+        'umm al quwain' => 'Umm Al Quwain',
+        'umm al-quwain' => 'Umm Al Quwain',
+        'uaq' => 'Umm Al Quwain',
         // Ras Al Khaimah
-        'ras al khaimah'     => 'Ras Al Khaimah',
-        'ras al-khaimah'     => 'Ras Al Khaimah',
-        'rak'                => 'Ras Al Khaimah',
+        'ras al khaimah' => 'Ras Al Khaimah',
+        'ras al-khaimah' => 'Ras Al Khaimah',
+        'rak' => 'Ras Al Khaimah',
         // Fujairah
-        'fujairah'           => 'Fujairah',
+        'fujairah' => 'Fujairah',
     ];
 
     private LocationResolver $resolver;
+
     private RawContactImportEnricher $enricher;
 
     /** @var array<string, Tag> Cached tags keyed by name to avoid a query per row */
@@ -115,8 +117,8 @@ class RawImportProcessor
         private readonly RawImportColumnMapper $mapper,
         private readonly PhoneNormalizer $phoneNormalizer,
     ) {
-        $this->resolver = new LocationResolver();
-        $this->enricher = new RawContactImportEnricher();
+        $this->resolver = new LocationResolver;
+        $this->enricher = new RawContactImportEnricher;
     }
 
     public function process(IvrImport $import): void
@@ -127,7 +129,7 @@ class RawImportProcessor
             Telescope::stopRecording();
         }
 
-        $batchId = 'raw-import-' . $import->id;
+        $batchId = 'raw-import-'.$import->id;
 
         // Purge any data from a previous run so reprocessing is idempotent
         DB::table('client_sources')
@@ -179,8 +181,12 @@ class RawImportProcessor
                 $row = $file->fgetcsv();
                 $rowNumber++;
 
-                if (! is_array($row) || ($row === [null] && $file->eof())) break;
-                if ($this->rowIsEmpty($row)) continue;
+                if (! is_array($row) || ($row === [null] && $file->eof())) {
+                    break;
+                }
+                if ($this->rowIsEmpty($row)) {
+                    continue;
+                }
 
                 $chunk[] = [
                     'row_number' => $rowNumber,
@@ -273,7 +279,9 @@ class RawImportProcessor
         while (! $file->eof()) {
             $header = $file->fgetcsv();
 
-            if (! is_array($header) || ($header === [null] && $file->eof())) break;
+            if (! is_array($header) || ($header === [null] && $file->eof())) {
+                break;
+            }
 
             if (! $this->rowIsEmpty($header)) {
                 $header = array_map(fn ($value) => (string) $value, $header);
@@ -294,8 +302,12 @@ class RawImportProcessor
         while (! $file->eof()) {
             $row = $file->fgetcsv();
 
-            if (! is_array($row) || ($row === [null] && $file->eof())) break;
-            if (! $this->rowIsEmpty($row)) $count++;
+            if (! is_array($row) || ($row === [null] && $file->eof())) {
+                break;
+            }
+            if (! $this->rowIsEmpty($row)) {
+                $count++;
+            }
         }
 
         return $count;
@@ -326,32 +338,32 @@ class RawImportProcessor
     private function stageForReview(array $payload, string $batchId, string $sourceName): void
     {
         $emirate = $this->normalizeEmirate($payload['emirate'] ?? '');
-        $officialAreaId  = $this->resolver->officialAreaId($emirate, $payload['official_area_name'] ?? '');
+        $officialAreaId = $this->resolver->officialAreaId($emirate, $payload['official_area_name'] ?? '');
         $marketingAreaId = $this->resolver->marketingAreaId($emirate, $payload['marketing_area_name'] ?? '');
-        $projectId       = $this->resolver->projectId($marketingAreaId, $payload['project_name'] ?? '');
-        $buildingId      = $this->resolver->buildingId($projectId, $payload['building_name'] ?? '');
+        $projectId = $this->resolver->projectId($marketingAreaId, $payload['project_name'] ?? '');
+        $buildingId = $this->resolver->buildingId($projectId, $payload['building_name'] ?? '');
 
         ImportStaging::create([
-            'batch_id'           => $batchId,
-            'name'               => $payload['name'] ?? null,
-            'phone'              => null,
-            'email'              => null,
-            'country_iso'        => $payload['country_iso'] ?? null,
-            'emirate'            => $emirate ?: null,
-            'raw_official_area'  => $payload['official_area_name'] ?? null,
+            'batch_id' => $batchId,
+            'name' => $payload['name'] ?? null,
+            'phone' => null,
+            'email' => null,
+            'country_iso' => $payload['country_iso'] ?? null,
+            'emirate' => $emirate ?: null,
+            'raw_official_area' => $payload['official_area_name'] ?? null,
             'raw_marketing_area' => $payload['marketing_area_name'] ?? null,
-            'raw_project_name'   => $payload['project_name'] ?? null,
-            'raw_building_name'  => $payload['building_name'] ?? null,
+            'raw_project_name' => $payload['project_name'] ?? null,
+            'raw_building_name' => $payload['building_name'] ?? null,
             'raw_unit_reference' => $payload['unit_reference'] ?? null,
-            'official_area_id'   => $officialAreaId,
-            'marketing_area_id'  => $marketingAreaId,
-            'project_id'         => $projectId,
-            'building_id'        => $buildingId,
-            'relationship_type'  => $payload['relationship_type'] ?? null,
-            'confidence_level'   => $payload['confidence_level'] ?? null,
-            'source'             => $sourceName,
-            'status'             => ImportStaging::STATUS_NEEDS_REVIEW,
-            'status_reason'      => 'Name only — no phone or email in source data.',
+            'official_area_id' => $officialAreaId,
+            'marketing_area_id' => $marketingAreaId,
+            'project_id' => $projectId,
+            'building_id' => $buildingId,
+            'relationship_type' => $payload['relationship_type'] ?? null,
+            'confidence_level' => $payload['confidence_level'] ?? null,
+            'source' => $sourceName,
+            'status' => ImportStaging::STATUS_NEEDS_REVIEW,
+            'status_reason' => 'Name only — no phone or email in source data.',
         ]);
     }
 
@@ -380,6 +392,7 @@ class RawImportProcessor
                 if (! $hasPhone && ! $hasEmail) {
                     $stagingRows[] = $this->makeStagingRow($payload, $batchId, $sourceName);
                     $staged++;
+
                     continue;
                 }
 
@@ -529,7 +542,18 @@ class RawImportProcessor
                 ->get(['id', 'client_id', 'normalized_phone'])
                 ->keyBy('normalized_phone');
 
-        $clientKeys = [];
+        // IMP-004: phone is the ONLY identity anchor on the bulk path too. A row whose number
+        // already exists attaches to that number's client; every other row gets a FRESH client.
+        // A name — stub, real, OR institution — is never used to match/merge, mirroring
+        // RawContactImportEnricher::resolveClient (IMP-001/002/003). The old key-matching path
+        // (clientKey + loadClientsByKeys, matching on name|emirate|country) is exactly what
+        // collapsed unrelated people sharing a name onto one "super client", and it also merged
+        // rows *within* a single file. Create-fresh, batched via Postgres RETURNING so a full
+        // CHUNK_SIZE chunk still costs one INSERT, not one per row.
+        // See docs/data-rules/imports.md.
+        $newRows = [];      // client attribute rows to insert, in encounter order
+        $newIndices = [];   // item indices, parallel to $newRows
+
         foreach ($items as $index => $item) {
             $normalizedPhone = $item['normalized']['normalized'] ?? null;
             $phone = $normalizedPhone ? $phoneRows->get($normalizedPhone) : null;
@@ -537,32 +561,12 @@ class RawImportProcessor
             if ($phone?->client_id) {
                 $items[$index]['client_id'] = $phone->client_id;
                 $items[$index]['existing_client'] = true;
+
                 continue;
             }
 
-            $name = trim((string) ($item['payload']['name'] ?? ''));
-
-            // A stub/placeholder name ("No Name", "Guest", "Ahmed Na", a bare single word, a
-            // source-label leak, etc.) is too weak an identity signal to match against other
-            // rows — doing so is how unrelated people ended up sharing one client record with
-            // hundreds of unrelated phone numbers attached. Always create a fresh client for
-            // these rather than risking an incorrect merge via the key-matching path below.
-            if (RawContactImportEnricher::isStubName($name)) {
-                $client = Client::create([
-                    'full_name' => $name ?: null,
-                    'emirate' => $item['emirate'] ?: null,
-                    'country_iso' => $this->normalizeCountryIso($item['payload']['country_iso'] ?? null),
-                    'nationality' => $this->blankToNull($item['payload']['nationality'] ?? null),
-                    'gender' => $this->blankToNull($item['payload']['gender'] ?? null),
-                    'tier' => $this->normalizeTier($item['payload']['tier'] ?? null),
-                ]);
-                $items[$index]['client_id'] = $client->id;
-                continue;
-            }
-
-            $key = $this->clientKey($item['payload'], $item['emirate']);
-            $items[$index]['client_key'] = $key;
-            $clientKeys[$key] = [
+            $newIndices[] = $index;
+            $newRows[] = [
                 'full_name' => trim((string) ($item['payload']['name'] ?? '')) ?: null,
                 'emirate' => $item['emirate'] ?: null,
                 'country_iso' => $this->normalizeCountryIso($item['payload']['country_iso'] ?? null),
@@ -572,62 +576,52 @@ class RawImportProcessor
             ];
         }
 
-        if ($clientKeys !== []) {
-            $clientsByKey = $this->loadClientsByKeys($clientKeys);
-            $missing = array_diff_key($clientKeys, $clientsByKey);
+        if ($newRows === []) {
+            return;
+        }
 
-            if ($missing !== []) {
-                $now = now()->toDateTimeString();
-                $rows = array_map(fn (array $row): array => [
-                    'full_name' => $row['full_name'],
-                    'emirate' => $row['emirate'],
-                    'country_iso' => $row['country_iso'],
-                    'nationality' => $row['nationality'],
-                    'gender' => $row['gender'],
-                    'tier' => $row['tier'] ?? null,
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ], array_values($missing));
+        $ids = $this->insertClientsReturningIds($newRows);
 
-                $this->insertRows('clients', $rows);
-                $clientsByKey = $this->loadClientsByKeys($clientKeys);
-            }
-
-            foreach ($items as $index => $item) {
-                if ($items[$index]['client_id']) {
-                    continue;
-                }
-
-                $items[$index]['client_id'] = $clientsByKey[$item['client_key']] ?? null;
-            }
+        foreach ($newIndices as $position => $index) {
+            $items[$index]['client_id'] = $ids[$position] ?? null;
         }
     }
 
     /**
-     * @param  array<string, array<string, mixed>>  $clientKeys
-     * @return array<string, int>
+     * Batch-insert fresh clients and return their ids in input order. Postgres returns RETURNING
+     * rows in the VALUES order for a single multi-row INSERT, so we can zip ids back to items by
+     * position — giving one INSERT per chunk instead of a per-row Client::create.
+     *
+     * @param  array<int, array<string, mixed>>  $rows
+     * @return array<int, int>
      */
-    private function loadClientsByKeys(array $clientKeys): array
+    private function insertClientsReturningIds(array $rows): array
     {
-        $names = collect($clientKeys)->pluck('full_name')->filter()->unique()->values();
-
-        if ($names->isEmpty()) {
+        if ($rows === []) {
             return [];
         }
 
-        $clients = Client::query()
-            ->whereIn('full_name', $names)
-            ->get(['id', 'full_name', 'emirate', 'country_iso']);
+        $now = now()->toDateTimeString();
+        $columns = ['full_name', 'emirate', 'country_iso', 'nationality', 'gender', 'tier', 'created_at', 'updated_at'];
+        $placeholderRow = '('.implode(',', array_fill(0, count($columns), '?')).')';
 
-        $byKey = [];
-        foreach ($clients as $client) {
-            $byKey[$this->clientKey([
-                'name' => $client->full_name,
-                'country_iso' => $client->country_iso,
-            ], (string) $client->emirate)] = $client->id;
+        $bindings = [];
+        foreach ($rows as $row) {
+            $bindings[] = $row['full_name'];
+            $bindings[] = $row['emirate'];
+            $bindings[] = $row['country_iso'];
+            $bindings[] = $row['nationality'];
+            $bindings[] = $row['gender'];
+            $bindings[] = $row['tier'] ?? null;
+            $bindings[] = $now;
+            $bindings[] = $now;
         }
 
-        return $byKey;
+        $sql = 'INSERT INTO clients ('.implode(',', $columns).') VALUES '
+            .implode(',', array_fill(0, count($rows), $placeholderRow))
+            .' RETURNING id';
+
+        return array_map(fn ($r): int => (int) $r->id, DB::select($sql, $bindings));
     }
 
     /**
@@ -788,6 +782,7 @@ class RawImportProcessor
 
             if ($existingId) {
                 $primaryIds[] = $existingId;
+
                 continue;
             }
 
@@ -894,16 +889,16 @@ class RawImportProcessor
             ]);
 
             $rows[$key] = [
-                'client_id'         => $item['client_id'],
-                'emirate'           => $item['emirate'],
+                'client_id' => $item['client_id'],
+                'emirate' => $item['emirate'],
                 'marketing_area_id' => $item['marketing_area_id'],
-                'project_id'        => $item['project_id'],
-                'building_id'       => $item['building_id'],
-                'unit_reference'    => $this->blankToNull($item['payload']['unit_reference'] ?? null),
+                'project_id' => $item['project_id'],
+                'building_id' => $item['building_id'],
+                'unit_reference' => $this->blankToNull($item['payload']['unit_reference'] ?? null),
                 'relationship_type' => $item['relationship_type'],
-                'official_area_id'  => $item['official_area_id'],
-                'confidence_level'  => $item['confidence_level'],
-                'source_name'       => $item['source_name'],
+                'official_area_id' => $item['official_area_id'],
+                'confidence_level' => $item['confidence_level'],
+                'source_name' => $item['source_name'],
             ];
         }
 
@@ -911,12 +906,12 @@ class RawImportProcessor
 
         foreach ($rows as $row) {
             $match = [
-                'client_id'         => $row['client_id'],
-                'emirate'           => $row['emirate'],
+                'client_id' => $row['client_id'],
+                'emirate' => $row['emirate'],
                 'marketing_area_id' => $row['marketing_area_id'],
-                'project_id'        => $row['project_id'],
-                'building_id'       => $row['building_id'],
-                'unit_reference'    => $row['unit_reference'],
+                'project_id' => $row['project_id'],
+                'building_id' => $row['building_id'],
+                'unit_reference' => $row['unit_reference'],
                 'relationship_type' => $row['relationship_type'],
             ];
 
@@ -935,7 +930,7 @@ class RawImportProcessor
                 }
 
                 // Confidence only upgrades, never downgrades
-                $confidence = \App\Models\Ownership::higherConfidence(
+                $confidence = Ownership::higherConfidence(
                     $existing->confidence_level,
                     $row['confidence_level'],
                 );
@@ -949,18 +944,18 @@ class RawImportProcessor
                     'official_area_id' => $row['official_area_id'],
                     'confidence_level' => $confidence,
                     'last_source_name' => $row['source_name'],
-                    'source_names'     => json_encode($sourceNames),
-                    'updated_at'       => $now,
+                    'source_names' => json_encode($sourceNames),
+                    'updated_at' => $now,
                 ]);
             } else {
                 DB::table('ownerships')->insert(array_merge($match, [
-                    'official_area_id'  => $row['official_area_id'],
-                    'confidence_level'  => $row['confidence_level'],
-                    'last_source_name'  => $row['source_name'],
-                    'source_names'      => json_encode([$row['source_name']]),
+                    'official_area_id' => $row['official_area_id'],
+                    'confidence_level' => $row['confidence_level'],
+                    'last_source_name' => $row['source_name'],
+                    'source_names' => json_encode([$row['source_name']]),
                     'first_confirmed_at' => $now,
-                    'created_at'        => $now,
-                    'updated_at'        => $now,
+                    'created_at' => $now,
+                    'updated_at' => $now,
                 ]));
             }
         }
@@ -1017,7 +1012,7 @@ class RawImportProcessor
             }
 
             $importedName = NameNormalizer::normalize(trim((string) ($item['payload']['name'] ?? '')));
-            $storedName   = NameNormalizer::normalize((string) ($client->full_name ?? ''));
+            $storedName = NameNormalizer::normalize((string) ($client->full_name ?? ''));
 
             $fieldConflicts = [];
 
@@ -1029,7 +1024,7 @@ class RawImportProcessor
                 && ! RawContactImportEnricher::isStubName((string) $client->full_name)
             ) {
                 $fieldConflicts['full_name'] = [
-                    'stored'   => $client->full_name,
+                    'stored' => $client->full_name,
                     'imported' => $importedName,
                 ];
                 $newAlternateNames[$item['client_id']][] = $importedName;
@@ -1038,10 +1033,10 @@ class RawImportProcessor
 
             // Other field conflicts: both sides non-blank and different
             foreach ([
-                'emirate'     => $item['emirate'] ?: null,
+                'emirate' => $item['emirate'] ?: null,
                 'nationality' => $this->blankToNull($item['payload']['nationality'] ?? null),
-                'gender'      => $this->blankToNull($item['payload']['gender'] ?? null),
-                'interest'    => $this->blankToNull($item['payload']['interest'] ?? null),
+                'gender' => $this->blankToNull($item['payload']['gender'] ?? null),
+                'interest' => $this->blankToNull($item['payload']['interest'] ?? null),
                 'country_iso' => strtoupper(substr(trim((string) ($item['payload']['country_iso'] ?? '')), 0, 2)) ?: null,
             ] as $field => $importedValue) {
                 $storedValue = $client->$field;
@@ -1051,7 +1046,7 @@ class RawImportProcessor
                     && $importedValue !== $storedValue
                 ) {
                     $fieldConflicts[$field] = [
-                        'stored'   => $storedValue,
+                        'stored' => $storedValue,
                         'imported' => $importedValue,
                     ];
                 }
@@ -1075,7 +1070,7 @@ class RawImportProcessor
                     $quarantineErrors[] = $this->makeErrorRow(
                         $import,
                         $item['row_number'],
-                        "Client #{$clientId} already has ".count($existing)." alternate names on file — ".
+                        "Client #{$clientId} already has ".count($existing).' alternate names on file — '.
                         "name conflict (\"{$names[0]}\" vs stored \"{$clients->get($clientId)?->full_name}\") ".
                         'was not auto-merged. Needs manual review (likely a shared phone number).',
                         $item['row'],
@@ -1091,28 +1086,28 @@ class RawImportProcessor
 
             DB::table('clients')->where('id', $clientId)->update([
                 'alternate_names' => json_encode($merged),
-                'updated_at'      => $now,
+                'updated_at' => $now,
             ]);
         }
 
         // --- Fill blank and stub fields (one bulk UPDATE per field) ---
         $fieldResolvers = [
-            'full_name'   => fn ($item) => NameNormalizer::normalize(trim((string) ($item['payload']['name'] ?? ''))),
-            'emirate'     => fn ($item) => $item['emirate'] ?: null,
+            'full_name' => fn ($item) => NameNormalizer::normalize(trim((string) ($item['payload']['name'] ?? ''))),
+            'emirate' => fn ($item) => $item['emirate'] ?: null,
             'nationality' => fn ($item) => $this->blankToNull($item['payload']['nationality'] ?? null),
-            'gender'      => fn ($item) => $this->blankToNull($item['payload']['gender'] ?? null),
-            'interest'    => fn ($item) => $this->blankToNull($item['payload']['interest'] ?? null),
+            'gender' => fn ($item) => $this->blankToNull($item['payload']['gender'] ?? null),
+            'interest' => fn ($item) => $this->blankToNull($item['payload']['interest'] ?? null),
             'country_iso' => fn ($item) => strtoupper(substr(trim((string) ($item['payload']['country_iso'] ?? '')), 0, 2)) ?: null,
         ];
 
         foreach ($fieldResolvers as $field => $getValue) {
             $blankFills = []; // client_id => value  (stored null/empty)
-            $stubFills  = []; // client_id => value  (stored stub name, full_name only)
+            $stubFills = []; // client_id => value  (stored stub name, full_name only)
 
             foreach ($clients as $clientId => $client) {
-                $stored  = $client->$field;
+                $stored = $client->$field;
                 $isBlank = $stored === null || $stored === '';
-                $isStub  = $field === 'full_name' && ! $isBlank
+                $isStub = $field === 'full_name' && ! $isBlank
                     && RawContactImportEnricher::isStubName((string) $stored);
 
                 if (! $isBlank && ! $isStub) {
@@ -1133,7 +1128,7 @@ class RawImportProcessor
 
             // Bulk UPDATE for blank fields (guarded by IS NULL OR = '' in SQL)
             if ($blankFills !== []) {
-                $cases    = implode(' ', array_map(fn () => 'WHEN ? THEN ?', $blankFills));
+                $cases = implode(' ', array_map(fn () => 'WHEN ? THEN ?', $blankFills));
                 $bindings = [];
                 foreach ($blankFills as $id => $value) {
                     $bindings[] = $id;
@@ -1149,7 +1144,7 @@ class RawImportProcessor
 
             // Bulk UPDATE for stub name replacement (full_name only, no null guard needed)
             if ($stubFills !== []) {
-                $cases    = implode(' ', array_map(fn () => 'WHEN ? THEN ?', $stubFills));
+                $cases = implode(' ', array_map(fn () => 'WHEN ? THEN ?', $stubFills));
                 $bindings = [];
                 foreach ($stubFills as $id => $value) {
                     $bindings[] = $id;
@@ -1185,21 +1180,21 @@ class RawImportProcessor
                 'source_file_name' => $import->original_file_name,
                 'source_reference' => (string) $import->id,
                 'metadata' => json_encode([
-                    'duplicate'             => (bool) $item['duplicate'],
-                    'raw_name'              => $this->blankToNull($item['payload']['name'] ?? null),
-                    'raw_emirate'           => $this->blankToNull($item['payload']['emirate'] ?? null),
-                    'raw_nationality'       => $this->blankToNull($item['payload']['nationality'] ?? null),
-                    'raw_gender'            => $this->blankToNull($item['payload']['gender'] ?? null),
-                    'raw_interest'          => $this->blankToNull($item['payload']['interest'] ?? null),
-                    'raw_official_area'     => $this->blankToNull($item['payload']['official_area_name'] ?? null),
-                    'raw_marketing_area'    => $this->blankToNull($item['payload']['marketing_area_name'] ?? null),
-                    'raw_project'           => $this->blankToNull($item['payload']['project_name'] ?? null),
-                    'raw_building'          => $this->blankToNull($item['payload']['building_name'] ?? null),
-                    'raw_unit'              => $this->blankToNull($item['payload']['unit_reference'] ?? null),
+                    'duplicate' => (bool) $item['duplicate'],
+                    'raw_name' => $this->blankToNull($item['payload']['name'] ?? null),
+                    'raw_emirate' => $this->blankToNull($item['payload']['emirate'] ?? null),
+                    'raw_nationality' => $this->blankToNull($item['payload']['nationality'] ?? null),
+                    'raw_gender' => $this->blankToNull($item['payload']['gender'] ?? null),
+                    'raw_interest' => $this->blankToNull($item['payload']['interest'] ?? null),
+                    'raw_official_area' => $this->blankToNull($item['payload']['official_area_name'] ?? null),
+                    'raw_marketing_area' => $this->blankToNull($item['payload']['marketing_area_name'] ?? null),
+                    'raw_project' => $this->blankToNull($item['payload']['project_name'] ?? null),
+                    'raw_building' => $this->blankToNull($item['payload']['building_name'] ?? null),
+                    'raw_unit' => $this->blankToNull($item['payload']['unit_reference'] ?? null),
                     'raw_relationship_type' => $this->blankToNull($item['payload']['relationship_type'] ?? null),
-                    'raw_notes'             => $this->blankToNull($item['payload']['notes'] ?? null),
-                    'raw_tags'              => $this->blankToNull($item['payload']['tags'] ?? null),
-                    'field_conflicts'       => $item['field_conflicts'] ?? null,
+                    'raw_notes' => $this->blankToNull($item['payload']['notes'] ?? null),
+                    'raw_tags' => $this->blankToNull($item['payload']['tags'] ?? null),
+                    'field_conflicts' => $item['field_conflicts'] ?? null,
                 ]),
                 'created_at' => $now,
                 'updated_at' => $now,
@@ -1207,15 +1202,6 @@ class RawImportProcessor
         }
 
         $this->insertRows('client_sources', $rows);
-    }
-
-    private function clientKey(array $payload, string $emirate): string
-    {
-        return implode('|', [
-            trim((string) ($payload['name'] ?? '')),
-            $emirate ?: '',
-            $this->normalizeCountryIso($payload['country_iso'] ?? null) ?: '',
-        ]);
     }
 
     private function normalizeCountryIso(?string $value): ?string
@@ -1328,14 +1314,14 @@ class RawImportProcessor
 
         $emirate = $this->normalizeEmirate($payload['emirate'] ?? '');
 
-        $officialAreaId  = $this->resolver->officialAreaId($emirate, $payload['official_area_name'] ?? '');
+        $officialAreaId = $this->resolver->officialAreaId($emirate, $payload['official_area_name'] ?? '');
         $marketingAreaId = $this->resolver->marketingAreaId($emirate, $payload['marketing_area_name'] ?? '');
-        $projectId       = $this->resolver->projectId($marketingAreaId, $payload['project_name'] ?? '');
-        $buildingId      = $this->resolver->buildingId($projectId, $payload['building_name'] ?? '');
+        $projectId = $this->resolver->projectId($marketingAreaId, $payload['project_name'] ?? '');
+        $buildingId = $this->resolver->buildingId($projectId, $payload['building_name'] ?? '');
 
         $enrichPayload = array_merge($payload, [
             'normalized_phone' => $normalized['normalized'] ?? null,
-            'emirate'          => $emirate,
+            'emirate' => $emirate,
         ]);
 
         $client = $this->enricher->resolveClient($enrichPayload, $phoneNumber);
@@ -1345,21 +1331,21 @@ class RawImportProcessor
         if ($normalized) {
             if (! $phoneNumber) {
                 $phoneNumber = ClientPhoneNumber::create([
-                    'client_id'        => $client->id,
-                    'raw_phone'        => $phone,
+                    'client_id' => $client->id,
+                    'raw_phone' => $phone,
                     'normalized_phone' => $normalized['normalized'],
-                    'country_code'     => $normalized['country_code'],
-                    'national_number'  => $normalized['national_number'],
+                    'country_code' => $normalized['country_code'],
+                    'national_number' => $normalized['national_number'],
                     'detected_country' => $normalized['detected_country'],
-                    'is_uae'           => $normalized['is_uae'],
-                    'is_primary'       => true,
-                    'priority'         => 1,
+                    'is_uae' => $normalized['is_uae'],
+                    'is_primary' => true,
+                    'priority' => 1,
                     'last_source_name' => $sourceName,
                     'last_imported_at' => now(),
                 ]);
             } else {
                 $phoneNumber->forceFill([
-                    'client_id'        => $client->id,
+                    'client_id' => $client->id,
                     'last_source_name' => $sourceName,
                     'last_imported_at' => now(),
                 ])->save();
@@ -1380,19 +1366,18 @@ class RawImportProcessor
 
         $now = now()->toDateTimeString();
         $this->sourceBuffer[] = [
-            'client_id'              => $client->id,
+            'client_id' => $client->id,
             'client_phone_number_id' => $phoneNumber?->id,
-            'channel'                => 'ivr',
-            'source_type'            => 'raw_import',
-            'source_name'            => $sourceName,
-            'source_file_name'       => $import->original_file_name,
-            'source_reference'       => (string) $import->id,
-            'metadata'               => json_encode(['duplicate' => $duplicate]),
-            'created_at'             => $now,
-            'updated_at'             => $now,
+            'channel' => 'ivr',
+            'source_type' => 'raw_import',
+            'source_name' => $sourceName,
+            'source_file_name' => $import->original_file_name,
+            'source_reference' => (string) $import->id,
+            'metadata' => json_encode(['duplicate' => $duplicate]),
+            'created_at' => $now,
+            'updated_at' => $now,
         ];
 
         return $duplicate;
     }
-
 }

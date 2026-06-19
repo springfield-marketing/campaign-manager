@@ -133,9 +133,9 @@ same person, two people sharing a number, or a data error.
 > **(done)** Steps 2–5 are implemented in `RawContactImportEnricher::resolveClient()`: phone
 > match first, then create-fresh for stub (IMP-001), real (IMP-002), and institution (IMP-003)
 > names alike — no name-tuple `firstOrCreate` remains. The strong-signal linking in step 5 and
-> the review-queue routing are still to come. **Caveat:** the IVR *bulk* path
-> (`RawImportProcessor::resolveClients()`) still merges on the name tuple — outstanding Phase-2
-> rewrite.
+> the review-queue routing are still to come. The IVR *bulk* path
+> (`RawImportProcessor::assignClients()`) now creates fresh per phone too (IMP-004) — all import
+> paths resolve identity identically.
 
 ---
 

@@ -173,6 +173,39 @@ class RawContactImportEnrichmentTest extends TestCase
     }
 
     /**
+     * IMP-004 — the IVR bulk import path (RawImportProcessor::assignClients) must obey the same
+     * phone-is-identity rule as resolveClient. It used to group new rows by (name, emirate,
+     * country) and merge them, so two different people sharing a name in one file collapsed onto
+     * one client. Now every non-phone-matched row creates a fresh client. See docs/data-rules/imports.md.
+     */
+    #[Test]
+    public function imp_004_ivr_bulk_import_does_not_merge_same_name_rows(): void
+    {
+        MarketingArea::create(['emirate' => 'Dubai', 'name' => 'Dubai Marina', 'is_active' => true]);
+
+        $path = 'ivr/imports/raw/imp004-collision.csv';
+        Storage::disk('local')->put($path, implode("\n", [
+            'name,phone,email,country_iso,community,relationship_type,confidence_level,source',
+            'Mohammed Collision,+971527948801,,AE,Dubai Marina,owner,high,IMP004 Source',
+            'Mohammed Collision,+971527948802,,AE,Dubai Marina,owner,high,IMP004 Source',
+        ]));
+
+        $import = IvrImport::create([
+            'type' => 'raw_contacts',
+            'status' => 'pending',
+            'original_file_name' => 'imp004-collision.csv',
+            'stored_file_name' => 'imp004-collision.csv',
+            'storage_path' => $path,
+        ]);
+
+        app(RawImportProcessor::class)->process($import);
+
+        // Two different people sharing a name on two different phones => two clients, not one.
+        $this->assertSame(2, Client::where('full_name', 'Mohammed Collision')->count());
+        $this->assertSame(2, ClientPhoneNumber::whereIn('normalized_phone', ['+971527948801', '+971527948802'])->count());
+    }
+
+    /**
      * IMP-003 — an institution name is the worst identity anchor of all. In DLD/owner data a bank
      * is the registered owner/mortgagee of hundreds of unrelated properties, so firstOrCreate on
      * the institution tuple filed every individual's mobile under one "Emirates Islamic Bank"

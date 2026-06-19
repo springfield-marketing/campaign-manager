@@ -16,6 +16,33 @@ See [README.md](README.md) for how this registry works. Newest entries at the to
 - **Watch out for:** <known gaps / counter-examples>
 -->
 
+### IMP-004 — The IVR bulk import path must not merge by name either
+
+- **Date / trigger:** 2026-06-19, while consolidating the import paths. IMP-002/003 fixed
+  `RawContactImportEnricher::resolveClient()` (the WhatsApp + staging paths), but the IVR **bulk**
+  importer — the one behind *Contacts → Imports → "Upload Contacts"* — had its own client
+  resolution in `RawImportProcessor::assignClients()` and still merged by name.
+- **Symptom:** A single raw-contacts file with several rows sharing a real (or institution) name
+  collapsed them onto one client, re-creating the super-client problem we'd just cleaned up — even
+  after resolveClient was fixed. (Stub names were already guarded here; real/institution were not.)
+- **Root cause:** `assignClients()` bulk-resolved new phones via a `name|emirate|country` key
+  (`clientKey()` + `loadClientsByKeys()` → `whereIn('full_name', …)`), grouping unrelated rows
+  onto one client. It also deduped *within* a file by that key.
+- **Rule we added:** Phone is the only identity anchor on the bulk path too. A row whose number
+  already exists attaches to that number's client; **every other row creates a fresh client**,
+  regardless of name. `clientKey()`/`loadClientsByKeys()` removed. Fresh clients are batch-inserted
+  via Postgres `INSERT … RETURNING id` (ids zipped back by position), so a 1000-row chunk still
+  costs one INSERT — no per-row `Client::create`.
+- **Why it's safe / trade-offs:** Same under-merge bias as IMP-002/003; re-imports of the same
+  number still match by phone. Now all import paths (staging, WhatsApp, IVR bulk) resolve identity
+  identically.
+- **Proof:** `RawContactImportEnrichmentTest::imp_004_ivr_bulk_import_does_not_merge_same_name_rows`.
+- **Code:** [`app/Modules/IVR/Support/RawImportProcessor.php`](../../app/Modules/IVR/Support/RawImportProcessor.php)
+  — the `IMP-004` breadcrumb in `assignClients()`.
+- **Watch out for:** `RETURNING` order — Postgres returns rows in VALUES order for a single
+  multi-row INSERT, which the id-zip relies on (true for this plain table; revisit if a trigger
+  ever reorders inserts).
+
 ### IMP-003 — An institution name is not an identity anchor either
 
 - **Date / trigger:** 2026-06-19. Investigating client **178965 "Emirates Islamic Bank"**, which
@@ -59,9 +86,7 @@ See [README.md](README.md) for how this registry works. Newest entries at the to
   carries its WhatsApp/IVR/suppression records with it. Reversible via a `client_audit_logs`
   snapshot. See spec §5.
 - **Watch out for:**
-  - The IVR **bulk** path (`RawImportProcessor::resolveClients()`) still merges on the name tuple
-    — same outstanding Phase-2 rewrite called out in IMP-002. Institution over-merge can still
-    occur there until that lands.
+  - The IVR **bulk** path used to merge on the name tuple here too — **fixed by IMP-004**.
 
 ### IMP-002 — A real name is not an identity key either (phone is)
 
@@ -97,11 +122,8 @@ See [README.md](README.md) for how this registry works. Newest entries at the to
 - **Code:** [`app/Support/RawContactImportEnricher.php`](../../app/Support/RawContactImportEnricher.php)
   — the `IMP-002` breadcrumb in `resolveClient()`.
 - **Watch out for:**
-  - The IVR **bulk** path (`RawImportProcessor::resolveClients()` via `clientKey()` +
-    `loadClientsByKeys()`) still merges real names on the tuple — it groups new rows by name, so
-    switching it to phone-grouping is a larger rewrite tracked as the next Phase 2 step. **Until
-    that lands, IVR raw imports can still over-merge real names**; the WhatsApp and staging paths
-    (which use `resolveClient`) are fixed.
+  - ~~The IVR **bulk** path still merges real names on the tuple~~ — **fixed by IMP-004**
+    (`assignClients()` now creates fresh per phone). All import paths now agree.
   - `NameClassifier::isInstitution` is heuristic; a mislabelled institution would either
     fragment (treated as a person) or absorb (treated as an org) — neither is destructive, but
     review-queue routing in Phase 3 should let a human correct it.
