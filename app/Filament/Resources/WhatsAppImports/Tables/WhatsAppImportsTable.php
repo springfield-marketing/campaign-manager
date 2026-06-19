@@ -6,13 +6,14 @@ use App\Modules\WhatsApp\Enums\WhatsAppImportStatus;
 use App\Modules\WhatsApp\Enums\WhatsAppImportType;
 use App\Modules\WhatsApp\Enums\WhatsAppPlatform;
 use App\Modules\WhatsApp\Jobs\ProcessWhatsAppCampaignResultsImport;
-use App\Modules\WhatsApp\Jobs\ProcessWhatsAppRawImport;
 use App\Modules\WhatsApp\Jobs\ProcessWhatsAppUnsubscriberImport;
 use App\Modules\WhatsApp\Models\WhatsAppImport;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -25,8 +26,8 @@ class WhatsAppImportsTable
     {
         return match ($type) {
             'campaign_results' => 'Campaign Results',
-            'unsubscribers'    => 'Unsubscribers',
-            default            => ucwords(str_replace('_', ' ', $type)),
+            'unsubscribers' => 'Unsubscribers',
+            default => ucwords(str_replace('_', ' ', $type)),
         };
     }
 
@@ -40,8 +41,8 @@ class WhatsAppImportsTable
                     ->badge()
                     ->color(fn (string $state) => match ($state) {
                         'campaign_results' => 'success',
-                        'unsubscribers'    => 'warning',
-                        default            => 'gray',
+                        'unsubscribers' => 'warning',
+                        default => 'gray',
                     })
                     ->formatStateUsing(fn (string $state) => self::typeLabel($state)),
 
@@ -59,13 +60,13 @@ class WhatsAppImportsTable
 
                 TextColumn::make('status')
                     ->badge()
-                    ->color(fn (string $state) => match($state) {
-                        'completed'             => 'success',
+                    ->color(fn (string $state) => match ($state) {
+                        'completed' => 'success',
                         'completed_with_errors' => 'warning',
-                        'processing'            => 'info',
-                        'draft'                 => 'gray',
+                        'processing' => 'info',
+                        'draft' => 'gray',
                         'failed', 'delete_failed', 'revert_failed' => 'danger',
-                        default                 => 'gray',
+                        default => 'gray',
                     })
                     ->formatStateUsing(fn (string $state) => ucwords(str_replace('_', ' ', $state))),
 
@@ -89,7 +90,7 @@ class WhatsAppImportsTable
                 SelectFilter::make('type')
                     ->options([
                         'campaign_results' => 'Campaign Results',
-                        'unsubscribers'    => 'Unsubscribers',
+                        'unsubscribers' => 'Unsubscribers',
                     ]),
 
                 SelectFilter::make('status')
@@ -116,20 +117,20 @@ class WhatsAppImportsTable
                             ->acceptedFileTypes(['text/csv', 'text/plain', 'application/csv'])
                             ->maxSize(51200),
 
-                        \Filament\Forms\Components\Select::make('platform')
+                        Select::make('platform')
                             ->label('Platform')
                             ->options(WhatsAppPlatform::options())
                             ->required(),
 
-                        \Filament\Forms\Components\Toggle::make('lenient_phones')
+                        Toggle::make('lenient_phones')
                             ->label('Lenient phone validation')
                             ->default(false)
                             ->helperText('Turn on if the file contains numbers that WhatsApp can deliver to but our validator rejects (e.g. older number formats for certain countries). UAE numbers are always strictly validated regardless of this setting.'),
                     ])
                     ->action(function (array $data): void {
-                        $originalName  = basename($data['file']);
-                        $tmpRelative   = 'whatsapp/imports/campaign-results/tmp/' . $originalName;
-                        $finalRelative = 'whatsapp/imports/campaign-results/' . $originalName;
+                        $originalName = basename($data['file']);
+                        $tmpRelative = 'whatsapp/imports/campaign-results/tmp/'.$originalName;
+                        $finalRelative = 'whatsapp/imports/campaign-results/'.$originalName;
 
                         $existing = WhatsAppImport::query()
                             ->where('type', WhatsAppImportType::CampaignResults->value)
@@ -147,20 +148,21 @@ class WhatsAppImportsTable
                                 ->body('Delete or revert it first if you want to re-import.')
                                 ->danger()
                                 ->send();
+
                             return;
                         }
 
                         Storage::disk('local')->move($tmpRelative, $finalRelative);
 
                         $import = WhatsAppImport::create([
-                            'type'                => WhatsAppImportType::CampaignResults,
-                            'status'              => WhatsAppImportStatus::Pending,
-                            'original_file_name'  => $originalName,
-                            'stored_file_name'    => $originalName,
-                            'storage_path'        => $finalRelative,
-                            'source_name'         => $data['platform'] ?: null,
-                            'lenient_phones'      => (bool) ($data['lenient_phones'] ?? false),
-                            'uploaded_by'         => auth()->id(),
+                            'type' => WhatsAppImportType::CampaignResults,
+                            'status' => WhatsAppImportStatus::Pending,
+                            'original_file_name' => $originalName,
+                            'stored_file_name' => $originalName,
+                            'storage_path' => $finalRelative,
+                            'source_name' => $data['platform'] ?: null,
+                            'lenient_phones' => (bool) ($data['lenient_phones'] ?? false),
+                            'uploaded_by' => auth()->id(),
                         ]);
 
                         ProcessWhatsAppCampaignResultsImport::dispatch($import->id)->onQueue('imports');
@@ -186,18 +188,18 @@ class WhatsAppImportsTable
                     ])
                     ->action(function (array $data): void {
                         $originalName = $data['file'];
-                        $tmpRelative = 'whatsapp/unsubscribers/tmp/' . $originalName;
-                        $finalRelative = 'whatsapp/unsubscribers/' . $originalName;
+                        $tmpRelative = 'whatsapp/unsubscribers/tmp/'.$originalName;
+                        $finalRelative = 'whatsapp/unsubscribers/'.$originalName;
 
                         Storage::disk('local')->move($tmpRelative, $finalRelative);
 
                         $import = WhatsAppImport::create([
-                            'type'               => WhatsAppImportType::Unsubscribers,
-                            'status'             => WhatsAppImportStatus::Pending,
+                            'type' => WhatsAppImportType::Unsubscribers,
+                            'status' => WhatsAppImportStatus::Pending,
                             'original_file_name' => $originalName,
-                            'stored_file_name'   => $originalName,
-                            'storage_path'       => $finalRelative,
-                            'uploaded_by'        => auth()->id(),
+                            'stored_file_name' => $originalName,
+                            'storage_path' => $finalRelative,
+                            'uploaded_by' => auth()->id(),
                         ]);
 
                         ProcessWhatsAppUnsubscriberImport::dispatch($import->id)->onQueue('imports');
@@ -210,7 +212,7 @@ class WhatsAppImportsTable
             ])
             ->recordActions([
                 Action::make('view_errors')
-                    ->label(fn (WhatsAppImport $record) => 'Errors (' . $record->failed_rows . ')')
+                    ->label(fn (WhatsAppImport $record) => 'Errors ('.$record->failed_rows.')')
                     ->icon('heroicon-o-exclamation-triangle')
                     ->color('danger')
                     ->visible(fn (WhatsAppImport $record) => ($record->failed_rows ?? 0) > 0)
@@ -231,14 +233,20 @@ class WhatsAppImportsTable
                     ->icon('heroicon-o-arrow-path')
                     ->color('warning')
                     ->visible(fn (WhatsAppImport $record) =>
-                        in_array($record->status, [
+                        // Raw-contacts imports are retired — only campaign-results and unsubscriber
+                        // imports can be re-processed (see Phase 3 / docs/data-rules/imports.md).
+                        in_array($record->type, [
+                            WhatsAppImportType::CampaignResults->value,
+                            WhatsAppImportType::Unsubscribers->value,
+                        ])
+                        && in_array($record->status, [
                             WhatsAppImportStatus::Completed->value,
                             WhatsAppImportStatus::CompletedWithErrors->value,
                             WhatsAppImportStatus::Failed->value,
                             WhatsAppImportStatus::Processing->value,
                         ])
                         && $record->storage_path
-                        && file_exists(storage_path('app/private/' . $record->storage_path))
+                        && file_exists(storage_path('app/private/'.$record->storage_path))
                     )
                     ->requiresConfirmation()
                     ->modalHeading(fn (WhatsAppImport $record) => $record->status === WhatsAppImportStatus::Processing->value ? 'Unlock stuck import?' : 'Re-process this import?')
@@ -248,20 +256,20 @@ class WhatsAppImportsTable
                     )
                     ->action(function (WhatsAppImport $record): void {
                         $record->update([
-                            'status'          => WhatsAppImportStatus::Pending->value,
-                            'error_message'   => null,
-                            'total_rows'      => 0,
-                            'processed_rows'  => 0,
+                            'status' => WhatsAppImportStatus::Pending->value,
+                            'error_message' => null,
+                            'total_rows' => 0,
+                            'processed_rows' => 0,
                             'successful_rows' => 0,
-                            'failed_rows'     => 0,
-                            'duplicate_rows'  => 0,
-                            'started_at'      => null,
-                            'completed_at'    => null,
+                            'failed_rows' => 0,
+                            'duplicate_rows' => 0,
+                            'started_at' => null,
+                            'completed_at' => null,
                         ]);
                         match ($record->type) {
                             WhatsAppImportType::CampaignResults->value => ProcessWhatsAppCampaignResultsImport::dispatch($record->id)->onQueue('imports'),
-                            WhatsAppImportType::Unsubscribers->value   => ProcessWhatsAppUnsubscriberImport::dispatch($record->id)->onQueue('imports'),
-                            default                                     => ProcessWhatsAppRawImport::dispatch($record->id)->onQueue('imports'),
+                            WhatsAppImportType::Unsubscribers->value => ProcessWhatsAppUnsubscriberImport::dispatch($record->id)->onQueue('imports'),
+                            default => null,
                         };
                         Notification::make()->title('Re-queued — watch status update below')->warning()->send();
                     }),
@@ -275,7 +283,7 @@ class WhatsAppImportsTable
     private static function formatErrors(WhatsAppImport $record): string
     {
         $errors = $record->errors()->orderBy('row_number')->limit(20)->get();
-        $lines  = [];
+        $lines = [];
 
         foreach ($errors as $e) {
             $payload = is_string($e->row_payload) ? json_decode($e->row_payload, true) : ($e->row_payload ?? []);
@@ -291,7 +299,7 @@ class WhatsAppImportsTable
         }
 
         if ($record->failed_rows > 20) {
-            $lines[] = '... and ' . ($record->failed_rows - 20) . ' more rows with similar errors.';
+            $lines[] = '... and '.($record->failed_rows - 20).' more rows with similar errors.';
         }
 
         return trim(implode("\n", $lines));

@@ -29,27 +29,7 @@ return [
      */
     'no_engagement_threshold' => (int) env('WHATSAPP_NO_ENGAGEMENT_THRESHOLD', 5),
 
-    'raw_import' => [
-        'required' => ['name', 'phone'],
-        'aliases' => [
-            'name' => ['name'],
-            'phone' => ['phone', 'mobile', 'phone number', 'contact number'],
-            'email' => ['email', 'email address'],
-            'country' => ['country'],
-            'country_iso' => ['country iso', 'country_iso', 'iso code', 'iso_code'],
-            'nationality' => ['nationality'],
-            'community' => ['community'],
-            'resident' => ['resident', 'residency', 'resident status'],
-            'city' => ['city'],
-            'gender' => ['gender', 'sex'],
-            'interest' => ['interest', 'interested project', 'project interest', 'project', 'enquiry', 'inquiry'],
-            'project_name' => ['project name', 'project_name', 'building', 'development'],
-            'dld_project_id' => ['dld project id', 'dld_project_id', 'dld project', 'project id'],
-            'relationship_type' => ['relationship type', 'relationship_type', 'relationship'],
-            'confidence_level' => ['confidence level', 'confidence_level', 'confidence'],
-            'notes'       => ['notes', 'note', 'comments', 'comment', 'remarks', 'remark'],
-            'tags'        => ['tags', 'tag', 'labels', 'label', 'segments', 'segment', 'categories', 'category'],
-            'source_file' => ['source file', 'source', 'source name'],
-        ],
-    ],
+    // The WhatsApp raw-contacts importer was retired (Phase 3 / docs/data-rules/imports.md):
+    // raw contacts are imported through the single Contacts → Imports path. Its 'raw_import'
+    // column-mapping config was removed along with the processor.
 ];
