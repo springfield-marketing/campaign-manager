@@ -1,0 +1,15 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+    - vendor/shipmonk/dead-code-detector/rules.neon
+
+parameters:
+    # Low level: we're hunting dead code, not type errors (the codebase has no prior PHPStan
+    # baseline, so a high level would flood with unrelated noise).
+    level: 0
+
+    paths:
+        - app
+
+    # The dead-code detector ships Laravel/Eloquent/Blade/PHPUnit usage providers (enabled by
+    # default), so framework-invoked code (controllers, commands, jobs, model methods, Blade
+    # references) is recognised as used. Filament false positives, if any, get triaged manually.
