@@ -17,10 +17,19 @@ php artisan pail                                               # logs (optional)
 ## Database & tests
 
 - **Postgres** in all environments. Raw SQL must use `= true`/`= false` for booleans.
-- The phpunit config points at SQLite `:memory:`, but several migrations are Postgres-only
-  and unguarded, so the suite must run against a **dedicated Postgres test DB** — never the
-  dev DB (`RefreshDatabase` wipes it). For manual checks against live data, wrap in
-  `DB::beginTransaction()` / `DB::rollBack()`.
+- **Tests run on a dedicated Postgres DB** (`campaign_tracker_test`), configured in `phpunit.xml`
+  — same engine as prod. Create it once: `createdb campaign_tracker_test`. Run with
+  `php artisan test`. Several migrations are Postgres-only/unguarded so `migrate:fresh` can't
+  rebuild from scratch; instead `RefreshDatabase` loads the schema snapshot at
+  `database/schema/pgsql-schema.sql`. Regenerate that snapshot after schema changes with:
+  `pg_dump --no-owner --no-acl --schema-only campaign_tracker > "database/schema/pgsql-schema.sql"`
+  then append the migrations table:
+  `pg_dump --no-owner --no-acl --data-only --table=public.migrations campaign_tracker >> "database/schema/pgsql-schema.sql"`
+  (`artisan schema:dump` mis-quotes the space in the project path, so call pg_dump directly).
+  CI (`.github/workflows/tests.yml`) runs the suite on a postgres:18 service on every push.
+- Some older module tests are **quarantined** (`markTestSkipped` in `setUp`) — they target the
+  removed `modules.*` web routing from before the Filament migration and need rewriting.
+- For manual checks against live data, wrap in `DB::beginTransaction()` / `DB::rollBack()`.
 
 ## Data rules — import/export edge cases
 
