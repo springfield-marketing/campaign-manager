@@ -86,6 +86,7 @@ class WhatsAppNumbersTable
                     ->color(fn (string $state): string => match ($state) {
                         'active'         => 'success',
                         'cooldown'       => 'warning',
+                        'quarantine'     => 'info',
                         'dead'           => 'danger',
                         'unsubscribed'   => 'danger',
                         'never_messaged' => 'gray',
@@ -94,6 +95,7 @@ class WhatsAppNumbersTable
                     ->formatStateUsing(fn (string $state): string => match ($state) {
                         'active'         => 'Active',
                         'cooldown'       => 'Cooldown',
+                        'quarantine'     => 'Quarantine',
                         'dead'           => 'Dead',
                         'unsubscribed'   => 'Unsubscribed',
                         'never_messaged' => 'Never Messaged',
@@ -146,6 +148,7 @@ class WhatsAppNumbersTable
                         'never_messaged' => 'Never Messaged',
                         'active'         => 'Active',
                         'cooldown'       => 'Cooldown',
+                        'quarantine'     => 'Quarantine (review)',
                         'dead'           => 'Dead',
                         'unsubscribed'   => 'Unsubscribed',
                     ])
@@ -182,6 +185,7 @@ class WhatsAppNumbersTable
                                 ->whereNotNull('cooldown_until')
                                 ->whereRaw('cooldown_until > NOW()')
                             )),
+                            'quarantine'     => $excludeSuppressed($query->whereHas('whatsAppProfile', fn ($q) => $q->where('usage_status', 'quarantine'))),
                             'dead'           => $excludeSuppressed($query->whereHas('whatsAppProfile', fn ($q) => $q->where('usage_status', 'dead'))),
                             'unsubscribed'   => $query->whereExists($whereSuppressed),
                             default          => $query,
@@ -329,6 +333,42 @@ class WhatsAppNumbersTable
             ])
             ->defaultSort('created_at', 'desc')
             ->recordActions([
+                Action::make('mark_dead')
+                    ->label('Mark as Dead')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->visible(fn (ClientPhoneNumber $record) => $record->whatsAppProfile?->usage_status === 'quarantine')
+                    ->requiresConfirmation()
+                    ->modalHeading('Mark this number as dead?')
+                    ->modalDescription('It is in quarantine (messaged repeatedly, never delivered). Marking it dead excludes it from campaigns and persists across reanalysis until you revive it.')
+                    ->action(function (ClientPhoneNumber $record): void {
+                        $profile = $record->whatsAppProfile;
+                        if ($profile) {
+                            $profile->forceFill([
+                                'manually_dead' => true,
+                                'usage_status'  => 'dead',
+                                'cooldown_until' => null,
+                            ])->save();
+                        }
+                        Notification::make()->title('Number marked as dead')->success()->send();
+                    }),
+
+                Action::make('revive')
+                    ->label('Revive')
+                    ->icon('heroicon-o-arrow-path')
+                    ->color('gray')
+                    ->visible(fn (ClientPhoneNumber $record) => (bool) ($record->whatsAppProfile?->manually_dead))
+                    ->requiresConfirmation()
+                    ->modalHeading('Revive this number?')
+                    ->modalDescription('Clears the manual dead flag. Its status will be recomputed automatically on the next reanalysis.')
+                    ->action(function (ClientPhoneNumber $record): void {
+                        $profile = $record->whatsAppProfile;
+                        if ($profile) {
+                            $profile->forceFill(['manually_dead' => false])->save();
+                        }
+                        Notification::make()->title('Manual dead flag cleared; status recomputes on next reanalysis')->success()->send();
+                    }),
+
                 Action::make('suppress')
                     ->label('Suppress')
                     ->icon('heroicon-o-no-symbol')

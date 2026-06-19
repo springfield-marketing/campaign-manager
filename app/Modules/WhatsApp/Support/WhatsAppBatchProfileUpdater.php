@@ -26,6 +26,10 @@ class WhatsAppBatchProfileUpdater
         $settings = WhatsAppSettings::current();
 
         $hardFailThreshold = $settings->hard_fail_threshold;
+        // Quarantine threshold: a number messaged MORE than this many times that has never once
+        // been delivered is parked in 'quarantine' for manual review (reuses the otherwise-unused
+        // bulk_dead_threshold setting, currently 10).
+        $quarantineMinMessages = $settings->bulk_dead_threshold;
         // The single cooldown window (days): a number messaged within this many days is on
         // cooldown. All other historical cooldown variables (no-engagement, quality-hold,
         // experiment, regional) were removed in favour of this one rule.
@@ -75,6 +79,10 @@ class WhatsAppBatchProfileUpdater
                           AND c.rn < COALESCE(sc.first_non_system_rn, 2147483647)
                     )                                                                   AS consecutive_hard_fail_count,
 
+                    COUNT(*)                                                             AS total_messages,
+                    COUNT(*) FILTER (WHERE c.delivery_status IN ('DELIVERED','READ','REPLIED')) AS delivered_count,
+                    COUNT(*) FILTER (WHERE c.delivery_status IN ('READ','REPLIED'))     AS read_count,
+
                     MAX(CASE WHEN c.rn = 1 THEN c.delivery_status END)                 AS last_message_status,
                     MAX(CASE WHEN c.rn = 1 THEN NULLIF(c.failure_reason, '') END)       AS last_failure_reason,
                     MAX(CASE WHEN c.rn = 1 THEN c.scheduled_at END)                    AS last_messaged_at
@@ -91,18 +99,21 @@ class WhatsAppBatchProfileUpdater
                     a.last_failure_reason,
                     a.last_messaged_at,
 
-                    -- Two states drive usage_status:
-                    --   'dead'     = the last {$hardFailThreshold} delivery attempts in a row all
-                    --                hard-failed (system_errors are skipped/transparent). This is
-                    --                recency-based and self-healing — a later successful attempt
-                    --                resets the streak and revives the number on the next run. The
-                    --                old volume-based bulk-dead rule was removed (it retired
-                    --                numbers that had previously been delivered/read).
-                    --   'cooldown' = messaged within the last {$cooldownDays} days, expiring
-                    --                {$cooldownDays} days after the last message (anchored to
-                    --                last_messaged_at, so it cannot self-renew).
+                    -- usage_status precedence (first match wins):
+                    --   manually_dead = a reviewer pushed it to dead from quarantine; always wins
+                    --                   and is never auto-cleared.
+                    --   'quarantine'  = messaged > {$quarantineMinMessages} times and NEVER once
+                    --                   delivered. A strong dead candidate, parked for manual
+                    --                   review rather than auto-killed.
+                    --   'dead'        = >= {$hardFailThreshold} consecutive hard fails AND never
+                    --                   read/replied. A read/reply receipt proves a real, reachable
+                    --                   person, so those are spared. Recency-based / self-healing.
+                    --   'cooldown'    = messaged within the last {$cooldownDays} days (expires
+                    --                   {$cooldownDays} days after the last message).
                     CASE
-                        WHEN a.consecutive_hard_fail_count >= {$hardFailThreshold} THEN 'dead'
+                        WHEN COALESCE(ep.manually_dead, false) THEN 'dead'
+                        WHEN a.total_messages > {$quarantineMinMessages} AND a.delivered_count = 0 THEN 'quarantine'
+                        WHEN a.consecutive_hard_fail_count >= {$hardFailThreshold} AND a.read_count = 0 THEN 'dead'
                         WHEN {$cooldownDays} > 0
                           AND a.last_messaged_at > NOW() - ({$cooldownDays} * INTERVAL '1 day')
                         THEN 'cooldown'
@@ -110,7 +121,9 @@ class WhatsAppBatchProfileUpdater
                     END AS usage_status,
 
                     CASE
-                        WHEN a.consecutive_hard_fail_count >= {$hardFailThreshold} THEN NULL
+                        WHEN COALESCE(ep.manually_dead, false) THEN NULL
+                        WHEN a.total_messages > {$quarantineMinMessages} AND a.delivered_count = 0 THEN NULL
+                        WHEN a.consecutive_hard_fail_count >= {$hardFailThreshold} AND a.read_count = 0 THEN NULL
                         WHEN {$cooldownDays} > 0
                           AND a.last_messaged_at > NOW() - ({$cooldownDays} * INTERVAL '1 day')
                         THEN a.last_messaged_at + ({$cooldownDays} * INTERVAL '1 day')
@@ -118,6 +131,7 @@ class WhatsAppBatchProfileUpdater
                     END AS cooldown_until
 
                 FROM aggregated a
+                LEFT JOIN whatsapp_phone_profiles ep ON ep.client_phone_number_id = a.client_phone_number_id
             )
             INSERT INTO whatsapp_phone_profiles (
                 client_phone_number_id,

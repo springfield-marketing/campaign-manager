@@ -18,6 +18,7 @@ class WhatsAppPhoneProfile extends Model
         'last_messaged_at',
         'usage_status',
         'cooldown_until',
+        'manually_dead',
     ];
 
     protected function casts(): array
@@ -25,7 +26,13 @@ class WhatsAppPhoneProfile extends Model
         return [
             'last_messaged_at' => 'datetime',
             'cooldown_until'   => 'datetime',
+            'manually_dead'    => 'boolean',
         ];
+    }
+
+    public function isQuarantined(): bool
+    {
+        return $this->usage_status === 'quarantine';
     }
 
     public function phoneNumber(): BelongsTo

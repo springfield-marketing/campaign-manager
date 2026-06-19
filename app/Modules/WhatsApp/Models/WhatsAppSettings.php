@@ -45,7 +45,7 @@ class WhatsAppSettings extends Model
         return self::firstOrCreate(
             ['lock_key' => 'default'],
             [
-                'hard_fail_threshold'        => 3,
+                'hard_fail_threshold'        => 10,
                 'bulk_dead_threshold'         => 10,
                 'no_engagement_threshold'     => 10,
                 'cooldown_no_engagement_days' => 30,
