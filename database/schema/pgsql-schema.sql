@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 7A1c0go5NMxoKJo6TS0JPjISq7d3FTcjFvkRYODraFxnmNdepioYVzQoOQXIND5
+\restrict dwh2fxw5KtikvB3ZkeHZpm96hVgJKkqfAlQ20H1qbPG6BXpVUNArXmMeLfVjkco
 
 -- Dumped from database version 18.3 (Homebrew)
 -- Dumped by pg_dump version 18.3 (Homebrew)
@@ -2934,6 +2934,13 @@ CREATE INDEX clients_emirate_index ON public.clients USING btree (emirate);
 
 
 --
+-- Name: clients_full_name_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clients_full_name_index ON public.clients USING btree (full_name);
+
+
+--
 -- Name: clients_interest_index; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3768,13 +3775,13 @@ ALTER TABLE ONLY public.whatsapp_phone_profiles
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 7A1c0go5NMxoKJo6TS0JPjISq7d3FTcjFvkRYODraFxnmNdepioYVzQoOQXIND5
+\unrestrict dwh2fxw5KtikvB3ZkeHZpm96hVgJKkqfAlQ20H1qbPG6BXpVUNArXmMeLfVjkco
 
 --
 -- PostgreSQL database dump
 --
 
-\restrict qpyjov4pqge4fRfbfzvGaj0C56jb69JyLThSFEm78XM2C3l7BI4cqDwmEdtWGpR
+\restrict APkd3WHrUR3bDjswGO5aVy2Batsm52kSreG84HK7r3Z8TIuGNdTs7VCwHC3OS04
 
 -- Dumped from database version 18.3 (Homebrew)
 -- Dumped by pg_dump version 18.3 (Homebrew)
@@ -3888,6 +3895,7 @@ COPY public.migrations (id, migration, batch) FROM stdin;
 93	2026_06_19_000200_allow_quarantine_usage_status	64
 94	2026_06_19_000300_add_is_ivr_to_client_phone_numbers	65
 95	2026_06_19_000400_backfill_channel_flags_from_activity	65
+96	2026_06_19_000500_add_full_name_index_to_clients	66
 \.
 
 
@@ -3895,12 +3903,12 @@ COPY public.migrations (id, migration, batch) FROM stdin;
 -- Name: migrations_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.migrations_id_seq', 95, true);
+SELECT pg_catalog.setval('public.migrations_id_seq', 96, true);
 
 
 --
 -- PostgreSQL database dump complete
 --
 
-\unrestrict qpyjov4pqge4fRfbfzvGaj0C56jb69JyLThSFEm78XM2C3l7BI4cqDwmEdtWGpR
+\unrestrict APkd3WHrUR3bDjswGO5aVy2Batsm52kSreG84HK7r3Z8TIuGNdTs7VCwHC3OS04
 
