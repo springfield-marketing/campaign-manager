@@ -2,9 +2,11 @@
 
 namespace App\Console\Commands;
 
+use App\Modules\WhatsApp\Models\WhatsAppSettings;
 use App\Modules\WhatsApp\Support\WhatsAppBatchProfileUpdater;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 class ReanalyseWhatsAppNumbers extends Command
 {
@@ -25,6 +27,16 @@ class ReanalyseWhatsAppNumbers extends Command
             return self::SUCCESS;
         }
 
+        // Track run state so a failed/partial run is visible (in the WhatsApp Settings page
+        // widget) instead of silently leaving stale usage_status/cooldown data behind.
+        $settings  = WhatsAppSettings::current();
+        $startedAt = now();
+        $settings->update([
+            'reanalysis_status'       => 'running',
+            'reanalysis_started_at'   => $startedAt,
+            'reanalysis_completed_at' => null,
+        ]);
+
         $this->info("Processing {$total} numbers…");
         $bar   = $this->output->createProgressBar($total);
         $bar->start();
@@ -33,25 +45,47 @@ class ReanalyseWhatsAppNumbers extends Command
         $done   = 0;
         $lastId = 0;
 
-        do {
-            $ids = DB::table('whatsapp_messages')
-                ->whereNotNull('client_phone_number_id')
-                ->where('client_phone_number_id', '>', $lastId)
-                ->groupBy('client_phone_number_id')
-                ->orderBy('client_phone_number_id')
-                ->limit($chunk)
-                ->pluck('client_phone_number_id');
+        try {
+            do {
+                $ids = DB::table('whatsapp_messages')
+                    ->whereNotNull('client_phone_number_id')
+                    ->where('client_phone_number_id', '>', $lastId)
+                    ->groupBy('client_phone_number_id')
+                    ->orderBy('client_phone_number_id')
+                    ->limit($chunk)
+                    ->pluck('client_phone_number_id');
 
-            if ($ids->isNotEmpty()) {
-                $updater->run($ids->all());
-                $done  += $ids->count();
-                $lastId = $ids->last();
-                $bar->advance($ids->count());
-            }
-        } while ($ids->count() === $chunk);
+                if ($ids->isNotEmpty()) {
+                    $updater->run($ids->all());
+                    $done  += $ids->count();
+                    $lastId = $ids->last();
+                    $bar->advance($ids->count());
+                }
+            } while ($ids->count() === $chunk);
+        } catch (Throwable $e) {
+            $settings->update([
+                'reanalysis_status'       => 'failed',
+                'reanalysis_completed_at' => now(),
+            ]);
+
+            $this->newLine();
+            $this->error("Reanalysis failed after {$done} numbers: {$e->getMessage()}");
+
+            // Re-throw so the command exits non-zero with a stack trace — a broken run must be
+            // loud, not silent.
+            throw $e;
+        }
 
         $bar->finish();
         $this->newLine();
+
+        $completedAt = now();
+        $settings->update([
+            'reanalysis_status'         => 'completed',
+            'reanalysis_completed_at'   => $completedAt,
+            'last_run_duration_seconds' => (int) abs($completedAt->diffInSeconds($startedAt)),
+        ]);
+
         $this->info("Done. Processed {$done} numbers.");
 
         return self::SUCCESS;
