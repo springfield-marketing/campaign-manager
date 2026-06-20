@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict Wm55lnVA7cYSeZs3dSC5HkyCdY7V2tgrma323kU1hghHPMd5y22NntCcjirZxPM
+\restrict TskTgW3aH7iDUYpr8jLvvK3r9GMjgymHt7eLfLiVH5Pk8CFe5nhNOipFNpo8hcL
 
 -- Dumped from database version 18.3 (Homebrew)
 -- Dumped by pg_dump version 18.3 (Homebrew)
@@ -1242,6 +1242,22 @@ ALTER SEQUENCE public.migrations_id_seq OWNED BY public.migrations.id;
 
 
 --
+-- Name: notifications; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.notifications (
+    id uuid NOT NULL,
+    type character varying(255) NOT NULL,
+    notifiable_type character varying(255) NOT NULL,
+    notifiable_id bigint NOT NULL,
+    data text NOT NULL,
+    read_at timestamp(0) without time zone,
+    created_at timestamp(0) without time zone,
+    updated_at timestamp(0) without time zone
+);
+
+
+--
 -- Name: official_areas; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -2403,6 +2419,14 @@ ALTER TABLE ONLY public.migrations
 
 
 --
+-- Name: notifications notifications_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.notifications
+    ADD CONSTRAINT notifications_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: official_areas official_areas_emirate_area_name_en_unique; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3107,6 +3131,13 @@ CREATE INDEX marketing_areas_is_active_index ON public.marketing_areas USING btr
 
 
 --
+-- Name: notifications_notifiable_type_notifiable_id_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX notifications_notifiable_type_notifiable_id_index ON public.notifications USING btree (notifiable_type, notifiable_id);
+
+
+--
 -- Name: official_areas_emirate_index; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3704,13 +3735,13 @@ ALTER TABLE ONLY public.whatsapp_phone_profiles
 -- PostgreSQL database dump complete
 --
 
-\unrestrict Wm55lnVA7cYSeZs3dSC5HkyCdY7V2tgrma323kU1hghHPMd5y22NntCcjirZxPM
+\unrestrict TskTgW3aH7iDUYpr8jLvvK3r9GMjgymHt7eLfLiVH5Pk8CFe5nhNOipFNpo8hcL
 
 --
 -- PostgreSQL database dump
 --
 
-\restrict FZChdobpfospoeYujLaaCKTV5LDkwD9HvKQEftjHfICy0LrWGDTa1o1zowUvTDh
+\restrict FDRwJgU9bCOXkllX3LElj8ZtdprgTpkd4LvFR9mG5pis6nw7usKoOB2JX8IKDb0
 
 -- Dumped from database version 18.3 (Homebrew)
 -- Dumped by pg_dump version 18.3 (Homebrew)
@@ -3830,6 +3861,7 @@ COPY public.migrations (id, migration, batch) FROM stdin;
 99	2026_06_20_000000_drop_import_review_queue_table	69
 100	2026_06_20_010000_add_is_institution_to_clients	70
 101	2026_06_20_020000_add_reentered_while_suppressed_at_to_client_phone_numbers	71
+102	2026_06_20_030000_create_notifications_table	72
 \.
 
 
@@ -3837,12 +3869,12 @@ COPY public.migrations (id, migration, batch) FROM stdin;
 -- Name: migrations_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.migrations_id_seq', 101, true);
+SELECT pg_catalog.setval('public.migrations_id_seq', 102, true);
 
 
 --
 -- PostgreSQL database dump complete
 --
 
-\unrestrict FZChdobpfospoeYujLaaCKTV5LDkwD9HvKQEftjHfICy0LrWGDTa1o1zowUvTDh
+\unrestrict FDRwJgU9bCOXkllX3LElj8ZtdprgTpkd4LvFR9mG5pis6nw7usKoOB2JX8IKDb0
 

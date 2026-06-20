@@ -62,6 +62,14 @@ class IvrBudgetWidget extends StatsOverviewWidget
                 ->color($overQuota ? 'danger' : null)
                 ->description($budget['remaining_working_days'] . ' working days left')
                 ->extraAttributes(['x-tooltip.raw' => 'Remaining quota minutes divided by remaining working days (Sunday–Thursday) — the daily target to use up the quota evenly without going over.']),
+
+            Stat::make('Projected (month end)', number_format($budget['projected_minutes']) . ' min')
+                ->icon('heroicon-o-arrow-trending-up')
+                ->color($budget['projected_over_quota'] ? 'danger' : 'success')
+                ->description($budget['projected_over_quota']
+                    ? 'On pace to exceed quota by ' . number_format($budget['projected_overage']) . ' min'
+                    : 'On pace to stay within quota')
+                ->extraAttributes(['x-tooltip.raw' => 'Current usage extrapolated over the whole month\'s working days. If this exceeds the quota, the run-rate is too high and a budget alert is raised.']),
         ];
     }
 }

@@ -85,24 +85,42 @@ class IvrReportData
         $remaining = max(0, $quota - $minutesUsed);
         $workingDays = $this->remainingWorkingDays();
 
+        // Month-end projection: extrapolate the current burn rate over the whole month's working
+        // days, so we can warn when the run-rate is on pace to blow past the quota.
+        $totalWorkingDays = $this->workingDaysBetween(now()->copy()->startOfMonth(), now()->copy()->endOfMonth());
+        $elapsedWorkingDays = $this->workingDaysBetween(now()->copy()->startOfMonth(), now());
+        $projected = $elapsedWorkingDays > 0
+            ? (int) round($minutesUsed / $elapsedWorkingDays * $totalWorkingDays)
+            : $minutesUsed;
+
         return [
             'minutes_quota' => $quota,
             'minutes_used' => $minutesUsed,
             'minutes_remaining' => $remaining,
             'remaining_working_days' => $workingDays,
             'minutes_per_day' => $workingDays > 0 ? round($remaining / $workingDays) : 0,
+            'projected_minutes' => $projected,
+            'projected_over_quota' => $projected > $quota,
+            'projected_overage' => max(0, $projected - $quota),
         ];
     }
 
     private function remainingWorkingDays(): int
     {
-        $today = now()->startOfDay();
-        $endOfMonth = now()->endOfMonth()->startOfDay();
+        return $this->workingDaysBetween(now(), now()->copy()->endOfMonth());
+    }
+
+    /**
+     * Count UAE working days (Sunday–Thursday; Friday/Saturday are the weekend) in the
+     * inclusive [$start, $end] date range.
+     */
+    private function workingDaysBetween(Carbon $start, Carbon $end): int
+    {
+        $current = $start->copy()->startOfDay();
+        $last = $end->copy()->startOfDay();
         $count = 0;
 
-        $current = $today->copy();
-        while ($current->lte($endOfMonth)) {
-            // UAE working week is Sunday–Thursday; Friday and Saturday are the weekend.
+        while ($current->lte($last)) {
             if (! in_array($current->dayOfWeek, [Carbon::FRIDAY, Carbon::SATURDAY], true)) {
                 $count++;
             }

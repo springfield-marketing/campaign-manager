@@ -17,3 +17,9 @@ Schedule::command('clients:audit-data-quality')
     ->weeklyOn(1, '07:00')
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/data-quality-audit.log'));
+
+// Daily IVR budget check — raises an admin notification when this month's spend is
+// projected (current burn rate × working days) to exceed the monthly minute quota.
+Schedule::command('ivr:check-budget')
+    ->dailyAt('08:00')
+    ->withoutOverlapping();
