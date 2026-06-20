@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict TskTgW3aH7iDUYpr8jLvvK3r9GMjgymHt7eLfLiVH5Pk8CFe5nhNOipFNpo8hcL
+\restrict 1sA0uYUdunsV9LmB5MxRKMFkJeuOrPBYQ7WXUeEa6vQhagfikUFkQkw3daItW3n
 
 -- Dumped from database version 18.3 (Homebrew)
 -- Dumped by pg_dump version 18.3 (Homebrew)
@@ -1250,7 +1250,7 @@ CREATE TABLE public.notifications (
     type character varying(255) NOT NULL,
     notifiable_type character varying(255) NOT NULL,
     notifiable_id bigint NOT NULL,
-    data text NOT NULL,
+    data json NOT NULL,
     read_at timestamp(0) without time zone,
     created_at timestamp(0) without time zone,
     updated_at timestamp(0) without time zone
@@ -3735,13 +3735,13 @@ ALTER TABLE ONLY public.whatsapp_phone_profiles
 -- PostgreSQL database dump complete
 --
 
-\unrestrict TskTgW3aH7iDUYpr8jLvvK3r9GMjgymHt7eLfLiVH5Pk8CFe5nhNOipFNpo8hcL
+\unrestrict 1sA0uYUdunsV9LmB5MxRKMFkJeuOrPBYQ7WXUeEa6vQhagfikUFkQkw3daItW3n
 
 --
 -- PostgreSQL database dump
 --
 
-\restrict FDRwJgU9bCOXkllX3LElj8ZtdprgTpkd4LvFR9mG5pis6nw7usKoOB2JX8IKDb0
+\restrict D9wlKaUirj9NUeE5p4RWCwGjUetajlGkxrUtcLuwzfbi8DnCiaTlhEFPCfXcTAW
 
 -- Dumped from database version 18.3 (Homebrew)
 -- Dumped by pg_dump version 18.3 (Homebrew)
@@ -3862,6 +3862,7 @@ COPY public.migrations (id, migration, batch) FROM stdin;
 100	2026_06_20_010000_add_is_institution_to_clients	70
 101	2026_06_20_020000_add_reentered_while_suppressed_at_to_client_phone_numbers	71
 102	2026_06_20_030000_create_notifications_table	72
+103	2026_06_20_040000_change_notifications_data_to_json	73
 \.
 
 
@@ -3869,12 +3870,12 @@ COPY public.migrations (id, migration, batch) FROM stdin;
 -- Name: migrations_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.migrations_id_seq', 102, true);
+SELECT pg_catalog.setval('public.migrations_id_seq', 103, true);
 
 
 --
 -- PostgreSQL database dump complete
 --
 
-\unrestrict FDRwJgU9bCOXkllX3LElj8ZtdprgTpkd4LvFR9mG5pis6nw7usKoOB2JX8IKDb0
+\unrestrict D9wlKaUirj9NUeE5p4RWCwGjUetajlGkxrUtcLuwzfbi8DnCiaTlhEFPCfXcTAW
 
