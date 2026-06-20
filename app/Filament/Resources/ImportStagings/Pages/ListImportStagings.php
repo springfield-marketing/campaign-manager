@@ -10,6 +10,7 @@ use App\Modules\IVR\Enums\IvrImportType;
 use App\Modules\IVR\Jobs\ProcessRawIvrImport;
 use App\Modules\IVR\Jobs\PromoteStagingContactsJob;
 use App\Modules\IVR\Models\IvrImport;
+use App\Modules\IVR\Support\ImportDryRunAnalyzer;
 use Filament\Actions\Action;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
@@ -86,6 +87,67 @@ class ListImportStagings extends ListRecords
                 ->modalHeading('Promote Staged Rows to Contacts')
                 ->modalSubmitActionLabel('Promote')
                 ->visible(fn () => ImportStaging::where('status', ImportStaging::STATUS_NEEDS_REVIEW)->exists()),
+
+            // Pre-call dry run: analyse a CSV (read-only) and report how many numbers are
+            // duplicates / already on file / on the Do-Not-Call list / resting in cooldown,
+            // BEFORE committing — so you don't pay to call numbers you shouldn't.
+            Action::make('preview_contacts')
+                ->label('Preview (dry run)')
+                ->icon('heroicon-o-magnifying-glass')
+                ->color('gray')
+                ->form([
+                    FileUpload::make('file')
+                        ->label('CSV File')
+                        ->required()
+                        ->disk('local')
+                        ->directory('ivr/imports/raw/tmp')
+                        ->preserveFilenames()
+                        ->acceptedFileTypes(['text/csv', 'text/plain', 'application/csv'])
+                        ->maxSize(262144),
+                ])
+                ->action(function (array $data): void {
+                    $tmpPath = is_array($data['file']) ? ($data['file'][0] ?? '') : ($data['file'] ?? '');
+
+                    if (! $tmpPath || ! Storage::disk('local')->exists($tmpPath)) {
+                        Notification::make()->title('No file selected.')->danger()->send();
+
+                        return;
+                    }
+
+                    try {
+                        $result = app(ImportDryRunAnalyzer::class)
+                            ->analyze(Storage::disk('local')->path($tmpPath));
+                    } catch (\Throwable $e) {
+                        Notification::make()->title('Could not read the file.')->body($e->getMessage())->danger()->send();
+                        Storage::disk('local')->delete($tmpPath);
+
+                        return;
+                    } finally {
+                        // The dry run never imports; drop the temp file so it isn't left behind.
+                        Storage::disk('local')->delete($tmpPath);
+                    }
+
+                    if (! $result['ok']) {
+                        Notification::make()
+                            ->title('Missing required columns')
+                            ->body('The file is missing: '.implode(', ', $result['missing_columns']))
+                            ->danger()
+                            ->send();
+
+                        return;
+                    }
+
+                    Notification::make()
+                        ->title('Dry run — nothing imported')
+                        ->body(new HtmlString(self::dryRunSummaryHtml($result)))
+                        ->info()
+                        ->persistent()
+                        ->send();
+                })
+                ->modalHeading('Preview a contacts CSV (dry run)')
+                ->modalDescription('Analyses the file without importing, so you can see how many numbers are duplicates, already on file, on the Do-Not-Call list, or resting in cooldown.')
+                ->modalSubmitActionLabel('Analyse')
+                ->modalWidth('xl'),
 
             Action::make('upload_contacts')
                 ->label('Upload Contacts')
@@ -168,6 +230,33 @@ class ListImportStagings extends ListRecords
                 ->modalSubmitActionLabel('Upload & Import')
                 ->modalWidth('2xl'),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $r
+     */
+    private static function dryRunSummaryHtml(array $r): string
+    {
+        $scope = $r['sampled']
+            ? "first <strong>".number_format($r['analyzed'])."</strong> rows (file is larger — counts are a sample)"
+            : "<strong>".number_format($r['analyzed'])."</strong> rows";
+
+        $line = fn (string $label, int $n, string $note): string =>
+            "<tr><td style='padding:2px 10px 2px 0;font-size:12px;color:#374151'>{$label}</td>".
+            "<td style='padding:2px 10px 2px 0;font-size:12px;font-weight:700;text-align:right'>".number_format($n)."</td>".
+            "<td style='padding:2px 0;font-size:11px;color:#6b7280'>{$note}</td></tr>";
+
+        return "<div style='font-size:13px;line-height:1.5'>"
+            ."<p style='margin-bottom:6px;color:#374151'>Analysed {$scope}.</p>"
+            ."<table style='border-collapse:collapse'><tbody>"
+            .$line('With a usable phone', $r['with_phone'], 'rows with a normalisable number')
+            .$line('Name-only', $r['name_only'], 'no phone — would be staged for review')
+            .$line('Duplicate in file', $r['file_duplicates'], 'same number repeated within the file')
+            .$line('Already on file', $r['existing'], 'number already a contact')
+            .$line('On Do-Not-Call list', $r['suppressed'], 'suppressed — should not be called')
+            .$line('Resting (cooldown)', $r['in_cooldown'], 'recently called, not callable yet')
+            .$line('New & callable', $r['fresh'], 'not seen before')
+            ."</tbody></table></div>";
     }
 
     private static function batchLabel(string $batchId): string
