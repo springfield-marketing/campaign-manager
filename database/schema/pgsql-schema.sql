@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict UvofWCd3FP6wbyr0piMG5mkbG3YDHJWbip2ljqJIlLjcoNdy5I22Yd6NUV3LO7W
+\restrict yKMfF1lFnMgtq0oHUzmIJUMp8vM2kEVkXcw3pjIRy5u9cFgz3RGXxLzHYPbxPZi
 
 -- Dumped from database version 18.3 (Homebrew)
 -- Dumped by pg_dump version 18.3 (Homebrew)
@@ -756,58 +756,6 @@ CREATE SEQUENCE public.failed_jobs_id_seq
 --
 
 ALTER SEQUENCE public.failed_jobs_id_seq OWNED BY public.failed_jobs.id;
-
-
---
--- Name: import_review_queue; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.import_review_queue (
-    id bigint NOT NULL,
-    batch_id character varying(255) NOT NULL,
-    staging_id bigint NOT NULL,
-    name character varying(255),
-    phone character varying(255),
-    email character varying(255),
-    emirate character varying(255),
-    raw_official_area character varying(255),
-    raw_marketing_area character varying(255),
-    raw_project_name character varying(255),
-    raw_building_name character varying(255),
-    raw_unit_reference character varying(255),
-    relationship_type character varying(255),
-    confidence_level character varying(255),
-    source character varying(255),
-    suggested_official_area_id bigint,
-    suggested_marketing_area_id bigint,
-    suggested_project_id bigint,
-    suggested_building_id bigint,
-    issue_reason character varying(255) NOT NULL,
-    resolution character varying(255) DEFAULT 'pending'::character varying NOT NULL,
-    resolved_by bigint,
-    resolved_at timestamp(0) without time zone,
-    created_at timestamp(0) without time zone,
-    updated_at timestamp(0) without time zone
-);
-
-
---
--- Name: import_review_queue_id_seq; Type: SEQUENCE; Schema: public; Owner: -
---
-
-CREATE SEQUENCE public.import_review_queue_id_seq
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
---
--- Name: import_review_queue_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
---
-
-ALTER SEQUENCE public.import_review_queue_id_seq OWNED BY public.import_review_queue.id;
 
 
 --
@@ -1936,13 +1884,6 @@ ALTER TABLE ONLY public.failed_jobs ALTER COLUMN id SET DEFAULT nextval('public.
 
 
 --
--- Name: import_review_queue id; Type: DEFAULT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.import_review_queue ALTER COLUMN id SET DEFAULT nextval('public.import_review_queue_id_seq'::regclass);
-
-
---
 -- Name: import_staging id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -2289,14 +2230,6 @@ ALTER TABLE ONLY public.failed_jobs
 
 ALTER TABLE ONLY public.failed_jobs
     ADD CONSTRAINT failed_jobs_uuid_unique UNIQUE (uuid);
-
-
---
--- Name: import_review_queue import_review_queue_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.import_review_queue
-    ADD CONSTRAINT import_review_queue_pkey PRIMARY KEY (id);
 
 
 --
@@ -3039,27 +2972,6 @@ CREATE INDEX contact_suppressions_suppressed_at_index ON public.contact_suppress
 
 
 --
--- Name: import_review_queue_batch_id_index; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX import_review_queue_batch_id_index ON public.import_review_queue USING btree (batch_id);
-
-
---
--- Name: import_review_queue_batch_id_resolution_index; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX import_review_queue_batch_id_resolution_index ON public.import_review_queue USING btree (batch_id, resolution);
-
-
---
--- Name: import_review_queue_resolution_index; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX import_review_queue_resolution_index ON public.import_review_queue USING btree (resolution);
-
-
---
 -- Name: import_staging_batch_id_index; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3509,54 +3421,6 @@ ALTER TABLE ONLY public.contact_suppressions
 
 
 --
--- Name: import_review_queue import_review_queue_resolved_by_foreign; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.import_review_queue
-    ADD CONSTRAINT import_review_queue_resolved_by_foreign FOREIGN KEY (resolved_by) REFERENCES public.users(id) ON DELETE SET NULL;
-
-
---
--- Name: import_review_queue import_review_queue_staging_id_foreign; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.import_review_queue
-    ADD CONSTRAINT import_review_queue_staging_id_foreign FOREIGN KEY (staging_id) REFERENCES public.import_staging(id) ON DELETE CASCADE;
-
-
---
--- Name: import_review_queue import_review_queue_suggested_building_id_foreign; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.import_review_queue
-    ADD CONSTRAINT import_review_queue_suggested_building_id_foreign FOREIGN KEY (suggested_building_id) REFERENCES public.buildings(id) ON DELETE SET NULL;
-
-
---
--- Name: import_review_queue import_review_queue_suggested_marketing_area_id_foreign; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.import_review_queue
-    ADD CONSTRAINT import_review_queue_suggested_marketing_area_id_foreign FOREIGN KEY (suggested_marketing_area_id) REFERENCES public.marketing_areas(id) ON DELETE SET NULL;
-
-
---
--- Name: import_review_queue import_review_queue_suggested_official_area_id_foreign; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.import_review_queue
-    ADD CONSTRAINT import_review_queue_suggested_official_area_id_foreign FOREIGN KEY (suggested_official_area_id) REFERENCES public.official_areas(id) ON DELETE SET NULL;
-
-
---
--- Name: import_review_queue import_review_queue_suggested_project_id_foreign; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.import_review_queue
-    ADD CONSTRAINT import_review_queue_suggested_project_id_foreign FOREIGN KEY (suggested_project_id) REFERENCES public.projects(id) ON DELETE SET NULL;
-
-
---
 -- Name: import_staging import_staging_building_id_foreign; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3824,13 +3688,13 @@ ALTER TABLE ONLY public.whatsapp_phone_profiles
 -- PostgreSQL database dump complete
 --
 
-\unrestrict UvofWCd3FP6wbyr0piMG5mkbG3YDHJWbip2ljqJIlLjcoNdy5I22Yd6NUV3LO7W
+\unrestrict yKMfF1lFnMgtq0oHUzmIJUMp8vM2kEVkXcw3pjIRy5u9cFgz3RGXxLzHYPbxPZi
 
 --
 -- PostgreSQL database dump
 --
 
-\restrict RrXSJZH4EYeCwx6Xvs6Q2moUMoEXGsw5aimTEAQ0TmDZxga2J68V1yJeBrYg5EV
+\restrict VgpD9cVDbDbVEqoBhpiYzGocsi2NccRqt4bUme7Z5m0xnAuL7uFU0dQ4mlXSeBX
 
 -- Dumped from database version 18.3 (Homebrew)
 -- Dumped by pg_dump version 18.3 (Homebrew)
@@ -3947,6 +3811,7 @@ COPY public.migrations (id, migration, batch) FROM stdin;
 96	2026_06_19_000500_add_full_name_index_to_clients	66
 97	2026_06_19_000600_add_sort_indexes_for_filament_tables	67
 98	2026_06_19_000700_add_trigram_search_indexes	68
+99	2026_06_20_000000_drop_import_review_queue_table	69
 \.
 
 
@@ -3954,12 +3819,12 @@ COPY public.migrations (id, migration, batch) FROM stdin;
 -- Name: migrations_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.migrations_id_seq', 98, true);
+SELECT pg_catalog.setval('public.migrations_id_seq', 99, true);
 
 
 --
 -- PostgreSQL database dump complete
 --
 
-\unrestrict RrXSJZH4EYeCwx6Xvs6Q2moUMoEXGsw5aimTEAQ0TmDZxga2J68V1yJeBrYg5EV
+\unrestrict VgpD9cVDbDbVEqoBhpiYzGocsi2NccRqt4bUme7Z5m0xnAuL7uFU0dQ4mlXSeBX
 

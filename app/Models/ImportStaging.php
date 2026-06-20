@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class ImportStaging extends Model
 {
@@ -56,11 +55,6 @@ class ImportStaging extends Model
     public function building(): BelongsTo
     {
         return $this->belongsTo(Building::class);
-    }
-
-    public function reviewItem(): HasOne
-    {
-        return $this->hasOne(ImportReviewQueue::class, 'staging_id');
     }
 
     public function scopePending(\Illuminate\Database\Eloquent\Builder $query): void
