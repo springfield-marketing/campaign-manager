@@ -16,6 +16,7 @@ use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\FiltersLayout;
+use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -88,6 +89,12 @@ class IvrNumbersTable
                     ->getStateUsing(fn (ClientPhoneNumber $record): string => self::activeSuppressionReason($record))
                     ->badge()
                     ->color('danger')
+                    ->placeholder('—')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                TextColumn::make('reentered_while_suppressed_at')
+                    ->label('DNC Re-entry')
+                    ->dateTime('d M Y')
                     ->placeholder('—')
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
@@ -208,6 +215,12 @@ class IvrNumbersTable
                         'new'    => $query->whereDoesntHave('ivrCallRecords'),
                         default  => $query,
                     }),
+
+                // Re-entry audit: numbers re-imported in a raw list AFTER being put on the
+                // Do-Not-Call list. They stay suppressed/uncallable; this just surfaces them.
+                Filter::make('dnc_reentry')
+                    ->label('Re-entered after Do Not Call')
+                    ->query(fn (Builder $query): Builder => $query->whereNotNull('reentered_while_suppressed_at')),
             ])
             ->filtersLayout(FiltersLayout::AboveContentCollapsible)
             ->filtersFormColumns(3)

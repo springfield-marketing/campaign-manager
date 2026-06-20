@@ -90,6 +90,14 @@ class IvrImportsTable
                     ->numeric()
                     ->color('gray'),
 
+                // Numbers re-introduced while already on the Do-Not-Call list (re-entry audit).
+                TextColumn::make('summary.suppressed_reentry_rows')
+                    ->label('DNC re-hits')
+                    ->badge()
+                    ->color(fn ($state): string => (int) $state > 0 ? 'warning' : 'gray')
+                    ->formatStateUsing(fn ($state): string => (string) ((int) $state))
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 TextColumn::make('completed_at')
                     ->label('Completed')
                     ->dateTime('d M H:i')

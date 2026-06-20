@@ -98,6 +98,9 @@ class RawImportProcessor
     /** @var array<string, true> Normalized phones seen earlier in this import */
     private array $seenPhones = [];
 
+    /** @var array<int, true> phone ids re-imported while on the DNC list (IMP — re-entry audit) */
+    private array $reenteredSuppressedPhoneIds = [];
+
     public function __construct(
         private readonly RawImportColumnMapper $mapper,
         private readonly PhoneNormalizer $phoneNormalizer,
@@ -157,6 +160,7 @@ class RawImportProcessor
             $rowNumber = 1;
             $sourceFallback = $import->source_name ?: pathinfo($import->original_file_name, PATHINFO_FILENAME);
             $this->seenPhones = [];
+            $this->reenteredSuppressedPhoneIds = [];
             $chunk = [];
 
             while (! $file->eof()) {
@@ -217,6 +221,7 @@ class RawImportProcessor
                     'mapped_columns' => array_keys($mapping['mapped']),
                     'staged_rows' => $staged,
                     'staging_batch_id' => $staged > 0 ? $batchId : null,
+                    'suppressed_reentry_rows' => count($this->reenteredSuppressedPhoneIds),
                 ],
             ]);
 
@@ -396,6 +401,7 @@ class RawImportProcessor
             $this->syncRelationshipTags($items);
             $this->syncOwnerships($items);
             $this->insertSources($items, $import);
+            $this->flagSuppressedReentries($items);
         }
 
         $this->insertRows('ivr_import_errors', $errors);
@@ -415,6 +421,49 @@ class RawImportProcessor
             'duplicates' => $duplicates,
             'staged' => $staged,
         ];
+    }
+
+    /**
+     * Re-entry detection: a raw import re-introducing a number that is already on the IVR
+     * Do-Not-Call list (active suppression). Eligibility already keeps these off call lists;
+     * this stamps them so an operator can audit "previously-suppressed numbers came back in a
+     * new list" (filterable on the Numbers page). Distinct phone ids are accumulated across
+     * chunks so the import summary reports a real count.
+     *
+     * @param  array<int, array<string, mixed>>  $items
+     */
+    private function flagSuppressedReentries(array $items): void
+    {
+        $phoneIds = [];
+        foreach ($items as $item) {
+            if ($item['phone_id'] ?? null) {
+                $phoneIds[(int) $item['phone_id']] = true;
+            }
+        }
+
+        if ($phoneIds === []) {
+            return;
+        }
+
+        $suppressedIds = DB::table('contact_suppressions')
+            ->whereIn('client_phone_number_id', array_keys($phoneIds))
+            ->whereNull('released_at')
+            ->where(fn ($q) => $q->whereNull('channel')->orWhere('channel', 'ivr'))
+            ->distinct()
+            ->pluck('client_phone_number_id')
+            ->all();
+
+        if ($suppressedIds === []) {
+            return;
+        }
+
+        DB::table('client_phone_numbers')
+            ->whereIn('id', $suppressedIds)
+            ->update(['reentered_while_suppressed_at' => now()->toDateTimeString()]);
+
+        foreach ($suppressedIds as $id) {
+            $this->reenteredSuppressedPhoneIds[(int) $id] = true;
+        }
     }
 
     private function makeStagingRow(array $payload, string $batchId, string $sourceName): array

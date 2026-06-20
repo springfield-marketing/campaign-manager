@@ -49,6 +49,7 @@ class ClientPhoneNumber extends Model
             'priority' => 'integer',
             'last_imported_at' => 'datetime',
             'unsubscribed_at' => 'datetime',
+            'reentered_while_suppressed_at' => 'datetime',
             'metadata' => 'array',
         ];
     }

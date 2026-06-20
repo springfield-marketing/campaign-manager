@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict FqYymLrslTc75TWLTNYzBp8nTZd5dR2dA9MCmUxUnoGXSHE6fEf6jPJTCxChHJV
+\restrict Wm55lnVA7cYSeZs3dSC5HkyCdY7V2tgrma323kU1hghHPMd5y22NntCcjirZxPM
 
 -- Dumped from database version 18.3 (Homebrew)
 -- Dumped by pg_dump version 18.3 (Homebrew)
@@ -249,6 +249,7 @@ CREATE TABLE public.client_phone_numbers (
     is_shared_line boolean DEFAULT false NOT NULL,
     shared_line_note character varying(255),
     is_ivr boolean DEFAULT false NOT NULL,
+    reentered_while_suppressed_at timestamp(0) without time zone,
     CONSTRAINT client_phone_numbers_format_check CHECK ((((verification_status)::text <> 'unverified'::text) OR (((normalized_phone)::text ~ '^\+?[0-9]{9,15}$'::text) AND ("right"(regexp_replace((normalized_phone)::text, '\D'::text, ''::text, 'g'::text), 9) !~ '0{6,}$'::text) AND ("right"(regexp_replace((normalized_phone)::text, '\D'::text, ''::text, 'g'::text), 9) !~ '(.)\1{5,}'::text) AND ("right"(regexp_replace((normalized_phone)::text, '\D'::text, ''::text, 'g'::text), 9) !~ '(0123456|1234567|2345678|3456789|9876543|8765432|7654321|6543210|01234567|12345678|23456789|98765432|87654321|76543210|012345678|123456789|987654321|876543210)$'::text)))),
     CONSTRAINT client_phone_numbers_verification_status_check CHECK (((verification_status)::text = ANY ((ARRAY['unverified'::character varying, 'verified'::character varying, 'invalid'::character varying])::text[])))
 );
@@ -2819,6 +2820,13 @@ CREATE INDEX client_phone_numbers_raw_phone_trgm_index ON public.client_phone_nu
 
 
 --
+-- Name: client_phone_numbers_reentered_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX client_phone_numbers_reentered_idx ON public.client_phone_numbers USING btree (reentered_while_suppressed_at) WHERE (reentered_while_suppressed_at IS NOT NULL);
+
+
+--
 -- Name: client_phone_numbers_verification_status_index; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3696,13 +3704,13 @@ ALTER TABLE ONLY public.whatsapp_phone_profiles
 -- PostgreSQL database dump complete
 --
 
-\unrestrict FqYymLrslTc75TWLTNYzBp8nTZd5dR2dA9MCmUxUnoGXSHE6fEf6jPJTCxChHJV
+\unrestrict Wm55lnVA7cYSeZs3dSC5HkyCdY7V2tgrma323kU1hghHPMd5y22NntCcjirZxPM
 
 --
 -- PostgreSQL database dump
 --
 
-\restrict LpKUMIz2Is9CfRvymQSg9ebj5WQ49cKKXdkGpdzUGJUHccEaMMGRAWQzvjdMteQ
+\restrict FZChdobpfospoeYujLaaCKTV5LDkwD9HvKQEftjHfICy0LrWGDTa1o1zowUvTDh
 
 -- Dumped from database version 18.3 (Homebrew)
 -- Dumped by pg_dump version 18.3 (Homebrew)
@@ -3821,6 +3829,7 @@ COPY public.migrations (id, migration, batch) FROM stdin;
 98	2026_06_19_000700_add_trigram_search_indexes	68
 99	2026_06_20_000000_drop_import_review_queue_table	69
 100	2026_06_20_010000_add_is_institution_to_clients	70
+101	2026_06_20_020000_add_reentered_while_suppressed_at_to_client_phone_numbers	71
 \.
 
 
@@ -3828,12 +3837,12 @@ COPY public.migrations (id, migration, batch) FROM stdin;
 -- Name: migrations_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.migrations_id_seq', 100, true);
+SELECT pg_catalog.setval('public.migrations_id_seq', 101, true);
 
 
 --
 -- PostgreSQL database dump complete
 --
 
-\unrestrict LpKUMIz2Is9CfRvymQSg9ebj5WQ49cKKXdkGpdzUGJUHccEaMMGRAWQzvjdMteQ
+\unrestrict FZChdobpfospoeYujLaaCKTV5LDkwD9HvKQEftjHfICy0LrWGDTa1o1zowUvTDh
 
