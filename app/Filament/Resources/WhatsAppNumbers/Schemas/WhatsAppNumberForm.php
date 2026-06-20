@@ -96,6 +96,11 @@ class WhatsAppNumberForm
                             }
                         ),
 
+                    Placeholder::make('wa_health')
+                        ->label('Why this status')
+                        ->columnSpanFull()
+                        ->content(fn (ClientPhoneNumber $record): string => self::healthExplanation($record)),
+
                     Placeholder::make('wa_cooldown_until')
                         ->label('Cooldown Until')
                         ->content(fn (ClientPhoneNumber $record): string =>
@@ -136,6 +141,32 @@ class WhatsAppNumberForm
                         ),
                 ]),
         ]);
+    }
+
+    /**
+     * Plain-language reason for the number's current WhatsApp health status, so the operator
+     * isn't guessing why a number is resting/quarantined/dead. Mirrors the rules in
+     * WhatsAppBatchProfileUpdater.
+     */
+    private static function healthExplanation(ClientPhoneNumber $record): string
+    {
+        $profile = $record->whatsAppProfile;
+
+        if (! $profile) {
+            return 'Never messaged — eligible to message.';
+        }
+
+        return match ($profile->usage_status) {
+            'active' => 'Healthy — eligible to message.',
+            'cooldown' => 'Resting until '.($profile->cooldown_until?->format('d M Y') ?? '—')
+                .' (last messaged '.($profile->last_messaged_at?->format('d M Y') ?? '—').').',
+            'quarantine' => 'Quarantine — messaged '.$record->whatsAppMessages()->count().'× but never delivered. Parked for manual review.',
+            'dead' => $profile->manually_dead
+                ? 'Dead — manually marked. Use Revive to reconsider.'
+                : 'Dead — '.$profile->consecutive_hard_fail_count.' consecutive hard failures, never read.'
+                    .($profile->last_failure_reason ? ' Last failure: '.$profile->last_failure_reason : ''),
+            default => ucfirst((string) $profile->usage_status),
+        };
     }
 
     private static function activeWhatsAppSuppression(ClientPhoneNumber $record): ?ContactSuppression

@@ -334,6 +334,16 @@ class WhatsAppNumbersTable
                                 ->whereNull('contact_suppressions.released_at')
                         )
                     ),
+
+                // Recovery: numbers marked dead that nonetheless have a successful delivery on
+                // record (delivered/read/replied) — a real, reachable person. Review and revive
+                // these instead of leaving contactable numbers unused.
+                Filter::make('dead_but_reachable')
+                    ->label('Dead but reachable (recoverable)')
+                    ->query(fn (Builder $query): Builder => $query
+                        ->whereHas('whatsAppProfile', fn ($p) => $p->where('usage_status', 'dead'))
+                        ->whereHas('whatsAppMessages', fn ($m) => $m->whereIn('delivery_status', ['DELIVERED', 'READ', 'REPLIED']))
+                    ),
             ])
             ->filtersLayout(FiltersLayout::AboveContentCollapsible)
             ->filtersFormColumns(3)
