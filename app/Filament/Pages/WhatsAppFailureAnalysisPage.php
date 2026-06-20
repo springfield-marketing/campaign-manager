@@ -27,20 +27,21 @@ class WhatsAppFailureAnalysisPage extends Page implements HasTable
 
     protected function table(Table $table): Table
     {
+        // One row per distinct failure reason among FAILED messages, with how many messages and
+        // how many distinct numbers it hit. Wrapped in a subquery so MIN(id) becomes a real `id`
+        // column — otherwise Filament's primary-key pagination tiebreaker breaks the GROUP BY.
+        $aggregate = WhatsAppMessage::query()
+            ->where('delivery_status', 'FAILED')
+            ->whereNotNull('failure_reason')
+            ->where('failure_reason', '<>', '')
+            ->groupBy('failure_reason')
+            ->selectRaw('MIN(id) as id')
+            ->selectRaw('failure_reason')
+            ->selectRaw('count(*) as failures')
+            ->selectRaw('count(distinct client_phone_number_id) as numbers');
+
         return $table
-            ->query(
-                // One row per distinct failure reason among FAILED messages, with how many
-                // messages and how many distinct numbers it hit. MIN(id) is a stable row key.
-                WhatsAppMessage::query()
-                    ->where('delivery_status', 'FAILED')
-                    ->whereNotNull('failure_reason')
-                    ->where('failure_reason', '<>', '')
-                    ->groupBy('failure_reason')
-                    ->selectRaw('MIN(id) as id')
-                    ->selectRaw('failure_reason')
-                    ->selectRaw('count(*) as failures')
-                    ->selectRaw('count(distinct client_phone_number_id) as numbers')
-            )
+            ->query(WhatsAppMessage::query()->fromSub($aggregate, 'whatsapp_messages'))
             ->columns([
                 TextColumn::make('failure_reason')
                     ->label('Failure reason')

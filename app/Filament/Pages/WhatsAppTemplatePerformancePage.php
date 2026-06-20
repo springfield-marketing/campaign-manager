@@ -25,23 +25,24 @@ class WhatsAppTemplatePerformancePage extends Page implements HasTable
 
     protected function table(Table $table): Table
     {
+        // One row per template across every message that used it. Delivered/Failed are of all
+        // messages; Read is of delivered; Replied is of all messages. The aggregation is wrapped
+        // in a subquery so MIN(id) becomes a real `id` column — otherwise Filament's primary-key
+        // pagination tiebreaker (order by whatsapp_messages.id) breaks the GROUP BY.
+        $aggregate = WhatsAppMessage::query()
+            ->whereNotNull('template_name')
+            ->where('template_name', '<>', '')
+            ->groupBy('template_name')
+            ->selectRaw('MIN(id) as id')
+            ->selectRaw('template_name')
+            ->selectRaw('count(*) as messages')
+            ->selectRaw("sum(case when delivery_status = 'DELIVERED' then 1 else 0 end) as delivered")
+            ->selectRaw("sum(case when delivery_status = 'READ' then 1 else 0 end) as read")
+            ->selectRaw("sum(case when delivery_status = 'REPLIED' then 1 else 0 end) as replied")
+            ->selectRaw("sum(case when delivery_status = 'FAILED' then 1 else 0 end) as failed");
+
         return $table
-            ->query(
-                // One row per template across every message that used it. Delivered/Failed are of
-                // all messages; Read is of delivered; Replied is of all messages. MIN(id) gives
-                // each grouped row a stable key for the table.
-                WhatsAppMessage::query()
-                    ->whereNotNull('template_name')
-                    ->where('template_name', '<>', '')
-                    ->groupBy('template_name')
-                    ->selectRaw('MIN(id) as id')
-                    ->selectRaw('template_name')
-                    ->selectRaw('count(*) as messages')
-                    ->selectRaw("sum(case when delivery_status = 'DELIVERED' then 1 else 0 end) as delivered")
-                    ->selectRaw("sum(case when delivery_status = 'READ' then 1 else 0 end) as read")
-                    ->selectRaw("sum(case when delivery_status = 'REPLIED' then 1 else 0 end) as replied")
-                    ->selectRaw("sum(case when delivery_status = 'FAILED' then 1 else 0 end) as failed")
-            )
+            ->query(WhatsAppMessage::query()->fromSub($aggregate, 'whatsapp_messages'))
             ->columns([
                 TextColumn::make('template_name')
                     ->label('Template')
