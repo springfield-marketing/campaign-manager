@@ -36,11 +36,14 @@ class PhoneNormalizer
      * @param  bool  $lenient  When true, non-UAE numbers that parse but fail isValidNumber()
      *                         are accepted if they pass isPossibleNumber(). UAE numbers are
      *                         always validated strictly.
+     * @param  bool  $allowPlaceholder  Skip the placeholder/fake-number guard. Used by the manual
+     *                         "push anyway" override after a human confirms a flagged (e.g. vanity)
+     *                         number is real. libphonenumber validity still applies.
      *
      * @return array{normalized:string, country_code:string, national_number:string, detected_country:string, is_uae:bool}
      * @throws \InvalidArgumentException
      */
-    public function normalize(string $value, bool $lenient = false): array
+    public function normalize(string $value, bool $lenient = false, bool $allowPlaceholder = false): array
     {
         $input = trim($value);
 
@@ -59,7 +62,7 @@ class PhoneNormalizer
         // Guard 2: obvious placeholder/fake numbers (trailing-zero runs, single repeated digit,
         // sequential runs like ...1234567).
         $digits = preg_replace('/\D+/', '', $input) ?? '';
-        if ($digits !== '' && $this->looksLikePlaceholder($digits)) {
+        if (! $allowPlaceholder && $digits !== '' && $this->looksLikePlaceholder($digits)) {
             throw new \InvalidArgumentException("Phone number \"{$input}\" looks like a placeholder/fake number, not a real one.");
         }
 

@@ -243,6 +243,76 @@ class WhatsAppCampaignResultsProcessor
     }
 
     /**
+     * Manual override: re-process a single previously-failed row, bypassing the placeholder
+     * guard, after a human confirmed the number is real. The phone is stored as 'verified' so
+     * the format CHECK constraint accepts it. Re-reads the header from the original file to map
+     * the stored raw row (honouring the platform's column layout).
+     *
+     * @param  array<int, string|null>  $row  the raw CSV row saved on the import error
+     */
+    public function forcePushRow(WhatsAppImport $import, array $row): ClientPhoneNumber
+    {
+        $file = new SplFileObject(storage_path('app/private/'.$import->storage_path));
+        $file->setFlags(SplFileObject::READ_CSV | SplFileObject::DROP_NEW_LINE);
+        $file->setCsvControl(',', '"', '\\');
+
+        $header = $this->readHeader($file);
+        if ($header === null) {
+            throw new \RuntimeException('Could not read the header from the original import file.');
+        }
+
+        $platform = $import->platform();
+        $payload = $platform === WhatsAppPlatform::Gupshup1
+            ? $this->mapGupshupRow($header, $row)
+            : $this->mapRow($header, $row);
+
+        $campaign = $this->findOrCreateCampaign($payload, $platform);
+
+        $normalized = $this->phoneNormalizer->normalize(
+            (string) $payload['PhoneNumber'],
+            (bool) $import->lenient_phones,
+            true,
+        );
+
+        $phoneId = $this->resolvePhoneNumberId(
+            $normalized['normalized'],
+            $normalized,
+            $payload,
+            $campaign,
+            $import,
+            allowPlaceholder: true,
+        );
+
+        DB::table('whatsapp_messages')->insert(
+            $this->buildMessageRow($campaign->id, $import->id, $phoneId, $payload, now()->toDateTimeString()),
+        );
+
+        $this->refreshCampaignMetrics($campaign);
+
+        return ClientPhoneNumber::findOrFail($phoneId);
+    }
+
+    /**
+     * @return array<int, string|null>|null
+     */
+    private function readHeader(SplFileObject $file): ?array
+    {
+        $file->rewind();
+
+        while (! $file->eof()) {
+            $row = $file->fgetcsv();
+
+            if (! is_array($row) || $this->rowIsEmpty($row)) {
+                continue;
+            }
+
+            return $row;
+        }
+
+        return null;
+    }
+
+    /**
      * @param  array<int, string>  $header
      * @param  array<int, string|null>  $row
      * @return array<string, string|null>
@@ -299,6 +369,7 @@ class WhatsAppCampaignResultsProcessor
         array $payload,
         WhatsAppCampaign $campaign,
         WhatsAppImport $import,
+        bool $allowPlaceholder = false,
     ): int {
         $phoneNumber = ClientPhoneNumber::query()
             ->where('normalized_phone', $normalizedPhone)
@@ -327,6 +398,9 @@ class WhatsAppCampaignResultsProcessor
             'detected_country' => $normalized['detected_country'],
             'is_uae' => $normalized['is_uae'],
             'is_whatsapp' => true,
+            // A manually-confirmed (placeholder-shaped) number must be stored as 'verified',
+            // otherwise the phone-format CHECK constraint rejects it. A human vouched for it.
+            'verification_status' => $allowPlaceholder ? 'verified' : 'unverified',
         ]);
 
         ClientSource::create([

@@ -91,4 +91,34 @@ class PhoneNormalizerTest extends TestCase
             'empty'               => ['   '],
         ];
     }
+
+    /**
+     * The manual "push anyway" override (allowPlaceholder) lets a human-confirmed real number —
+     * e.g. a vanity number — through the placeholder guard, while libphonenumber validity still
+     * applies. See the import-error "Push anyway" action.
+     */
+    #[Test]
+    #[DataProvider('vanityNumbers')]
+    public function allow_placeholder_lets_a_confirmed_number_through(string $input): void
+    {
+        // Rejected by default...
+        try {
+            $this->normalizer()->normalize($input);
+            $this->fail("Expected \"{$input}\" to be rejected as a placeholder.");
+        } catch (\InvalidArgumentException) {
+            // expected
+        }
+
+        // ...but accepted with the override.
+        $result = $this->normalizer()->normalize($input, lenient: false, allowPlaceholder: true);
+        $this->assertSame($input, $result['normalized']);
+    }
+
+    public static function vanityNumbers(): array
+    {
+        return [
+            'repeated 8s' => ['+971568888888'],
+            'repeated 5s' => ['+971555551655'],
+        ];
+    }
 }

@@ -25,8 +25,8 @@ class WhatsAppPhoneNormalizer
      * @return array{normalized:string, country_code:string, national_number:string, detected_country:string, is_uae:bool}
      * @throws \InvalidArgumentException
      */
-    public function normalize(string $value, bool $lenient = false): array
+    public function normalize(string $value, bool $lenient = false, bool $allowPlaceholder = false): array
     {
-        return $this->canonical->normalize($value, $lenient);
+        return $this->canonical->normalize($value, $lenient, $allowPlaceholder);
     }
 }
