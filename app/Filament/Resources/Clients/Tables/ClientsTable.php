@@ -27,9 +27,8 @@ class ClientsTable
                     ->searchable()
                     ->sortable(),
 
-                TextColumn::make('primaryEmail.email')
-                    ->label('Email')
-                    ->searchable()
+                TextColumn::make('primaryPhone.normalized_phone')
+                    ->label('Phone')
                     ->placeholder('—')
                     ->copyable(),
 
