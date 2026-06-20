@@ -1,7 +1,9 @@
 <?php
 
+use App\Filament\Resources\IvrUnsubscribers\IvrUnsubscriberResource;
 use App\Modules\IVR\Models\CentralDatabaseExport;
 use App\Modules\IVR\Models\IvrCampaign;
+use App\Support\IvrSuppressionDisplay;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 
@@ -48,4 +50,33 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             fclose($handle);
         }, "ivr-campaign-{$campaign->external_campaign_id}-leads.csv");
     })->name('ivr.campaign-leads.export');
+
+    // Do-Not-Call list export — the current active IVR DNC list, to hand to the dialer/vendor
+    // so suppression is enforced platform-side too. Reuses the DNC List screen's exact query.
+    Route::get('/ivr/dnc-list/export', function () {
+        return response()->streamDownload(function (): void {
+            $handle = fopen('php://output', 'w');
+
+            fputcsv($handle, ['Phone', 'National Number', 'Contact', 'Reason', 'Source', 'Suppressed At']);
+
+            IvrUnsubscriberResource::getEloquentQuery()
+                ->orderBy('contact_suppressions.id')
+                ->chunk(500, function ($rows) use ($handle): void {
+                    foreach ($rows as $suppression) {
+                        $phone = $suppression->phoneNumber;
+
+                        fputcsv($handle, [
+                            $phone?->normalized_phone,
+                            $phone?->national_number,
+                            $phone?->client?->full_name,
+                            IvrSuppressionDisplay::reasonLabel($suppression->reason),
+                            IvrSuppressionDisplay::sourceLabel($suppression),
+                            optional($suppression->suppressed_at)->format('Y-m-d H:i:s'),
+                        ]);
+                    }
+                });
+
+            fclose($handle);
+        }, 'ivr-dnc-list-'.now()->format('Y-m-d').'.csv');
+    })->name('ivr.dnc-list.export');
 });
