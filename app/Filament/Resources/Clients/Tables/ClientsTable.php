@@ -100,6 +100,21 @@ class ClientsTable
                     ->placeholder('—'),
             ])
             ->filters([
+                // IMP-003: organisation names (developers, banks, "…L.L.C") are not marketing
+                // contacts — they absorbed thousands of units as owner-of-record. Hide them by
+                // default; switch to "Institutions" or clear to "All" to review them.
+                SelectFilter::make('is_institution')
+                    ->label('Contact Type')
+                    ->options([
+                        '0' => 'People',
+                        '1' => 'Institutions (developers, banks)',
+                    ])
+                    ->default('0')
+                    ->query(fn (Builder $query, array $data): Builder => $query->when(
+                        filled($data['value'] ?? null),
+                        fn (Builder $q): Builder => $q->where('is_institution', $data['value'] === '1'),
+                    )),
+
                 SelectFilter::make('emirate')
                     ->options([
                         'Dubai' => 'Dubai',

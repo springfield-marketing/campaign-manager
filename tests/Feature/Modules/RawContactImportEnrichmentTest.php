@@ -223,5 +223,11 @@ class RawContactImportEnrichmentTest extends TestCase
 
         $this->assertNotSame($a->id, $b->id, 'Institution names must not collapse distinct phones onto one client');
         $this->assertSame(2, Client::where('full_name', 'Emirates Islamic Bank')->count());
+
+        // IMP-003: institution names are flagged on create so they can be excluded from the
+        // contacts list. A real personal name is not flagged.
+        $this->assertTrue($a->fresh()->is_institution);
+        $person = $enricher->resolveClient(['name' => 'Fouad Ghandour', 'emirate' => 'Dubai', 'country_iso' => 'AE', 'normalized_phone' => '+971527948054']);
+        $this->assertFalse($person->fresh()->is_institution);
     }
 }

@@ -27,6 +27,7 @@ class Client extends Model
         'completeness_score',
         'original_source',
         'metadata',
+        'is_institution',
     ];
 
     public const TIERS = [
@@ -41,6 +42,7 @@ class Client extends Model
         return [
             'alternate_names' => 'array',
             'metadata'        => 'array',
+            'is_institution'  => 'boolean',
         ];
     }
 

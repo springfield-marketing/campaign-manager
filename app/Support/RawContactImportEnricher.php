@@ -89,6 +89,9 @@ class RawContactImportEnricher
             'country_iso' => $countryIso,
             'nationality' => $this->blankToNull($payload['nationality'] ?? null),
             'gender' => $this->blankToNull($payload['gender'] ?? null),
+            // IMP-003: flag organisation names (developer/bank/LLC) so they can be excluded from
+            // the contacts list. They create-fresh like everything else; this only labels them.
+            'is_institution' => $fullName !== '' && NameClassifier::isInstitution($fullName),
         ]);
 
         if ($email !== '') {

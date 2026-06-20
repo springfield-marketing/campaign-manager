@@ -85,8 +85,27 @@ See [README.md](README.md) for how this registry works. Newest entries at the to
   is untouched — every history table keys off `client_phone_number_id`, so reassigning a number
   carries its WhatsApp/IVR/suppression records with it. Reversible via a `client_audit_logs`
   snapshot. See spec §5.
+- **Cleanup (phone-LESS institution owners):** a second residue surfaced 2026-06-20 investigating
+  client **705154 "Select Global Development L.l.c"** — **0 phones, 3,936 ownerships**. In owner
+  exports the developer is the registered owner-of-record for every unsold unit, so a name-keyed
+  pre-fix import filed thousands of units under one developer "contact". This is a different shape
+  from the multi-*number* residue above (no phones to anchor a split, and nothing to recover —
+  the developer genuinely is the listed owner), so `clients:split-name-collisions` does **not**
+  apply. Remediation is **flag + exclude**, not split:
+  - `clients.is_institution` (boolean) marks organisation-named clients. Set on import in
+    `resolveClient()` and backfilled by **`clients:flag-institutions`** (`--apply`).
+  - The Contacts table's **"Contact Type"** filter defaults to *People*, hiding institutions;
+    switch to *Institutions* or *All* to review. Non-destructive and reversible.
+  - **Classifier gap fixed:** dotted legal suffixes ("L.l.c", "p.j.s.c") tokenize to single
+    letters ("l l c") and slipped past `NameClassifier::isInstitution` — the exact developers
+    doing the most damage. Now caught by a trailing-`LEGAL_FORM_SUFFIXES` check on the
+    space-collapsed name, plus singular org tokens (`property`/`development`/`investment`).
+  - Deletion of the institutions + their ownerships is deferred ("fix later") — the flag keeps
+    them out of sight until then.
 - **Watch out for:**
   - The IVR **bulk** path used to merge on the name tuple here too — **fixed by IMP-004**.
+  - `is_institution` is name-derived and only refreshed on import-create or by re-running
+    `clients:flag-institutions`; renaming a client in the UI won't re-classify it.
 
 ### IMP-002 — A real name is not an identity key either (phone is)
 

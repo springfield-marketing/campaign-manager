@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict yKMfF1lFnMgtq0oHUzmIJUMp8vM2kEVkXcw3pjIRy5u9cFgz3RGXxLzHYPbxPZi
+\restrict FqYymLrslTc75TWLTNYzBp8nTZd5dR2dA9MCmUxUnoGXSHE6fEf6jPJTCxChHJV
 
 -- Dumped from database version 18.3 (Homebrew)
 -- Dumped by pg_dump version 18.3 (Homebrew)
@@ -632,7 +632,8 @@ CREATE TABLE public.clients (
     completeness_score smallint,
     alternate_names jsonb,
     original_source character varying(255),
-    notes text
+    notes text,
+    is_institution boolean DEFAULT false NOT NULL
 );
 
 
@@ -2923,6 +2924,13 @@ CREATE INDEX clients_interest_index ON public.clients USING btree (interest);
 
 
 --
+-- Name: clients_is_institution_index; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX clients_is_institution_index ON public.clients USING btree (is_institution);
+
+
+--
 -- Name: clients_tier_index; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3688,13 +3696,13 @@ ALTER TABLE ONLY public.whatsapp_phone_profiles
 -- PostgreSQL database dump complete
 --
 
-\unrestrict yKMfF1lFnMgtq0oHUzmIJUMp8vM2kEVkXcw3pjIRy5u9cFgz3RGXxLzHYPbxPZi
+\unrestrict FqYymLrslTc75TWLTNYzBp8nTZd5dR2dA9MCmUxUnoGXSHE6fEf6jPJTCxChHJV
 
 --
 -- PostgreSQL database dump
 --
 
-\restrict VgpD9cVDbDbVEqoBhpiYzGocsi2NccRqt4bUme7Z5m0xnAuL7uFU0dQ4mlXSeBX
+\restrict LpKUMIz2Is9CfRvymQSg9ebj5WQ49cKKXdkGpdzUGJUHccEaMMGRAWQzvjdMteQ
 
 -- Dumped from database version 18.3 (Homebrew)
 -- Dumped by pg_dump version 18.3 (Homebrew)
@@ -3812,6 +3820,7 @@ COPY public.migrations (id, migration, batch) FROM stdin;
 97	2026_06_19_000600_add_sort_indexes_for_filament_tables	67
 98	2026_06_19_000700_add_trigram_search_indexes	68
 99	2026_06_20_000000_drop_import_review_queue_table	69
+100	2026_06_20_010000_add_is_institution_to_clients	70
 \.
 
 
@@ -3819,12 +3828,12 @@ COPY public.migrations (id, migration, batch) FROM stdin;
 -- Name: migrations_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.migrations_id_seq', 99, true);
+SELECT pg_catalog.setval('public.migrations_id_seq', 100, true);
 
 
 --
 -- PostgreSQL database dump complete
 --
 
-\unrestrict VgpD9cVDbDbVEqoBhpiYzGocsi2NccRqt4bUme7Z5m0xnAuL7uFU0dQ4mlXSeBX
+\unrestrict LpKUMIz2Is9CfRvymQSg9ebj5WQ49cKKXdkGpdzUGJUHccEaMMGRAWQzvjdMteQ
 
