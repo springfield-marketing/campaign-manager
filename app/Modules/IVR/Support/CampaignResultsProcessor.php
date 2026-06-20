@@ -207,6 +207,72 @@ class CampaignResultsProcessor
      * @param  array<int, string|null>  $row
      * @return array<string, string|null>
      */
+    /**
+     * Manual override: re-process a single previously-failed row, bypassing the placeholder
+     * guard, after a human confirmed the number is real. The phone is stored as 'verified' so
+     * the format CHECK constraint accepts it. Re-reads the header + summary from the original
+     * file to map the stored raw row and resolve its campaign.
+     *
+     * @param  array<int, string|null>  $row  the raw CSV row saved on the import error
+     */
+    public function forcePushRow(IvrImport $import, array $row): ClientPhoneNumber
+    {
+        $file = new SplFileObject(storage_path('app/private/'.$import->storage_path));
+        $file->setFlags(SplFileObject::READ_CSV | SplFileObject::DROP_NEW_LINE);
+        $file->setCsvControl(',', '"', '\\');
+
+        [$header, $summary] = $this->readHeaderAndSummary($file);
+
+        if ($header === null) {
+            throw new \RuntimeException('Could not locate the call-records header in the original import file.');
+        }
+
+        $payload = $this->mapRow($header, $row);
+        $campaign = $this->upsertCampaign($summary, $payload, $import);
+        [, $phoneNumber] = $this->upsertCallRecord($campaign, $payload, $import, allowPlaceholder: true);
+
+        $this->batchUpdater->run([$phoneNumber->id]);
+        $this->refreshCampaignMetrics($campaign);
+
+        return $phoneNumber;
+    }
+
+    /**
+     * @return array{0: array<int, string|null>|null, 1: array<string, string>}
+     */
+    private function readHeaderAndSummary(SplFileObject $file): array
+    {
+        $file->rewind();
+        $summary = [];
+        $header = null;
+
+        while (! $file->eof()) {
+            $row = $file->fgetcsv();
+
+            if (! is_array($row) || ($row === [null] && $file->eof())) {
+                break;
+            }
+            if ($this->rowIsEmpty($row)) {
+                continue;
+            }
+
+            $firstCell = trim((string) ($row[0] ?? ''));
+
+            if ($firstCell === 'Campaign Summary' || $firstCell === 'Call Details Records') {
+                continue;
+            }
+            if ($firstCell === 'Call UUID') {
+                $header = $row;
+                break;
+            }
+            if (count($row) >= 2) {
+                $summary[trim((string) $row[0])] = trim((string) $row[1]);
+            }
+        }
+
+        return [$header, $summary];
+    }
+
     private function mapRow(array $header, array $row): array
     {
         $mapped = [];
@@ -299,7 +365,7 @@ class CampaignResultsProcessor
         ];
     }
 
-    private function upsertCallRecord(IvrCampaign $campaign, array $payload, IvrImport $import): array
+    private function upsertCallRecord(IvrCampaign $campaign, array $payload, IvrImport $import, bool $allowPlaceholder = false): array
     {
         $rawCustomer = (string) $payload['Customer'];
 
@@ -313,7 +379,7 @@ class CampaignResultsProcessor
             );
         }
 
-        $normalized = $this->phoneNormalizer->normalize($rawCustomer);
+        $normalized = $this->phoneNormalizer->normalize($rawCustomer, $allowPlaceholder);
         $phoneNumber = ClientPhoneNumber::query()->where('normalized_phone', $normalized['normalized'])->first();
 
         if (! $phoneNumber) {
@@ -330,6 +396,9 @@ class CampaignResultsProcessor
                 // Appearing in an IVR campaign result is the authoritative signal that this number
                 // is an IVR target — channel membership is earned by activity, not raw import.
                 'is_ivr' => true,
+                // A manually-confirmed (placeholder-shaped) number must be stored as 'verified',
+                // otherwise the phone-format CHECK constraint rejects it. A human vouched for it.
+                'verification_status' => $allowPlaceholder ? 'verified' : 'unverified',
             ]);
         } elseif (! $phoneNumber->is_ivr) {
             $phoneNumber->forceFill(['is_ivr' => true])->save();

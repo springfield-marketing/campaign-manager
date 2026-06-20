@@ -2,6 +2,10 @@
 
 namespace App\Filament\Resources\IvrImports\RelationManagers;
 
+use App\Modules\IVR\Models\IvrImportError;
+use App\Modules\IVR\Support\CampaignResultsProcessor;
+use Filament\Actions\Action;
+use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
@@ -38,7 +42,49 @@ class ImportErrorsRelationManager extends RelationManager
                     ->limit(120),
             ])
             ->defaultSort('row_number', 'asc')
-            ->recordActions([])
+            ->recordActions([
+                // Manual override for a number wrongly flagged as a placeholder/fake (e.g. a real
+                // vanity number). After you confirm it's valid, push the row in anyway — the
+                // number is stored as 'verified' so it bypasses the placeholder guard + constraint.
+                Action::make('push_anyway')
+                    ->label('Push anyway')
+                    ->icon('heroicon-o-check-badge')
+                    ->color('warning')
+                    ->visible(fn (IvrImportError $record): bool =>
+                        str_contains((string) $record->error_message, 'looks like a placeholder'))
+                    ->requiresConfirmation()
+                    ->modalHeading('Push this number in anyway?')
+                    ->modalDescription(fn (IvrImportError $record): string =>
+                        $record->error_message.' Only do this if you have confirmed the number is real.')
+                    ->action(function (IvrImportError $record): void {
+                        $import = $record->import;
+
+                        try {
+                            $phone = app(CampaignResultsProcessor::class)
+                                ->forcePushRow($import, (array) $record->row_payload);
+                        } catch (\Throwable $e) {
+                            Notification::make()
+                                ->title('Could not push the number')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+
+                            return;
+                        }
+
+                        $record->delete();
+                        $import->forceFill([
+                            'successful_rows' => (int) $import->successful_rows + 1,
+                            'failed_rows' => max(0, (int) $import->failed_rows - 1),
+                        ])->save();
+
+                        Notification::make()
+                            ->title('Number pushed in')
+                            ->body($phone->normalized_phone.' was added and marked verified.')
+                            ->success()
+                            ->send();
+                    }),
+            ])
             ->toolbarActions([]);
     }
 }

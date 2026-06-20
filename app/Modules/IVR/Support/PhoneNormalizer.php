@@ -13,9 +13,13 @@ namespace App\Modules\IVR\Support;
 class PhoneNormalizer
 {
     /**
+     * @param  bool  $allowPlaceholder  Skip the placeholder/fake-number guard. Used by the manual
+     *                                   "push anyway" override after a human confirms a flagged
+     *                                   (e.g. vanity) number is real. Format checks still apply.
+     *
      * @return array{normalized:string, country_code:?string, national_number:?string, detected_country:?string, is_uae:bool}
      */
-    public function normalize(string $value): array
+    public function normalize(string $value, bool $allowPlaceholder = false): array
     {
         $trimmed = trim($value);
 
@@ -38,7 +42,7 @@ class PhoneNormalizer
             );
         }
 
-        if ($this->looksLikePlaceholder($digits)) {
+        if (! $allowPlaceholder && $this->looksLikePlaceholder($digits)) {
             throw new \InvalidArgumentException("Phone number \"{$trimmed}\" looks like a placeholder/fake number, not a real one.");
         }
 
