@@ -35,9 +35,19 @@ class NameClassifier
      */
     private const INSTITUTION_TOKENS = [
         'llc', 'fzco', 'fze', 'fzllc', 'wll', 'plc', 'gmbh', 'sarl', 'pjsc', 'psc',
-        'bank', 'properties', 'developers', 'holdings', 'investments', 'brokerage',
-        'brokers', 'realty', 'municipality', 'authority', 'ministry', 'hotels', 'contracting',
-        'establishment',
+        'bank', 'properties', 'property', 'developers', 'development', 'holdings', 'investments',
+        'investment', 'brokerage', 'brokers', 'realty', 'municipality', 'authority', 'ministry',
+        'hotels', 'contracting', 'establishment',
+    ];
+
+    /**
+     * Legal-form suffixes that appear at the END of an organisation name. These are frequently
+     * written with dots ("L.L.C", "P.J.S.C", "F.Z.E"), which the tokenizer splits into separate
+     * single letters ("l l c") so the whole-word token check above never sees them. We catch
+     * them by collapsing the name to bare alphanumerics and testing the trailing suffix.
+     */
+    private const LEGAL_FORM_SUFFIXES = [
+        'llc', 'fzllc', 'fzco', 'fze', 'wll', 'pjsc', 'psc', 'plc', 'sarl', 'gmbh',
     ];
 
     /**
@@ -127,6 +137,14 @@ class NameClassifier
         $words = array_filter(explode(' ', $normalized), fn ($w) => $w !== '');
         foreach ($words as $word) {
             if (in_array($word, self::INSTITUTION_TOKENS, true)) {
+                return true;
+            }
+        }
+
+        // Trailing legal-form suffix written with dots ("...L.l.c", "...P.J.S.C").
+        $collapsed = str_replace(' ', '', $normalized);
+        foreach (self::LEGAL_FORM_SUFFIXES as $suffix) {
+            if (str_ends_with($collapsed, $suffix)) {
                 return true;
             }
         }

@@ -82,6 +82,12 @@ class NameClassifierTest extends TestCase
             'llc suffix'  => ['Acme Trading LLC'],
             'developers'  => ['Nakheel Developers'],
             'authority'   => ['Dubai Land Authority'],
+            // IMP-003: dotted legal suffixes tokenize to single letters ("l l c") and must still
+            // be caught by the trailing-suffix check. These names were absorbing 1000s of units.
+            'dotted llc'        => ['Select Global Development L.l.c'],
+            'dotted llc + word' => ['Damac Canal One Property Development L.l.c'],
+            'dotted pjsc'       => ['Deyaar Development (p.j.s.c)'],
+            'singular property' => ['Island Oasis Property'],
         ];
     }
 
