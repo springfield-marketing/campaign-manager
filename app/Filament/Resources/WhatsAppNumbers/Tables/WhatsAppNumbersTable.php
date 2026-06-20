@@ -310,7 +310,10 @@ class WhatsAppNumbersTable
                                 ->where('detected_country', $data['value'])
                         )
                     )
-                    ->searchable(),
+                    ->searchable()
+                    // Span 2 columns so the 8 select filters fill 3 whole rows,
+                    // keeping the 3 checkbox filters together on the final row.
+                    ->columnSpan(2),
 
                 Filter::make('uae_only')
                     ->label('UAE Only (exclude international)')
