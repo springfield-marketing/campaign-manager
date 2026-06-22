@@ -11,6 +11,7 @@ use Filament\Actions\EditAction;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Enums\PaginationMode;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
@@ -174,6 +175,8 @@ class ClientsTable
                     )
                     ),
             ])
+            ->filtersLayout(FiltersLayout::AboveContentCollapsible)
+            ->filtersFormColumns(3)
             ->defaultSort('full_name')
             // 1M+ rows: defer the query until the page shell renders, and use simple pagination
             // so we don't run a COUNT(*) over the filtered set on every load. Totals are shown by
