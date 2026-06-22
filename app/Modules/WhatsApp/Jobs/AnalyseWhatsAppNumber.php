@@ -10,6 +10,8 @@ class AnalyseWhatsAppNumber implements ShouldQueue
 {
     use Queueable;
 
+    public int $timeout = 120;
+
     public int $tries = 3;
 
     public function __construct(public readonly int $phoneNumberId) {}

@@ -68,7 +68,11 @@ return [
             'driver' => 'redis',
             'connection' => env('REDIS_QUEUE_CONNECTION', 'default'),
             'queue' => env('REDIS_QUEUE', 'default'),
-            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 90),
+            // MUST exceed the longest job timeout (the import jobs set $timeout = 7200). If
+            // retry_after is shorter than a running job, the queue assumes it died and re-
+            // dispatches it — running a multi-hour import twice concurrently. Keep this just
+            // above the max job timeout.
+            'retry_after' => (int) env('REDIS_QUEUE_RETRY_AFTER', 7800),
             'block_for' => null,
             'after_commit' => false,
         ],
