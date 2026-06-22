@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict ep7I1YpAhpfkwm90ke1AL1LmT6S7lnXlCZdHdL5XVh3BudRbT3qoWQcxkh3b7Sy
+\restrict J7d8YztcWqZ3uOIx8OKYC1ypw7TcZyh2WfhIsemAfvEsF8eP8QGC66TZrk5suGt
 
 -- Dumped from database version 18.3 (Homebrew)
 -- Dumped by pg_dump version 18.3 (Homebrew)
@@ -1495,7 +1495,9 @@ CREATE TABLE public.users (
     password character varying(255) NOT NULL,
     remember_token character varying(100),
     created_at timestamp(0) without time zone,
-    updated_at timestamp(0) without time zone
+    updated_at timestamp(0) without time zone,
+    app_authentication_secret text,
+    app_authentication_recovery_codes text
 );
 
 
@@ -3749,13 +3751,13 @@ ALTER TABLE ONLY public.whatsapp_phone_profiles
 -- PostgreSQL database dump complete
 --
 
-\unrestrict ep7I1YpAhpfkwm90ke1AL1LmT6S7lnXlCZdHdL5XVh3BudRbT3qoWQcxkh3b7Sy
+\unrestrict J7d8YztcWqZ3uOIx8OKYC1ypw7TcZyh2WfhIsemAfvEsF8eP8QGC66TZrk5suGt
 
 --
 -- PostgreSQL database dump
 --
 
-\restrict gunrG5mLPg249zufLTOxKyxUfVF8gEHs3MjWnhm7U2rvA3q5sDkXkMXEfiYaH1a
+\restrict vHfz6dWlckoY1T8FmFp1uuueycb9uqaH0VN93XyTu9noKQBUARFtPonMcBbfo5q
 
 -- Dumped from database version 18.3 (Homebrew)
 -- Dumped by pg_dump version 18.3 (Homebrew)
@@ -3878,6 +3880,7 @@ COPY public.migrations (id, migration, batch) FROM stdin;
 102	2026_06_20_030000_create_notifications_table	72
 103	2026_06_20_040000_change_notifications_data_to_json	73
 104	2026_06_22_000000_add_whatsapp_analytics_indexes	74
+105	2026_06_22_010000_add_two_factor_columns_to_users	75
 \.
 
 
@@ -3885,12 +3888,12 @@ COPY public.migrations (id, migration, batch) FROM stdin;
 -- Name: migrations_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.migrations_id_seq', 104, true);
+SELECT pg_catalog.setval('public.migrations_id_seq', 105, true);
 
 
 --
 -- PostgreSQL database dump complete
 --
 
-\unrestrict gunrG5mLPg249zufLTOxKyxUfVF8gEHs3MjWnhm7U2rvA3q5sDkXkMXEfiYaH1a
+\unrestrict vHfz6dWlckoY1T8FmFp1uuueycb9uqaH0VN93XyTu9noKQBUARFtPonMcBbfo5q
 

@@ -5,6 +5,7 @@ namespace App\Providers;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -20,6 +21,12 @@ class AppServiceProvider extends ServiceProvider
         // their own (queue workers, the import processors, static-analysis tooling).
         if ($this->currentMemoryLimitBytes() < 256 * 1024 * 1024) {
             ini_set('memory_limit', '256M');
+        }
+
+        // Generate https:// URLs behind the production load balancer / TLS terminator, so assets,
+        // redirects and Filament links don't downgrade to http.
+        if ($this->app->isProduction()) {
+            URL::forceScheme('https');
         }
 
         $this->configureRateLimiting();

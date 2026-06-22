@@ -6,6 +6,7 @@ use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Auth\MultiFactor\App\AppAuthentication;
 use Filament\Navigation\NavigationGroup;
 use App\Filament\Widgets\ContactTierWidget;
 use App\Filament\Widgets\DataQualityWidget;
@@ -30,6 +31,14 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
+            // Self-service profile page where users manage their password and 2FA.
+            ->profile()
+            // Optional authenticator-app 2FA (not forced — users without it log in normally, so
+            // there's no lock-out). Recommended for everyone given the contact PII; can be made
+            // required later via the third arg.
+            ->multiFactorAuthentication([
+                AppAuthentication::make()->recoverable(),
+            ])
             ->databaseNotifications()
             ->brandName('Campaign Tracker')
             ->colors([
