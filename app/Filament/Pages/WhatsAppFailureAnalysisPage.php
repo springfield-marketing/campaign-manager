@@ -23,6 +23,10 @@ class WhatsAppFailureAnalysisPage extends Page implements HasTable
     public function getTitle(): string { return 'WhatsApp Failure Analysis'; }
     public static function getSlug(?\Filament\Panel $panel = null): string { return 'whatsapp-failure-analysis'; }
 
+    // Temporarily hidden from the nav while we evaluate the cost of the live aggregation over the
+    // failed-message rows. The route still works (reach it by URL to test); remove this to re-list it.
+    public static function shouldRegisterNavigation(): bool { return false; }
+
     protected ?int $totalFailures = null;
 
     protected function table(Table $table): Table

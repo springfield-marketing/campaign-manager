@@ -23,6 +23,10 @@ class WhatsAppTemplatePerformancePage extends Page implements HasTable
     public function getTitle(): string { return 'WhatsApp Template Performance'; }
     public static function getSlug(?\Filament\Panel $panel = null): string { return 'whatsapp-template-performance'; }
 
+    // Temporarily hidden from the nav while we evaluate the cost of the live aggregation over
+    // ~5M message rows. The route still works (reach it by URL to test); remove this to re-list it.
+    public static function shouldRegisterNavigation(): bool { return false; }
+
     protected function table(Table $table): Table
     {
         // One row per template across every message that used it. Delivered/Failed are of all
