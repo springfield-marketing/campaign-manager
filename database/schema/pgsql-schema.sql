@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 1sA0uYUdunsV9LmB5MxRKMFkJeuOrPBYQ7WXUeEa6vQhagfikUFkQkw3daItW3n
+\restrict ep7I1YpAhpfkwm90ke1AL1LmT6S7lnXlCZdHdL5XVh3BudRbT3qoWQcxkh3b7Sy
 
 -- Dumped from database version 18.3 (Homebrew)
 -- Dumped by pg_dump version 18.3 (Homebrew)
@@ -3306,6 +3306,13 @@ CREATE INDEX whatsapp_messages_delivery_status_index ON public.whatsapp_messages
 
 
 --
+-- Name: whatsapp_messages_failure_reason_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX whatsapp_messages_failure_reason_idx ON public.whatsapp_messages USING btree (failure_reason, client_phone_number_id) WHERE ((delivery_status)::text = 'FAILED'::text);
+
+
+--
 -- Name: whatsapp_messages_phone_scheduled_idx; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3317,6 +3324,13 @@ CREATE INDEX whatsapp_messages_phone_scheduled_idx ON public.whatsapp_messages U
 --
 
 CREATE INDEX whatsapp_messages_scheduled_at_index ON public.whatsapp_messages USING btree (scheduled_at);
+
+
+--
+-- Name: whatsapp_messages_template_perf_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX whatsapp_messages_template_perf_idx ON public.whatsapp_messages USING btree (template_name, delivery_status) WHERE ((template_name IS NOT NULL) AND ((template_name)::text <> ''::text));
 
 
 --
@@ -3735,13 +3749,13 @@ ALTER TABLE ONLY public.whatsapp_phone_profiles
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 1sA0uYUdunsV9LmB5MxRKMFkJeuOrPBYQ7WXUeEa6vQhagfikUFkQkw3daItW3n
+\unrestrict ep7I1YpAhpfkwm90ke1AL1LmT6S7lnXlCZdHdL5XVh3BudRbT3qoWQcxkh3b7Sy
 
 --
 -- PostgreSQL database dump
 --
 
-\restrict D9wlKaUirj9NUeE5p4RWCwGjUetajlGkxrUtcLuwzfbi8DnCiaTlhEFPCfXcTAW
+\restrict gunrG5mLPg249zufLTOxKyxUfVF8gEHs3MjWnhm7U2rvA3q5sDkXkMXEfiYaH1a
 
 -- Dumped from database version 18.3 (Homebrew)
 -- Dumped by pg_dump version 18.3 (Homebrew)
@@ -3863,6 +3877,7 @@ COPY public.migrations (id, migration, batch) FROM stdin;
 101	2026_06_20_020000_add_reentered_while_suppressed_at_to_client_phone_numbers	71
 102	2026_06_20_030000_create_notifications_table	72
 103	2026_06_20_040000_change_notifications_data_to_json	73
+104	2026_06_22_000000_add_whatsapp_analytics_indexes	74
 \.
 
 
@@ -3870,12 +3885,12 @@ COPY public.migrations (id, migration, batch) FROM stdin;
 -- Name: migrations_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.migrations_id_seq', 103, true);
+SELECT pg_catalog.setval('public.migrations_id_seq', 104, true);
 
 
 --
 -- PostgreSQL database dump complete
 --
 
-\unrestrict D9wlKaUirj9NUeE5p4RWCwGjUetajlGkxrUtcLuwzfbi8DnCiaTlhEFPCfXcTAW
+\unrestrict gunrG5mLPg249zufLTOxKyxUfVF8gEHs3MjWnhm7U2rvA3q5sDkXkMXEfiYaH1a
 
