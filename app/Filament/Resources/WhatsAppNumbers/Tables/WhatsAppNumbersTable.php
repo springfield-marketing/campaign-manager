@@ -16,6 +16,7 @@ use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\FiltersLayout;
+use Filament\Tables\Enums\PaginationMode;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -348,6 +349,10 @@ class WhatsAppNumbersTable
             ->filtersLayout(FiltersLayout::AboveContentCollapsible)
             ->filtersFormColumns(3)
             ->defaultSort('created_at', 'desc')
+            // ~1M rows: defer the query and use simple pagination to avoid a COUNT(*) over the
+            // filtered set on every load. Totals are shown by the stats widget.
+            ->deferLoading()
+            ->paginationMode(PaginationMode::Simple)
             ->recordActions([
                 Action::make('mark_dead')
                     ->label('Mark as Dead')
