@@ -70,6 +70,25 @@ class IvrImportsTable
                     })
                     ->formatStateUsing(fn (string $state) => IvrImportStatus::tryFrom($state)?->getLabel() ?? ucwords(str_replace('_', ' ', $state))),
 
+                // Live "rows done / total (xx%)" while the job runs — the 4s table poll animates it.
+                // Progress flushes every 250 rows, so it advances in steps, not smoothly.
+                TextColumn::make('progress')
+                    ->label('Progress')
+                    ->badge()
+                    ->color(fn (IvrImport $record): string => $record->status === IvrImportStatus::Processing->value ? 'info' : 'gray')
+                    ->getStateUsing(function (IvrImport $record): string {
+                        $total = (int) $record->total_rows;
+                        $done  = (int) $record->processed_rows;
+
+                        return match ($record->status) {
+                            IvrImportStatus::Pending->value    => 'Queued',
+                            IvrImportStatus::Processing->value => $total > 0
+                                ? number_format($done).' / '.number_format($total).' ('.(int) floor($done / $total * 100).'%)'
+                                : 'Starting…',
+                            default => '—',
+                        };
+                    }),
+
                 TextColumn::make('total_rows')
                     ->label('Total')
                     ->numeric()

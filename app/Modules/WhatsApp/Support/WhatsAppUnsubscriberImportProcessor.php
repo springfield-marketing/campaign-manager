@@ -8,6 +8,7 @@ use App\Models\ContactSuppression;
 use App\Modules\WhatsApp\Enums\WhatsAppImportStatus;
 use App\Modules\WhatsApp\Enums\WhatsAppPlatform;
 use App\Modules\WhatsApp\Models\WhatsAppImport;
+use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Log;
 use Laravel\Telescope\Telescope;
 use SplFileObject;
@@ -174,6 +175,8 @@ class WhatsAppUnsubscriberImportProcessor
             ]);
 
             Log::channel('whatsapp')->info('Completed WhatsApp unsubscriber import.', ['import_id' => $import->id]);
+
+            $this->notifyUploader($import, $successful - $duplicates, $duplicates, $failed);
         } catch (Throwable $e) {
             $import->update([
                 'status'        => WhatsAppImportStatus::Failed->value,
@@ -185,11 +188,39 @@ class WhatsAppUnsubscriberImportProcessor
                 'import_id' => $import->id,
                 'message'   => $e->getMessage(),
             ]);
+
+            if ($recipient = $import->user) {
+                Notification::make()
+                    ->title('Unsubscriber import failed — '.$import->original_file_name)
+                    ->body($e->getMessage())
+                    ->danger()
+                    ->sendToDatabase($recipient);
+            }
         } finally {
             if (class_exists(Telescope::class)) {
                 Telescope::startRecording();
             }
         }
+    }
+
+    /** Ping the person who uploaded the file in the admin bell when it finishes. */
+    private function notifyUploader(WhatsAppImport $import, int $added, int $existing, int $failed): void
+    {
+        $recipient = $import->user;
+
+        if (! $recipient) {
+            return;
+        }
+
+        $body = number_format($added).' added to Do Not Call, '.number_format($existing).' already listed'
+            .($failed > 0 ? ', '.number_format($failed).' failed' : '').'.';
+
+        $notification = Notification::make()
+            ->title('Unsubscriber import finished — '.$import->original_file_name)
+            ->body($body);
+
+        ($failed > 0 ? $notification->warning() : $notification->success())
+            ->sendToDatabase($recipient);
     }
 
     private function countDataRows(SplFileObject $file): int

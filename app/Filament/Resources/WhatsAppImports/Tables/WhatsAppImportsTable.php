@@ -70,6 +70,25 @@ class WhatsAppImportsTable
                     })
                     ->formatStateUsing(fn (string $state) => ucwords(str_replace('_', ' ', $state))),
 
+                // Live "rows done / total (xx%)" while the job runs — the 4s table poll animates it.
+                // Progress flushes every 250 rows, so it advances in steps, not smoothly.
+                TextColumn::make('progress')
+                    ->label('Progress')
+                    ->badge()
+                    ->color(fn (WhatsAppImport $record): string => $record->status === WhatsAppImportStatus::Processing->value ? 'info' : 'gray')
+                    ->getStateUsing(function (WhatsAppImport $record): string {
+                        $total = (int) $record->total_rows;
+                        $done  = (int) $record->processed_rows;
+
+                        return match ($record->status) {
+                            WhatsAppImportStatus::Pending->value    => 'Queued',
+                            WhatsAppImportStatus::Processing->value => $total > 0
+                                ? number_format($done).' / '.number_format($total).' ('.(int) floor($done / $total * 100).'%)'
+                                : 'Starting…',
+                            default => '—',
+                        };
+                    }),
+
                 TextColumn::make('total_rows')->label('Total')->numeric()->sortable(),
                 TextColumn::make('successful_rows')->label('OK')->numeric()->color('success'),
                 TextColumn::make('failed_rows')->label('Failed')->numeric()

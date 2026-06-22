@@ -7,6 +7,7 @@ use App\Models\ClientPhoneNumber;
 use App\Models\ContactSuppression;
 use App\Modules\IVR\Enums\IvrImportStatus;
 use App\Modules\IVR\Models\IvrImport;
+use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use SplFileObject;
@@ -110,6 +111,8 @@ class UnsubscriberImportProcessor
                     'existing_rows' => $existing,
                 ],
             ]);
+
+            $this->notifyUploader($import, $created, $existing, $failed);
         } catch (Throwable $throwable) {
             $import->update([
                 'status' => IvrImportStatus::Failed,
@@ -121,7 +124,35 @@ class UnsubscriberImportProcessor
                 'import_id' => $import->id,
                 'message' => $throwable->getMessage(),
             ]);
+
+            if ($recipient = $import->user) {
+                Notification::make()
+                    ->title('Do Not Call import failed — '.$import->original_file_name)
+                    ->body($throwable->getMessage())
+                    ->danger()
+                    ->sendToDatabase($recipient);
+            }
         }
+    }
+
+    /** Ping the person who uploaded the file in the admin bell when it finishes. */
+    private function notifyUploader(IvrImport $import, int $created, int $existing, int $failed): void
+    {
+        $recipient = $import->user;
+
+        if (! $recipient) {
+            return;
+        }
+
+        $body = number_format($created).' added to Do Not Call, '.number_format($existing).' already listed'
+            .($failed > 0 ? ', '.number_format($failed).' failed' : '').'.';
+
+        $notification = Notification::make()
+            ->title('Do Not Call import finished — '.$import->original_file_name)
+            ->body($body);
+
+        ($failed > 0 ? $notification->warning() : $notification->success())
+            ->sendToDatabase($recipient);
     }
 
     private function updateProgress(IvrImport $import, int $processed, int $created, int $existing, int $failed): void
