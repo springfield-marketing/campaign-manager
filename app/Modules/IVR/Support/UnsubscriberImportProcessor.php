@@ -125,6 +125,10 @@ class UnsubscriberImportProcessor
                 'message' => $throwable->getMessage(),
             ]);
 
+            // Surface the whole-import failure in Sentry (no-op if no DSN). Per-row errors above
+            // are intentionally not sent — a bad file could hold thousands and would flood Sentry.
+            \Sentry\captureException($throwable);
+
             if ($recipient = $import->user) {
                 Notification::make()
                     ->title('Do Not Call import failed — '.$import->original_file_name)

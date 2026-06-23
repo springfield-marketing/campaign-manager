@@ -251,6 +251,10 @@ class RawImportProcessor
                 'import_id' => $import->id,
                 'message' => $throwable->getMessage(),
             ]);
+
+            // Surface the whole-import failure in Sentry (no-op if no DSN). Per-row errors above
+            // are intentionally not sent — a bad file could hold thousands and would flood Sentry.
+            \Sentry\captureException($throwable);
         } finally {
             if (class_exists(Telescope::class)) {
                 Telescope::startRecording();

@@ -189,6 +189,10 @@ class WhatsAppUnsubscriberImportProcessor
                 'message'   => $e->getMessage(),
             ]);
 
+            // Surface the whole-import failure in Sentry (no-op if no DSN). Per-row errors above
+            // are intentionally not sent — a bad file could hold thousands and would flood Sentry.
+            \Sentry\captureException($e);
+
             if ($recipient = $import->user) {
                 Notification::make()
                     ->title('Unsubscriber import failed — '.$import->original_file_name)

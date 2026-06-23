@@ -14,6 +14,11 @@ The app's runtime needs: **PostgreSQL**, **Redis** (queue/cache/sessions), **que
 - Install the **phpredis** PHP extension (faster than predis for cache/session/queue at this volume).
 - One server, one filesystem — this is why the import pipeline (which reads uploaded CSVs from
   the local disk) works without changes.
+- **Raise the upload size limits** or campaign-CSV uploads fail with `413 Request Entity Too Large`
+  (nginx's default `client_max_body_size` is only 1 MB, and a byte-dense campaign export easily
+  exceeds it). In the site's **nginx config** set `client_max_body_size 64M;`, and in **php.ini**
+  set `upload_max_filesize = 64M` and `post_max_size = 64M` (≥ Filament's 50 MB `maxSize`). These
+  are server config, not in git — redo them on a server rebuild.
 
 ## 2. PostgreSQL
 
@@ -47,6 +52,9 @@ SESSION_DRIVER=redis
 REDIS_QUEUE_RETRY_AFTER=7800    # MUST exceed the longest job timeout (imports: 7200s)
 
 FILESYSTEM_DISK=local
+
+SENTRY_LARAVEL_DSN=https://<key>@<org>.ingest.sentry.io/<project>   # error tracking; blank = off
+SENTRY_TRACES_SAMPLE_RATE=0     # errors only — no performance-monitoring quota
 ```
 
 ## 5. Queue workers (Forge → Daemons or Queue)
@@ -101,7 +109,9 @@ Add the standard entry: `php artisan schedule:run` every minute. It drives `back
 
 - Backups: keep `backup:database` **and** enable the provider's DB backups/snapshots; periodically
   test a restore.
-- Watch `failed_jobs`; wire alerting once error monitoring (Sentry) is added.
+- **Sentry** is wired in (errors-only, `traces_sample_rate=0`); set `SENTRY_LARAVEL_DSN` in the
+  production `.env` to switch it on. Whole-import failures report automatically. Also watch
+  `failed_jobs`. `php artisan sentry:test` confirms the DSN end to end.
 - Point an uptime monitor at the built-in `/up` health endpoint.
 
 ## 11. Security checklist (see also the panel hardening in code)
