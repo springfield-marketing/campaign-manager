@@ -14,6 +14,8 @@ use Filament\Tables\Table;
 
 class IvrScriptResource extends Resource
 {
+    use \App\Filament\Concerns\RestrictsToIvr;
+
     protected static ?string $model = IvrScript::class;
 
 

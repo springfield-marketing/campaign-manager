@@ -14,6 +14,8 @@ use Filament\Support\Contracts\TranslatableContentDriver;
 
 class IvrReportsPage extends Page implements HasForms
 {
+    use \App\Filament\Concerns\RestrictsToIvr;
+
     use InteractsWithForms;
 
     protected string $view = 'filament.pages.ivr-reports';

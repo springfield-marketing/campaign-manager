@@ -12,6 +12,8 @@ use Filament\Tables\Table;
 
 class IvrScriptPerformancePage extends Page implements HasTable
 {
+    use \App\Filament\Concerns\RestrictsToIvr;
+
     use InteractsWithTable;
 
     protected string $view = 'filament.pages.ivr-script-performance';

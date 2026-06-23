@@ -20,6 +20,8 @@ use Illuminate\Database\Eloquent\Builder;
 
 class IvrUnsubscriberResource extends Resource
 {
+    use \App\Filament\Concerns\RestrictsToIvr;
+
     protected static ?string $model = ContactSuppression::class;
 
     public static function getNavigationIcon(): string { return 'heroicon-o-no-symbol'; }

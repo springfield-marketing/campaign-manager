@@ -16,6 +16,8 @@ use Illuminate\Database\Eloquent\Builder;
 
 class WhatsAppImportResource extends Resource
 {
+    use \App\Filament\Concerns\RestrictsToWhatsApp;
+
     protected static ?string $model = WhatsAppImport::class;
 
 

@@ -15,6 +15,8 @@ use Filament\Tables\Table;
 
 class IvrCampaignResource extends Resource
 {
+    use \App\Filament\Concerns\RestrictsToIvr;
+
     protected static ?string $model = IvrCampaign::class;
 
 

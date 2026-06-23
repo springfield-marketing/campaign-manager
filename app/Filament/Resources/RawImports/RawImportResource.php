@@ -14,6 +14,8 @@ use Illuminate\Database\Eloquent\Builder;
 
 class RawImportResource extends Resource
 {
+    use \App\Filament\Concerns\RestrictsToAdmin;
+
     protected static ?string $model = IvrImport::class;
 
     public static function getNavigationGroup(): ?string { return null; }

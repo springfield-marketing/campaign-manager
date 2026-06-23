@@ -17,6 +17,8 @@ use Filament\Tables\Table;
 
 class WhatsAppNumberResource extends Resource
 {
+    use \App\Filament\Concerns\RestrictsToWhatsApp;
+
     protected static ?string $model = ClientPhoneNumber::class;
 
     public static function form(Schema $schema): Schema

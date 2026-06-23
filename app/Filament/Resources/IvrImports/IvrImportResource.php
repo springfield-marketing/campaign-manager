@@ -16,6 +16,8 @@ use Illuminate\Database\Eloquent\Builder;
 
 class IvrImportResource extends Resource
 {
+    use \App\Filament\Concerns\RestrictsToIvr;
+
     protected static ?string $model = IvrImport::class;
 
 

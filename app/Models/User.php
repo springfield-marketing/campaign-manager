@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\UserRole;
 use Database\Factories\UserFactory;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthentication;
 use Filament\Auth\MultiFactor\App\Contracts\HasAppAuthenticationRecovery;
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password'])]
+#[Fillable(['name', 'email', 'password', 'role'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements FilamentUser, HasAppAuthentication, HasAppAuthenticationRecovery
 {
@@ -23,8 +24,26 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
 
     public function canAccessPanel(Panel $panel): bool
     {
-        // Internal app — any authenticated user may access the panel
+        // Any authenticated user may reach the panel; what they see inside is gated per module by
+        // role (see App\Filament\Concerns\RestrictsTo* and the role helpers below).
         return true;
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === UserRole::Admin;
+    }
+
+    /** Admins and IVR operators may use the IVR module. */
+    public function canAccessIvr(): bool
+    {
+        return in_array($this->role, [UserRole::Admin, UserRole::Ivr], true);
+    }
+
+    /** Admins and WhatsApp operators may use the WhatsApp module. */
+    public function canAccessWhatsApp(): bool
+    {
+        return in_array($this->role, [UserRole::Admin, UserRole::WhatsApp], true);
     }
 
     /**
@@ -37,6 +56,7 @@ class User extends Authenticatable implements FilamentUser, HasAppAuthentication
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'role' => UserRole::class,
             // Authenticator-app 2FA secrets — encrypted at rest.
             'app_authentication_secret' => 'encrypted',
             'app_authentication_recovery_codes' => 'encrypted:array',

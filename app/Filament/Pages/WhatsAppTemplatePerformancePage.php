@@ -12,6 +12,8 @@ use Filament\Tables\Table;
 
 class WhatsAppTemplatePerformancePage extends Page implements HasTable
 {
+    use \App\Filament\Concerns\RestrictsToWhatsApp;
+
     use InteractsWithTable;
 
     protected string $view = 'filament.pages.whatsapp-template-performance';

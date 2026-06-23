@@ -20,6 +20,8 @@ use Filament\Tables\Table;
 
 class WhatsAppReportsPage extends Page implements HasForms, HasTable
 {
+    use \App\Filament\Concerns\RestrictsToWhatsApp;
+
     use InteractsWithForms;
     use InteractsWithTable;
 

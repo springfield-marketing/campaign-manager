@@ -18,6 +18,8 @@ use Filament\Tables\Table;
 
 class IvrNumberResource extends Resource
 {
+    use \App\Filament\Concerns\RestrictsToIvr;
+
     protected static ?string $model = ClientPhoneNumber::class;
     protected static ?string $recordTitleAttribute = 'normalized_phone';
 

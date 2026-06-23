@@ -15,6 +15,8 @@ use Filament\Tables\Table;
 
 class WhatsAppCampaignResource extends Resource
 {
+    use \App\Filament\Concerns\RestrictsToWhatsApp;
+
     protected static ?string $model = WhatsAppCampaign::class;
 
 

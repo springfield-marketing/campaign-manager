@@ -15,6 +15,8 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 class IvrSettingsPage extends Page implements HasForms
 {
+    use \App\Filament\Concerns\RestrictsToIvr;
+
     use InteractsWithForms;
 
     protected string $view = 'filament.pages.ivr-settings';

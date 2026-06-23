@@ -15,6 +15,8 @@ use Filament\Schemas\Schema;
 
 class WhatsAppSettingsPage extends Page implements HasForms
 {
+    use \App\Filament\Concerns\RestrictsToWhatsApp;
+
     use InteractsWithForms;
 
     protected string $view = 'filament.pages.whatsapp-settings';
