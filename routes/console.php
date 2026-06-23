@@ -23,3 +23,10 @@ Schedule::command('clients:audit-data-quality')
 Schedule::command('ivr:check-budget')
     ->dailyAt('08:00')
     ->withoutOverlapping();
+
+// Daily prune of WhatsApp export-batch history older than 7 days. Batches only exist to dedupe
+// back-to-back exports (so a second 10k export excludes the first 10k); after a week they're no
+// longer needed, and pruning keeps whatsapp_export_batch_numbers from growing forever.
+Schedule::command('whatsapp:prune-export-batches')
+    ->dailyAt('03:00')
+    ->withoutOverlapping();
