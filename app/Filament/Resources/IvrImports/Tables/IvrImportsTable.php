@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\IvrImports\Tables;
 
+use App\Models\ActivityLog;
 use App\Modules\IVR\Enums\IvrImportStatus;
 use App\Modules\IVR\Enums\IvrImportType;
 use App\Modules\IVR\Jobs\ProcessIvrCampaignResultsImport;
@@ -179,6 +180,8 @@ class IvrImportsTable
 
                         ProcessIvrCampaignResultsImport::dispatch($import->id)->onQueue('imports-high');
 
+                        ActivityLog::record('import.upload', "Queued IVR campaign results import \"{$originalName}\"", $import);
+
                         Notification::make()->title('Campaign results import queued — status will update automatically')->success()->send();
                     })
                     ->modalHeading('Upload Campaign Results CSV')
@@ -217,6 +220,8 @@ class IvrImportsTable
                         ]);
 
                         ProcessUnsubscriberImport::dispatch($import->id)->onQueue('imports');
+
+                        ActivityLog::record('import.upload', "Queued IVR Do Not Call import \"{$originalName}\"", $import);
 
                         Notification::make()->title('Do Not Call import queued — status will update automatically')->success()->send();
                     })
@@ -311,6 +316,8 @@ class IvrImportsTable
                             userId: auth()->id(),
                             reason: $data['revert_reason'] ?? null,
                         );
+
+                        ActivityLog::record('import.revert', "Reverted IVR campaign import \"{$record->original_file_name}\"", $record);
 
                         Notification::make()
                             ->title("Campaign import {$record->original_file_name} was reverted.")

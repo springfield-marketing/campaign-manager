@@ -4,6 +4,7 @@ namespace App\Filament\Resources\WhatsAppNumbers\Pages;
 
 use App\Filament\Resources\WhatsAppNumbers\WhatsAppNumberResource;
 use App\Filament\Widgets\WhatsAppNumberStatsWidget;
+use App\Models\ActivityLog;
 use App\Models\MarketingArea;
 use App\Models\WhatsAppExportBatch;
 use Filament\Actions\Action;
@@ -140,6 +141,8 @@ class ListWhatsAppNumbers extends ListRecords
                         'record_count'    => count($ids),
                         'filters_summary' => $this->buildFiltersSummary($filters, $excludeBatchIds),
                     ]);
+
+                    ActivityLog::record('export.created', "Exported WhatsApp batch \"{$batchName}\" (".count($ids).' numbers)', $batch);
 
                     foreach (array_chunk($ids, 500) as $chunk) {
                         DB::table('whatsapp_export_batch_numbers')->insertOrIgnore(

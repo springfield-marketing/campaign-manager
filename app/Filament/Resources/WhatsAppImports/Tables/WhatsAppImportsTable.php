@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\WhatsAppImports\Tables;
 
+use App\Models\ActivityLog;
 use App\Modules\WhatsApp\Enums\WhatsAppImportStatus;
 use App\Modules\WhatsApp\Enums\WhatsAppImportType;
 use App\Modules\WhatsApp\Enums\WhatsAppPlatform;
@@ -186,6 +187,8 @@ class WhatsAppImportsTable
 
                         ProcessWhatsAppCampaignResultsImport::dispatch($import->id)->onQueue('imports');
 
+                        ActivityLog::record('import.upload', "Queued WhatsApp campaign results import \"{$originalName}\"", $import);
+
                         Notification::make()->title('Campaign results import queued — status updates automatically')->success()->send();
                     })
                     ->modalHeading('Upload WhatsApp Campaign Results CSV')
@@ -222,6 +225,8 @@ class WhatsAppImportsTable
                         ]);
 
                         ProcessWhatsAppUnsubscriberImport::dispatch($import->id)->onQueue('imports');
+
+                        ActivityLog::record('import.upload', "Queued WhatsApp unsubscriber import \"{$originalName}\"", $import);
 
                         Notification::make()->title('Unsubscriber import queued — status updates automatically')->success()->send();
                     })

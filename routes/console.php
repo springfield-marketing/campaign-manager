@@ -30,3 +30,8 @@ Schedule::command('ivr:check-budget')
 Schedule::command('whatsapp:prune-export-batches')
     ->dailyAt('03:00')
     ->withoutOverlapping();
+
+// Daily prune of the activity log, keeping the last 12 months so it can't grow without bound.
+Schedule::command('activity-log:prune')
+    ->dailyAt('03:30')
+    ->withoutOverlapping();

@@ -4,6 +4,7 @@ namespace App\Filament\Resources\IvrNumbers\Tables;
 
 use App\Filament\Filters\PhoneSearchFilter;
 use App\Filament\Resources\Clients\ClientResource;
+use App\Models\ActivityLog;
 use App\Models\ClientPhoneNumber;
 use App\Models\MarketingArea;
 use App\Models\Tag;
@@ -244,6 +245,7 @@ class IvrNumbersTable
                     ])
                     ->action(function (ClientPhoneNumber $record, array $data): void {
                         app(IvrSuppressionService::class)->suppress($record, $data['reason'] ?? null);
+                        ActivityLog::record('suppression.created', "Marked {$record->normalized_phone} Do Not Call (IVR)", $record);
                         Notification::make()->title('Number marked Do Not Call')->warning()->send();
                     })
                     ->requiresConfirmation()
@@ -256,6 +258,7 @@ class IvrNumbersTable
                     ->visible(fn (ClientPhoneNumber $record) => (bool) $record->is_ivr_suppressed)
                     ->action(function (ClientPhoneNumber $record): void {
                         app(IvrSuppressionService::class)->unsuppress($record);
+                        ActivityLog::record('suppression.released', "Made {$record->normalized_phone} callable again (IVR)", $record);
                         Notification::make()->title('Number can be called again')->success()->send();
                     })
                     ->requiresConfirmation()
@@ -277,6 +280,7 @@ class IvrNumbersTable
             ->requiresConfirmation()
             ->action(function (\Illuminate\Database\Eloquent\Collection $records): void {
                 $count = app(IvrSuppressionService::class)->bulkSuppress($records);
+                ActivityLog::record('suppression.created', "Marked {$count} number(s) Do Not Call (IVR, bulk)");
                 Notification::make()->title("Marked {$count} number(s) Do Not Call")->warning()->send();
             });
     }
