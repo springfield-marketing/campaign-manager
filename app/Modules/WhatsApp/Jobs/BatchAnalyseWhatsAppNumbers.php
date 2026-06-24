@@ -37,9 +37,10 @@ class BatchAnalyseWhatsAppNumbers implements ShouldQueue
 
         if ($this->trackProgress) {
             $completedAt = now();
-            $duration    = $completedAt->diffInSeconds(
-                WhatsAppSettings::where('lock_key', 'default')->value('reanalysis_started_at')
-            );
+            $startedAt   = WhatsAppSettings::where('lock_key', 'default')->value('reanalysis_started_at');
+            // Carbon 3 diffInSeconds is signed and fractional; absolute + int so it fits the
+            // integer column. Previously wrote e.g. -52.72 -> "invalid input syntax for type integer".
+            $duration    = (int) $completedAt->diffInSeconds($startedAt, absolute: true);
 
             WhatsAppSettings::where('lock_key', 'default')->update([
                 'reanalysis_status'          => 'completed',
