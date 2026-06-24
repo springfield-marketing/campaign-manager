@@ -13,12 +13,18 @@ use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
+use Filament\Pages\Concerns\ExposesTableToWidgets;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class ListWhatsAppNumbers extends ListRecords
 {
+    // Forwards the live table filter/search state to the header widgets (getWidgetData), so the
+    // "Matching filters" widget's reactive props update when filters change. Without this the
+    // widget only ever sees the default filter and its count never moves.
+    use ExposesTableToWidgets;
+
     protected static string $resource = WhatsAppNumberResource::class;
 
     protected function getHeaderWidgets(): array

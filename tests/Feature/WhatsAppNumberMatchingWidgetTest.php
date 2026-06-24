@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Resources\WhatsAppNumbers\Pages\ListWhatsAppNumbers;
 use App\Filament\Widgets\WhatsAppNumberMatchingWidget;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -21,5 +22,18 @@ class WhatsAppNumberMatchingWidgetTest extends TestCase
         Livewire::test(WhatsAppNumberMatchingWidget::class)
             ->assertOk()
             ->assertSee('Matching filters');
+    }
+
+    #[Test]
+    public function the_list_page_forwards_filter_state_to_its_widgets(): void
+    {
+        // ExposesTableToWidgets must be on the page, or the widget's reactive props never receive
+        // filter changes and the count is stuck on the default filter.
+        $this->actingAs(User::factory()->create());
+
+        $data = Livewire::test(ListWhatsAppNumbers::class)->instance()->getWidgetData();
+
+        $this->assertArrayHasKey('tableFilters', $data);
+        $this->assertArrayHasKey('tableSearch', $data);
     }
 }
