@@ -64,14 +64,15 @@ class WhatsAppReanalysisStatusWidget extends StatsOverviewWidget
         }
 
         if ($status === 'running' && $s->reanalysis_started_at) {
-            $elapsed   = now()->diffInSeconds($s->reanalysis_started_at);
+            // Carbon 3 diffInSeconds is signed — order start->now so elapsed is positive.
+            $elapsed   = (int) $s->reanalysis_started_at->diffInSeconds(now());
             $estimated = $s->last_run_duration_seconds;
 
             if ($estimated && $estimated > 0) {
-                $pct       = min(99, (int) round($elapsed / $estimated * 100));
+                $pct       = max(0, min(99, (int) round($elapsed / $estimated * 100)));
                 $remaining = max(0, $estimated - $elapsed);
-                $bar       = str_repeat('█', (int) round($pct / 10))
-                           . str_repeat('░', 10 - (int) round($pct / 10));
+                $filled    = max(0, min(10, (int) round($pct / 10)));   // str_repeat counts can never go negative
+                $bar       = str_repeat('█', $filled).str_repeat('░', 10 - $filled);
 
                 $stats[] = Stat::make('Progress', $bar . '  ' . $pct . '%')
                     ->icon('heroicon-o-arrow-path')
@@ -90,7 +91,7 @@ class WhatsAppReanalysisStatusWidget extends StatsOverviewWidget
         }
 
         if ($status === 'completed' && $s->reanalysis_started_at && $s->reanalysis_completed_at) {
-            $duration = $s->reanalysis_completed_at->diffInSeconds($s->reanalysis_started_at);
+            $duration = (int) $s->reanalysis_started_at->diffInSeconds($s->reanalysis_completed_at);
             $stats[] = Stat::make('Finished', $s->reanalysis_completed_at->diffForHumans())
                 ->icon('heroicon-o-check-circle')
                 ->color('success')
