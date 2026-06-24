@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\WhatsAppNumbers\Pages;
 
 use App\Filament\Resources\WhatsAppNumbers\WhatsAppNumberResource;
+use App\Filament\Widgets\WhatsAppNumberMatchingWidget;
 use App\Filament\Widgets\WhatsAppNumberStatsWidget;
 use App\Models\ActivityLog;
 use App\Models\MarketingArea;
@@ -24,6 +25,7 @@ class ListWhatsAppNumbers extends ListRecords
     {
         return [
             WhatsAppNumberStatsWidget::class,
+            WhatsAppNumberMatchingWidget::class,
         ];
     }
 
