@@ -19,6 +19,7 @@ class WhatsAppReport extends Model
 
     protected $fillable = [
         'type',
+        'window_from',
         'status',
         'file_name',
         'storage_path',
@@ -36,6 +37,7 @@ class WhatsAppReport extends Model
     {
         return [
             'summary' => 'array',
+            'window_from' => 'datetime',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
         ];

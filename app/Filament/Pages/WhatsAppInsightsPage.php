@@ -6,6 +6,7 @@ use App\Filament\Concerns\RestrictsToWhatsApp;
 use App\Modules\WhatsApp\Jobs\GenerateWhatsAppReport;
 use App\Modules\WhatsApp\Models\WhatsAppReport;
 use Filament\Actions\Action;
+use Filament\Forms\Components\DatePicker;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Contracts\TranslatableContentDriver;
@@ -39,8 +40,15 @@ class WhatsAppInsightsPage extends Page implements HasTable
                 ->color('primary')
                 ->requiresConfirmation()
                 ->modalHeading('Generate Contact-Fatigue report?')
-                ->modalDescription('Runs in the background over the last 60 days of WhatsApp activity. You can leave this page — a download appears here and you get a notification when it is ready.')
-                ->action(function (): void {
+                ->modalDescription('Runs in the background. You can leave this page — a download appears here and you get a notification when it is ready.')
+                ->form([
+                    DatePicker::make('window_from')
+                        ->label('Analyse since')
+                        ->default(now()->subDays(60))
+                        ->maxDate(now())
+                        ->helperText('Campaigns from this date until now are analysed. Leave blank for all-time (lifetime).'),
+                ])
+                ->action(function (array $data): void {
                     $running = WhatsAppReport::query()
                         ->whereIn('status', [WhatsAppReport::STATUS_PENDING, WhatsAppReport::STATUS_PROCESSING])
                         ->exists();
@@ -53,6 +61,7 @@ class WhatsAppInsightsPage extends Page implements HasTable
 
                     $report = WhatsAppReport::create([
                         'type' => WhatsAppReport::TYPE_FATIGUE,
+                        'window_from' => $data['window_from'] ?? null,
                         'status' => WhatsAppReport::STATUS_PENDING,
                         'requested_by' => auth()->id(),
                     ]);
@@ -73,6 +82,11 @@ class WhatsAppInsightsPage extends Page implements HasTable
                 TextColumn::make('type')
                     ->badge()
                     ->formatStateUsing(fn (string $state): string => ucfirst($state)),
+
+                TextColumn::make('window_from')
+                    ->label('Window')
+                    ->date('d M Y')
+                    ->placeholder('Lifetime'),
 
                 TextColumn::make('status')
                     ->badge()

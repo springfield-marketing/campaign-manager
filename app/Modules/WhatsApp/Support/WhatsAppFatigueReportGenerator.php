@@ -10,18 +10,22 @@ use Illuminate\Support\Facades\Storage;
 use Throwable;
 
 /**
- * Contact-Fatigue report. One CSV row per WhatsApp number messaged in the last 60 days.
+ * Contact-Fatigue report. One CSV row per WhatsApp number messaged within the window.
  *
- *   over_messaging = min(campaigns_30d / 10, 1)              // 10+ campaigns in 30d maxes it
- *   non_engagement = campaigns_without_reply / total_campaigns(60d)
+ * The window is $report->window_from .. now (null window_from = all-time / lifetime). It drives
+ * total_campaigns, reply_rate, read_rate and the non-engagement term. The "current pressure" term
+ * (campaigns in the last 30 days) is always relative to now, so even a lifetime report reflects
+ * whether we are still messaging them right now.
+ *
+ *   over_messaging = min(campaigns_last_30d / 10, 1)
+ *   non_engagement = campaigns_without_reply / total_campaigns(window)
  *   fatigue        = round(100 * (0.55*over_messaging + 0.45*non_engagement))   // 0..100
  *
- * Bands: Critical >=80, High 60-79, Moderate 30-59, Low <30. Higher = more over-contacted / at risk.
- * Runs in the queue (analysis), streaming to CSV so it stays memory-safe over ~1M numbers.
+ * Bands: Critical >=80, High 60-79, Moderate 30-59, Low <30.
+ * For a pure "how much have we burned" view, sort the CSV by total_campaigns desc, reply_rate asc.
  */
 class WhatsAppFatigueReportGenerator
 {
-    private const WINDOW_DAYS = 60;
     private const RECENT_DAYS = 30;
     private const OVER_MESSAGING_CAP = 10;
     private const PROGRESS_INTERVAL = 1000;
@@ -32,14 +36,20 @@ class WhatsAppFatigueReportGenerator
         $absolutePath = storage_path('app/private/'.$relativePath);
         File::ensureDirectoryExists(dirname($absolutePath));
 
+        // window_from null = lifetime (no lower bound). Filter on scheduled_at — the actual send
+        // time — NOT created_at, which is just when the row was imported (all "now" for a bulk load).
+        $from = $report->window_from?->toDateTimeString();
+        $windowClause = $from ? 'AND scheduled_at >= ?' : '';
+        $bindings = $from ? [$from] : [];
+
         $handle = null;
 
         try {
             $total = (int) DB::scalar(
                 "SELECT count(DISTINCT client_phone_number_id)
                  FROM whatsapp_messages
-                 WHERE created_at >= now() - interval '".self::WINDOW_DAYS." days'
-                   AND whatsapp_campaign_id IS NOT NULL"
+                 WHERE whatsapp_campaign_id IS NOT NULL {$windowClause}",
+                $bindings
             );
 
             $report->update([
@@ -55,7 +65,7 @@ class WhatsAppFatigueReportGenerator
             $handle = fopen($absolutePath, 'w');
             fputcsv($handle, [
                 'phone', 'name', 'emirate', 'tier',
-                'campaigns_30d', 'campaigns_60d', 'total_campaigns',
+                'campaigns_last_30d', 'total_campaigns',
                 'reply_rate', 'read_rate', 'last_messaged_at',
                 'fatigue_score', 'fatigue_band',
             ]);
@@ -63,7 +73,7 @@ class WhatsAppFatigueReportGenerator
             $bands = ['Critical' => 0, 'High' => 0, 'Moderate' => 0, 'Low' => 0];
             $processed = 0;
 
-            foreach (DB::cursor($this->sql()) as $row) {
+            foreach (DB::cursor($this->sql($windowClause), $bindings) as $row) {
                 $m = $this->score($row);
                 $bands[$m['band']]++;
 
@@ -72,9 +82,8 @@ class WhatsAppFatigueReportGenerator
                     $row->full_name,
                     $row->emirate,
                     $row->tier,
-                    (int) $row->campaigns_30d,
-                    (int) $row->campaigns_60d,
-                    (int) $row->campaigns_60d,
+                    (int) $row->campaigns_last_30d,
+                    (int) $row->total_campaigns,
                     $m['reply_rate'],
                     $m['read_rate'],
                     $row->last_messaged_at,
@@ -97,7 +106,7 @@ class WhatsAppFatigueReportGenerator
                 'file_size' => Storage::disk('local')->size($relativePath),
                 'completed_at' => now(),
                 'summary' => [
-                    'window_days' => self::WINDOW_DAYS,
+                    'window_from' => $from,   // null = lifetime
                     'numbers' => $processed,
                     'bands' => $bands,
                 ],
@@ -130,12 +139,12 @@ class WhatsAppFatigueReportGenerator
      */
     private function score(object $row): array
     {
-        $campaigns30 = (int) $row->campaigns_30d;
-        $total       = (int) $row->campaigns_60d;
-        $replied     = (int) $row->campaigns_replied;
-        $read        = (int) $row->campaigns_read;
+        $recent  = (int) $row->campaigns_last_30d;
+        $total   = (int) $row->total_campaigns;
+        $replied = (int) $row->campaigns_replied;
+        $read    = (int) $row->campaigns_read;
 
-        $overMessaging = min($campaigns30 / self::OVER_MESSAGING_CAP, 1);
+        $overMessaging = min($recent / self::OVER_MESSAGING_CAP, 1);
         $nonEngagement = $total > 0 ? ($total - $replied) / $total : 0.0;
 
         $fatigue = (int) round(100 * (0.55 * $overMessaging + 0.45 * $nonEngagement));
@@ -153,7 +162,7 @@ class WhatsAppFatigueReportGenerator
         ];
     }
 
-    private function sql(): string
+    private function sql(string $windowClause): string
     {
         return "
             SELECT
@@ -162,20 +171,19 @@ class WhatsAppFatigueReportGenerator
                 c.emirate,
                 c.tier,
                 wpp.last_messaged_at,
-                agg.campaigns_30d,
-                agg.campaigns_60d,
+                agg.campaigns_last_30d,
+                agg.total_campaigns,
                 agg.campaigns_replied,
                 agg.campaigns_read
             FROM (
                 SELECT
                     client_phone_number_id,
-                    count(DISTINCT whatsapp_campaign_id) FILTER (WHERE created_at >= now() - interval '".self::RECENT_DAYS." days') AS campaigns_30d,
-                    count(DISTINCT whatsapp_campaign_id) AS campaigns_60d,
+                    count(DISTINCT whatsapp_campaign_id) FILTER (WHERE scheduled_at >= now() - interval '".self::RECENT_DAYS." days') AS campaigns_last_30d,
+                    count(DISTINCT whatsapp_campaign_id) AS total_campaigns,
                     count(DISTINCT whatsapp_campaign_id) FILTER (WHERE delivery_status = 'REPLIED') AS campaigns_replied,
                     count(DISTINCT whatsapp_campaign_id) FILTER (WHERE delivery_status IN ('READ','REPLIED')) AS campaigns_read
                 FROM whatsapp_messages
-                WHERE created_at >= now() - interval '".self::WINDOW_DAYS." days'
-                  AND whatsapp_campaign_id IS NOT NULL
+                WHERE whatsapp_campaign_id IS NOT NULL {$windowClause}
                 GROUP BY client_phone_number_id
             ) agg
             JOIN client_phone_numbers cpn ON cpn.id = agg.client_phone_number_id

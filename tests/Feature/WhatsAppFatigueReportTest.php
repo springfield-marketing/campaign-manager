@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Modules\WhatsApp\Models\WhatsAppReport;
 use App\Modules\WhatsApp\Support\WhatsAppFatigueReportGenerator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
@@ -43,29 +44,36 @@ class WhatsAppFatigueReportTest extends TestCase
         $this->seedNumber('+971500000001', repliedCampaigns: 1, sentOnlyCampaigns: 0);
         $this->seedNumber('+971500000002', repliedCampaigns: 0, sentOnlyCampaigns: 4);
 
-        $report = WhatsAppReport::create([
-            'type' => WhatsAppReport::TYPE_FATIGUE,
-            'status' => WhatsAppReport::STATUS_PENDING,
-            'requested_by' => User::factory()->create()->id,
-        ]);
+        $report = $this->runReport(null);
 
-        app(WhatsAppFatigueReportGenerator::class)->generate($report);
-
-        $report->refresh();
         $this->assertSame(WhatsAppReport::STATUS_COMPLETED, $report->status);
         $this->assertSame(2, (int) $report->processed_rows);
         $this->assertTrue(Storage::disk('local')->exists($report->storage_path));
 
         $rows = $this->parseCsv($report->storage_path);
 
-        $this->assertSame('1', $rows['+971500000001']['campaigns_60d']);
+        $this->assertSame('1', $rows['+971500000001']['total_campaigns']);
         $this->assertSame('1', $rows['+971500000001']['reply_rate']);
         $this->assertSame('Low', $rows['+971500000001']['fatigue_band']);
 
-        $this->assertSame('4', $rows['+971500000002']['campaigns_60d']);
+        $this->assertSame('4', $rows['+971500000002']['total_campaigns']);
         $this->assertSame('0', $rows['+971500000002']['reply_rate']);
         $this->assertSame('67', $rows['+971500000002']['fatigue_score']);
         $this->assertSame('High', $rows['+971500000002']['fatigue_band']);
+    }
+
+    #[Test]
+    public function the_since_date_window_excludes_older_campaigns(): void
+    {
+        $this->seedNumber('+971500000009', repliedCampaigns: 0, sentOnlyCampaigns: 1, ageDays: 100);
+
+        // A 60-day window excludes the 100-day-old campaign...
+        $windowed = $this->runReport(now()->subDays(60));
+        $this->assertArrayNotHasKey('+971500000009', $this->parseCsv($windowed->storage_path));
+
+        // ...but a lifetime (null) report includes it.
+        $lifetime = $this->runReport(null);
+        $this->assertArrayHasKey('+971500000009', $this->parseCsv($lifetime->storage_path));
     }
 
     #[Test]
@@ -76,7 +84,21 @@ class WhatsAppFatigueReportTest extends TestCase
         Livewire::test(WhatsAppInsightsPage::class)->assertOk();
     }
 
-    private function seedNumber(string $phone, int $repliedCampaigns, int $sentOnlyCampaigns): void
+    private function runReport(?Carbon $from): WhatsAppReport
+    {
+        $report = WhatsAppReport::create([
+            'type' => WhatsAppReport::TYPE_FATIGUE,
+            'window_from' => $from,
+            'status' => WhatsAppReport::STATUS_PENDING,
+            'requested_by' => User::factory()->create()->id,
+        ]);
+
+        app(WhatsAppFatigueReportGenerator::class)->generate($report);
+
+        return $report->refresh();
+    }
+
+    private function seedNumber(string $phone, int $repliedCampaigns, int $sentOnlyCampaigns, int $ageDays = 0): void
     {
         $client = Client::create(['full_name' => 'N'.$phone, 'emirate' => 'Dubai', 'tier' => 'standard']);
         $cpn = ClientPhoneNumber::create([
@@ -86,7 +108,7 @@ class WhatsAppFatigueReportTest extends TestCase
             'verification_status' => 'verified',
         ]);
 
-        $make = function (string $status) use ($cpn): void {
+        $make = function (string $status) use ($cpn, $ageDays): void {
             $campaignId = DB::table('whatsapp_campaigns')->insertGetId([
                 'name' => 'C'.(++$this->campaignSeq),
                 'created_at' => now(),
@@ -97,7 +119,8 @@ class WhatsAppFatigueReportTest extends TestCase
                 'whatsapp_import_id' => $this->importId,
                 'client_phone_number_id' => $cpn->id,
                 'delivery_status' => $status,
-                'created_at' => now(),
+                'scheduled_at' => now()->subDays($ageDays),   // actual send time — what the window filters on
+                'created_at' => now(),                         // import time (deliberately "now")
                 'updated_at' => now(),
             ]);
         };
