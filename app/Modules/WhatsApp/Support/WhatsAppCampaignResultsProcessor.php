@@ -76,7 +76,7 @@ class WhatsAppCampaignResultsProcessor
             $now = now()->toDateTimeString();
 
             $platform = $import->platform();
-            $isGupshup = $platform === WhatsAppPlatform::Gupshup1;
+            $isGupshup = $platform?->isGupshup() ?? false;
 
             while (! $file->eof()) {
                 $row = $file->fgetcsv();
@@ -266,7 +266,7 @@ class WhatsAppCampaignResultsProcessor
         }
 
         $platform = $import->platform();
-        $payload = $platform === WhatsAppPlatform::Gupshup1
+        $payload = $platform?->isGupshup()
             ? $this->mapGupshupRow($header, $row)
             : $this->mapRow($header, $row);
 

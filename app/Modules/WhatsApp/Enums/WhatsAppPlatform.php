@@ -11,6 +11,7 @@ enum WhatsAppPlatform: string implements HasLabel
     case Wati3    = 'wati_3';
     case Wati4    = 'wati_4';
     case Gupshup1 = 'gupshup_1';
+    case Gupshup2 = 'gupshup_2';
 
     public function getLabel(): string
     {
@@ -20,12 +21,19 @@ enum WhatsAppPlatform: string implements HasLabel
             self::Wati3    => 'Wati 3',
             self::Wati4    => 'Wati 4',
             self::Gupshup1 => 'Gupshup 1',
+            self::Gupshup2 => 'Gupshup 2 (SPL)',
         };
     }
 
     public function isWati(): bool
     {
         return str_starts_with($this->value, 'wati_');
+    }
+
+    /** Gupshup variants share one CSV layout, so they all parse through the Gupshup mapper. */
+    public function isGupshup(): bool
+    {
+        return str_starts_with($this->value, 'gupshup_');
     }
 
     /** @return list<string> */
