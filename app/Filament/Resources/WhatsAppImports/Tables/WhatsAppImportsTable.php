@@ -203,25 +203,37 @@ class WhatsAppImportsTable
                             ->label('Unsubscribers CSV')
                             ->required()
                             ->disk('local')
-                            ->directory('whatsapp/unsubscribers/tmp')
+                            ->directory('whatsapp/imports/unsubscribers/tmp')
                             ->preserveFilenames()
                             ->acceptedFileTypes(['text/csv', 'text/plain', 'application/csv'])
                             ->maxSize(10240),
+
+                        Select::make('platform')
+                            ->label('Platform')
+                            ->options(WhatsAppPlatform::options())
+                            ->placeholder('All platforms (global suppression)')
+                            ->helperText('Leave blank to suppress the number across all WhatsApp platforms.'),
                     ])
                     ->action(function (array $data): void {
-                        $originalName = $data['file'];
-                        $tmpRelative = 'whatsapp/unsubscribers/tmp/'.$originalName;
-                        $finalRelative = 'whatsapp/unsubscribers/'.$originalName;
+                        // $data['file'] is already the path relative to the disk root
+                        // (whatsapp/imports/unsubscribers/tmp/<file>) — use it as-is; basename() is
+                        // only for the display name. (The old code re-prepended the directory,
+                        // producing a doubled, non-existent path so the move silently failed.)
+                        $tmpRelative   = $data['file'];
+                        $originalName  = basename($tmpRelative);
+                        $finalRelative = 'whatsapp/imports/unsubscribers/'.$originalName;
 
                         Storage::disk('local')->move($tmpRelative, $finalRelative);
 
                         $import = WhatsAppImport::create([
-                            'type' => WhatsAppImportType::Unsubscribers,
-                            'status' => WhatsAppImportStatus::Pending,
+                            'type'               => WhatsAppImportType::Unsubscribers,
+                            'status'             => WhatsAppImportStatus::Pending,
                             'original_file_name' => $originalName,
-                            'stored_file_name' => $originalName,
-                            'storage_path' => $finalRelative,
-                            'uploaded_by' => auth()->id(),
+                            'stored_file_name'   => $originalName,
+                            'storage_path'       => $finalRelative,
+                            'source_name'        => $data['platform'] ?: null,
+                            'uploaded_by'        => auth()->id(),
+                            'summary'            => ['format' => 'phone,name,reason'],
                         ]);
 
                         ProcessWhatsAppUnsubscriberImport::dispatch($import->id)->onQueue('imports');
@@ -231,7 +243,7 @@ class WhatsAppImportsTable
                         Notification::make()->title('Unsubscriber import queued — status updates automatically')->success()->send();
                     })
                     ->modalHeading('Upload WhatsApp Unsubscribers CSV')
-                    ->modalDescription('Upload a CSV with phone number in the first column and optional name in the second column.')
+                    ->modalDescription('CSV columns in order: phone, name, reason — only phone is required, the first row is treated as a header. Leave Platform blank to suppress across all WhatsApp platforms.')
                     ->modalSubmitActionLabel('Upload & Queue'),
             ])
             ->recordActions([

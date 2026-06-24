@@ -9,14 +9,9 @@ use App\Models\ClientPhoneNumber;
 use App\Models\ContactSuppression;
 use App\Support\WhatsAppSuppressionDisplay;
 use Filament\Tables\Filters\SelectFilter;
-use App\Modules\WhatsApp\Enums\WhatsAppImportStatus;
-use App\Modules\WhatsApp\Enums\WhatsAppImportType;
 use App\Modules\WhatsApp\Enums\WhatsAppPlatform;
-use App\Modules\WhatsApp\Jobs\ProcessWhatsAppUnsubscriberImport;
-use App\Modules\WhatsApp\Models\WhatsAppImport;
 use App\Modules\WhatsApp\Support\WhatsAppPhoneNormalizer;
 use Filament\Actions\Action;
-use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
@@ -95,53 +90,8 @@ class WhatsAppUnsubscribersTable
                         )
                     ),
             ])
+            // CSV upload lives on the WhatsApp Imports page; this page only adds single numbers.
             ->headerActions([
-                Action::make('upload_csv')
-                    ->label('Upload Do Not Message CSV')
-                    ->icon('heroicon-o-arrow-up-tray')
-                    ->color('primary')
-                    ->form([
-                        FileUpload::make('file')
-                            ->label('CSV File')
-                            ->required()
-                            ->disk('local')
-                            ->directory('whatsapp/imports/unsubscribers/tmp')
-                            ->preserveFilenames()
-                            ->acceptedFileTypes(['text/csv', 'text/plain', 'application/csv'])
-                            ->maxSize(10240),
-
-                        \Filament\Forms\Components\Select::make('platform')
-                            ->label('Platform')
-                            ->options(WhatsAppPlatform::options())
-                            ->placeholder('All platforms (global suppression)')
-                            ->helperText('Leave blank to suppress the number across all WhatsApp platforms.'),
-                    ])
-                    ->action(function (array $data): void {
-                        $tmpRelative   = $data['file'];
-                        $originalName  = basename($tmpRelative);
-                        $finalRelative = 'whatsapp/imports/unsubscribers/'.$originalName;
-
-                        \Illuminate\Support\Facades\Storage::disk('local')->move($tmpRelative, $finalRelative);
-
-                        $import = WhatsAppImport::create([
-                            'type'               => WhatsAppImportType::Unsubscribers,
-                            'status'             => WhatsAppImportStatus::Pending,
-                            'original_file_name' => $originalName,
-                            'stored_file_name'   => $originalName,
-                            'storage_path'       => $finalRelative,
-                            'source_name'        => $data['platform'] ?: null,
-                            'uploaded_by'        => auth()->id(),
-                            'summary'            => ['format' => 'phone,name,reason'],
-                        ]);
-
-                        ProcessWhatsAppUnsubscriberImport::dispatch($import->id);
-
-                        Notification::make()->title('Do Not Message import queued')->success()->send();
-                    })
-                    ->modalHeading('Upload WhatsApp Do Not Message CSV')
-                    ->modalDescription('Upload a CSV with three columns in this order: phone, name, reason (why they opted out). Only phone is required — name and reason can be left blank. The first row is always skipped as a header, so the column order is what matters, not the exact header names (a header like "phone,name,reason" is recommended).')
-                    ->modalSubmitActionLabel('Upload & Queue'),
-
                 Action::make('add_single')
                     ->label('Add Do Not Message Number')
                     ->icon('heroicon-o-plus')
