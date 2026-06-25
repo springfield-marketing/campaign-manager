@@ -60,13 +60,28 @@ class WhatsAppUnsubscribersTable
             ])
             ->defaultSort('suppressed_at', 'desc')
             ->filters([
-                PhoneSearchFilter::make('phone', fn (Builder $query, array $candidates) =>
-                    // Exact match on the unique `normalized_phone` index — a `LIKE '%…%'` here forces a
-                    // full sequential scan of ~870k phone numbers, which times out the request under load.
-                    $query->whereHas('phoneNumber', fn (Builder $q) =>
-                        $q->whereIn('normalized_phone', $candidates)
-                    )
-                ),
+                Filter::make('phone')
+                    ->form([
+                        TextInput::make('phone')->label('Phone')->placeholder('+971501234567'),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        $phone = trim((string) ($data['phone'] ?? ''));
+
+                        if ($phone === '') {
+                            return $query;
+                        }
+
+                        // Resolve the same way the import does, so a legacy format (e.g. the Mexico
+                        // dropped "1") finds the suppression on the canonical record it was stored under.
+                        if ($resolved = app(WhatsAppNumberResolver::class)->resolveExisting($phone)) {
+                            return $query->where('client_phone_number_id', $resolved->id);
+                        }
+
+                        // Exact match on the unique normalized_phone index (a LIKE would force a full
+                        // scan) for inputs the resolver can't pin to one record.
+                        return $query->whereHas('phoneNumber', fn (Builder $q) =>
+                            $q->whereIn('normalized_phone', PhoneSearchFilter::candidates($phone)));
+                    }),
 
                 Filter::make('name')
                     ->form([TextInput::make('name')->label('Search name')])
