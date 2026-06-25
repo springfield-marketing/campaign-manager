@@ -5,12 +5,11 @@ namespace App\Filament\Resources\WhatsAppUnsubscribers\Tables;
 use App\Filament\Filters\PhoneSearchFilter;
 use App\Filament\Resources\Clients\ClientResource;
 use App\Filament\Resources\WhatsAppUnsubscribers\WhatsAppUnsubscriberResource;
-use App\Models\ClientPhoneNumber;
 use App\Models\ContactSuppression;
 use App\Support\WhatsAppSuppressionDisplay;
 use Filament\Tables\Filters\SelectFilter;
 use App\Modules\WhatsApp\Enums\WhatsAppPlatform;
-use App\Modules\WhatsApp\Support\WhatsAppPhoneNormalizer;
+use App\Modules\WhatsApp\Support\WhatsAppNumberResolver;
 use Filament\Actions\Action;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
@@ -104,21 +103,14 @@ class WhatsAppUnsubscribersTable
                             ->helperText('Enter in any format. The number must already exist in the database.'),
                     ])
                     ->action(function (array $data): void {
-                        $normalizer = app(WhatsAppPhoneNormalizer::class);
-
-                        try {
-                            $normalized = $normalizer->normalize($data['phone'])['normalized'];
-                        } catch (\InvalidArgumentException $e) {
-                            Notification::make()->title('Invalid phone: '.$e->getMessage())->danger()->send();
-                            return;
-                        }
-
-                        $number = ClientPhoneNumber::where('normalized_phone', $normalized)->first();
+                        // Match an existing number (tolerating legacy formats that no longer
+                        // validate); these are campaign'd numbers already on file.
+                        $number = app(WhatsAppNumberResolver::class)->resolveExisting($data['phone']);
 
                         if (! $number) {
                             Notification::make()
-                                ->title("Number {$normalized} is not in the database.")
-                                ->body('Only numbers that have been imported can be added manually. Use the CSV upload for new numbers.')
+                                ->title("No number on file matches \"{$data['phone']}\".")
+                                ->body('Only numbers already in the database can be added here. Use the CSV import on the Imports page for new numbers.')
                                 ->danger()
                                 ->send();
                             return;
@@ -130,7 +122,7 @@ class WhatsAppUnsubscribersTable
                             ->exists();
 
                         if ($exists) {
-                            Notification::make()->title("Number {$normalized} is already suppressed for WhatsApp.")->warning()->send();
+                            Notification::make()->title("Number {$number->normalized_phone} is already suppressed for WhatsApp.")->warning()->send();
                             return;
                         }
 
@@ -142,7 +134,7 @@ class WhatsAppUnsubscribersTable
                             'context'                => ['source' => 'manual', 'added_by' => auth()->id()],
                         ]);
 
-                        Notification::make()->title("Number {$normalized} added to WhatsApp Do Not Message list.")->success()->send();
+                        Notification::make()->title("Number {$number->normalized_phone} added to WhatsApp Do Not Message list.")->success()->send();
                     })
                     ->modalHeading('Add a number to WhatsApp Do Not Message list'),
             ])

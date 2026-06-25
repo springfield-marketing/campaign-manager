@@ -18,6 +18,7 @@ class WhatsAppUnsubscriberImportProcessor
 {
     public function __construct(
         private readonly WhatsAppPhoneNormalizer $phoneNormalizer,
+        private readonly WhatsAppNumberResolver $resolver,
     ) {}
 
     public function process(WhatsAppImport $import): void
@@ -74,20 +75,20 @@ class WhatsAppUnsubscriberImportProcessor
                         throw new \RuntimeException('Phone number is required.');
                     }
 
-                    $normalized     = $this->phoneNormalizer->normalize($rawPhone);
-                    $normalizedPhone = $normalized['normalized'];
-
-                    $phoneNumber = ClientPhoneNumber::query()
-                        ->where('normalized_phone', $normalizedPhone)
-                        ->first();
+                    // DNC targets come from already-run campaigns, so prefer matching an existing
+                    // number (tolerating legacy formats that no longer validate) over re-validating.
+                    // Only create a new record when nothing matches AND the input is itself valid.
+                    $phoneNumber = $this->resolver->resolveExisting($rawPhone);
 
                     if (! $phoneNumber) {
+                        $normalized = $this->phoneNormalizer->normalize($rawPhone, lenient: true);
+
                         $client = Client::create(['full_name' => $name ?: null]);
 
                         $phoneNumber = ClientPhoneNumber::create([
                             'client_id'        => $client->id,
                             'raw_phone'        => $rawPhone,
-                            'normalized_phone' => $normalizedPhone,
+                            'normalized_phone' => $normalized['normalized'],
                             'country_code'     => $normalized['country_code'],
                             'national_number'  => $normalized['national_number'],
                             'detected_country' => $normalized['detected_country'],
