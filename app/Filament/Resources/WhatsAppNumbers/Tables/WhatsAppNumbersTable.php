@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\WhatsAppNumbers\Tables;
 
 use App\Filament\Filters\PhoneSearchFilter;
+use App\Modules\WhatsApp\Support\WhatsAppNumberResolver;
 use App\Filament\Resources\Clients\ClientResource;
 use App\Models\ClientPhoneNumber;
 use App\Models\ContactSuppression;
@@ -15,6 +16,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Forms\Components\TextInput;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Enums\PaginationMode;
 use Filament\Tables\Filters\Filter;
@@ -138,11 +140,27 @@ class WhatsAppNumbersTable
                     ->boolean(),
             ])
             ->filters([
-                PhoneSearchFilter::make('phone', fn (Builder $query, array $candidates) =>
-                    // Exact match on the unique `normalized_phone` index — a `LIKE '%…%'` here forces a
-                    // full sequential scan of ~870k phone numbers, which times out the request under load.
-                    $query->whereIn('client_phone_numbers.normalized_phone', $candidates)
-                ),
+                Filter::make('phone')
+                    ->form([
+                        TextInput::make('phone')->label('Phone')->placeholder('+971501234567'),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        $phone = trim((string) ($data['phone'] ?? ''));
+
+                        if ($phone === '') {
+                            return $query;
+                        }
+
+                        // Resolve legacy formats (e.g. the Mexico dropped "1") to the canonical record,
+                        // consistent with the unsubscriber import/search.
+                        if ($resolved = app(WhatsAppNumberResolver::class)->resolveExisting($phone)) {
+                            return $query->where('client_phone_numbers.id', $resolved->id);
+                        }
+
+                        // Exact match on the unique normalized_phone index (a LIKE would force a full
+                        // scan) for inputs the resolver can't pin to one record.
+                        return $query->whereIn('client_phone_numbers.normalized_phone', PhoneSearchFilter::candidates($phone));
+                    }),
 
                 SelectFilter::make('wa_status')
                     ->label('WA Status')
