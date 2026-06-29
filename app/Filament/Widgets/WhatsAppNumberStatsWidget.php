@@ -34,7 +34,9 @@ class WhatsAppNumberStatsWidget extends StatsOverviewWidget
         // The global totals don't depend on the table filters, but this widget re-renders on
         // every filter change to refresh the "Matching filters" card. Cache the heavy aggregate
         // briefly so filtering stays snappy instead of re-running it on each change.
-        $counts = Cache::remember('whatsapp-number-stats-global', 120, fn () => DB::selectOne("
+        // Cache an array (not the stdClass from selectOne): a cached object can deserialize as
+        // an incomplete class under some cache drivers. Cast back to object for property access.
+        $counts = (object) Cache::remember('whatsapp-number-stats-totals', 120, fn () => (array) DB::selectOne("
             SELECT
                 COUNT(*) AS total,
 
