@@ -2,19 +2,39 @@
 
 namespace App\Filament\Widgets;
 
+use App\Filament\Resources\WhatsAppNumbers\Pages\ListWhatsAppNumbers;
+use Filament\Widgets\Concerns\InteractsWithPageTable;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class WhatsAppNumberStatsWidget extends StatsOverviewWidget
 {
+    // Lets the final "Matching filters" stat read the live, filtered table query so it can
+    // sit in the same grid as the global stats instead of in a separate widget.
+    use InteractsWithPageTable;
+
     protected static bool $isDiscovered = false;
 
     protected static bool $isLazy = true;
 
+    protected function getTablePage(): string
+    {
+        return ListWhatsAppNumbers::class;
+    }
+
+    protected function getColumns(): int
+    {
+        return 3;
+    }
+
     protected function getStats(): array
     {
-        $counts = DB::selectOne("
+        // The global totals don't depend on the table filters, but this widget re-renders on
+        // every filter change to refresh the "Matching filters" card. Cache the heavy aggregate
+        // briefly so filtering stays snappy instead of re-running it on each change.
+        $counts = Cache::remember('whatsapp-number-stats-global', 120, fn () => DB::selectOne("
             SELECT
                 COUNT(*) AS total,
 
@@ -79,7 +99,7 @@ class WhatsAppNumberStatsWidget extends StatsOverviewWidget
                 (is_uae = true AND national_number LIKE '5%')
                 OR is_uae = false
             )
-        ");
+        "));
 
         $total  = (int) $counts->total;
         $active = (int) $counts->active;
@@ -117,6 +137,12 @@ class WhatsAppNumberStatsWidget extends StatsOverviewWidget
                 ->color('danger')
                 ->description('Opted out of WhatsApp')
                 ->extraAttributes(['x-tooltip.raw' => 'Numbers that have opted out or been manually suppressed. These are never included in exports and will not be contacted.']),
+
+            Stat::make('Matching filters', number_format($this->getPageTableQuery()->count()))
+                ->icon('heroicon-o-funnel')
+                ->color('primary')
+                ->description('Numbers matching the filters currently applied to the table')
+                ->extraAttributes(['x-tooltip.raw' => 'How many numbers match the filters you have applied to the table right now. Updates as you change filters — unlike the totals above, which are for the whole database.']),
         ];
     }
 }

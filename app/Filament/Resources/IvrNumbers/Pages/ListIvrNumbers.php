@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\IvrNumbers\Pages;
 
 use App\Filament\Resources\IvrNumbers\IvrNumberResource;
-use App\Filament\Widgets\IvrNumberMatchingWidget;
 use App\Filament\Widgets\IvrNumberStatsWidget;
 use App\Models\Client;
 use App\Models\Tag;
@@ -30,7 +29,6 @@ class ListIvrNumbers extends ListRecords
     {
         return [
             IvrNumberStatsWidget::class,
-            IvrNumberMatchingWidget::class,
         ];
     }
 

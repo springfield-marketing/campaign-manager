@@ -2,19 +2,39 @@
 
 namespace App\Filament\Widgets;
 
+use App\Filament\Resources\IvrNumbers\Pages\ListIvrNumbers;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Filament\Widgets\Concerns\InteractsWithPageTable;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
 class IvrNumberStatsWidget extends StatsOverviewWidget
 {
+    // Lets the final "Matching filters" stat read the live, filtered table query so it can
+    // sit in the same grid as the global stats instead of in a separate widget.
+    use InteractsWithPageTable;
+
     protected static bool $isDiscovered = false;
 
     protected static bool $isLazy = true;
 
+    protected function getTablePage(): string
+    {
+        return ListIvrNumbers::class;
+    }
+
+    protected function getColumns(): int
+    {
+        return 3;
+    }
+
     protected function getStats(): array
     {
-        $counts = DB::selectOne("
+        // The global totals don't depend on the table filters, but this widget re-renders on
+        // every filter change to refresh the "Matching filters" card. Cache the heavy aggregate
+        // briefly so filtering stays snappy instead of re-running it on each change.
+        $counts = Cache::remember('ivr-number-stats-global', 120, fn () => DB::selectOne("
             SELECT
                 COUNT(*) AS total,
 
@@ -109,7 +129,7 @@ class IvrNumberStatsWidget extends StatsOverviewWidget
             WHERE is_uae = true
               AND normalized_phone LIKE '+9715%'
               AND LENGTH(normalized_phone) = 13
-        ");
+        "));
 
         $total   = (int) $counts->total;
         $ready   = (int) $counts->ready;
@@ -148,6 +168,12 @@ class IvrNumberStatsWidget extends StatsOverviewWidget
                 ->color('danger')
                 ->description('Customer opt outs and DND imports')
                 ->extraAttributes(['x-tooltip.raw' => 'Numbers that have opted out or been marked Do Not Call — either by the customer, imported from a DND list, or manually suppressed. These are permanently excluded from exports.']),
+
+            Stat::make('Matching filters', number_format($this->getPageTableQuery()->count()))
+                ->icon('heroicon-o-funnel')
+                ->color('primary')
+                ->description('Numbers matching the filters currently applied to the table')
+                ->extraAttributes(['x-tooltip.raw' => 'How many numbers match the filters you have applied to the table right now. Updates as you change filters — unlike the totals above, which are for the whole database.']),
         ];
     }
 }
