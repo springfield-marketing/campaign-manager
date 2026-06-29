@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\IvrNumbers\Pages;
 
 use App\Filament\Resources\IvrNumbers\IvrNumberResource;
+use App\Filament\Widgets\IvrNumberMatchingWidget;
 use App\Filament\Widgets\IvrNumberStatsWidget;
 use App\Models\Client;
 use App\Models\Tag;
@@ -10,6 +11,7 @@ use Filament\Actions\Action;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
+use Filament\Pages\Concerns\ExposesTableToWidgets;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -17,12 +19,18 @@ use Illuminate\Support\HtmlString;
 
 class ListIvrNumbers extends ListRecords
 {
+    // Forwards live table filter/search state to the header widgets (getWidgetData), so the
+    // "Matching filters" count updates as filters change. Without it the widget is stuck on
+    // the unfiltered count.
+    use ExposesTableToWidgets;
+
     protected static string $resource = IvrNumberResource::class;
 
     protected function getHeaderWidgets(): array
     {
         return [
             IvrNumberStatsWidget::class,
+            IvrNumberMatchingWidget::class,
         ];
     }
 
