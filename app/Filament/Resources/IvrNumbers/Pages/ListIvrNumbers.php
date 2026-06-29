@@ -7,11 +7,13 @@ use App\Filament\Widgets\IvrNumberStatsWidget;
 use App\Models\Client;
 use App\Models\Tag;
 use Filament\Actions\Action;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\HtmlString;
 
 class ListIvrNumbers extends ListRecords
 {
@@ -37,6 +39,21 @@ class ListIvrNumbers extends ListRecords
                 ->icon('heroicon-o-arrow-down-tray')
                 ->color('gray')
                 ->form([
+                    // Live count of exactly what will be exported under the current filters.
+                    // Uses the same query the export streams, so the two can never disagree.
+                    Placeholder::make('matching_count')
+                        ->label('Matching numbers')
+                        ->content(function ($livewire): HtmlString {
+                            $count = self::eligibleExportQuery($livewire->tableFilters ?? [])
+                                ->count('client_phone_numbers.normalized_phone');
+
+                            return new HtmlString(
+                                'This export will include <strong>'.number_format($count).'</strong> eligible number'
+                                .($count === 1 ? '' : 's').' matching the current filters'
+                                .'<br><span class="text-xs text-gray-500">Active &amp; callable, has a name, not on Do Not Call. A limit, if set, randomly samples from these.</span>'
+                            );
+                        }),
+
                     TextInput::make('limit')
                         ->label('Number of records to export')
                         ->placeholder('Leave empty to export all')
@@ -46,57 +63,10 @@ class ListIvrNumbers extends ListRecords
                 ])
                 ->action(function (array $data): \Symfony\Component\HttpFoundation\StreamedResponse {
                     $limit = filled($data['limit'] ?? null) ? (int) $data['limit'] : null;
-                    // Always start from the resource's scoped base query so the UAE
-                    // mobile filter is guaranteed regardless of table state.
-                    $query = IvrNumberResource::getEloquentQuery();
 
-                    // Explicitly re-apply each user-facing filter from Livewire state.
-                    // We do NOT use getFilteredTableQuery() here because if the table's
-                    // query closure is unavailable the fallback would silently export
-                    // unfiltered data. Reading tableFilters directly is deterministic.
-                    $filters = $this->tableFilters ?? [];
-
-                    $emirate = $filters['emirate']['value'] ?? null;
-                    if (filled($emirate)) {
-                        $query->whereExists(fn ($q) => $q
-                            ->selectRaw('1')
-                            ->from('clients')
-                            ->whereColumn('clients.id', 'client_phone_numbers.client_id')
-                            ->where('clients.emirate', $emirate)
-                        );
-                    }
-
-                    $communityIds = $filters['communities']['values'] ?? [];
-                    if (filled($communityIds)) {
-                        $query->whereExists(fn ($q) => $q
-                            ->selectRaw('1')
-                            ->from('ownerships')
-                            ->whereColumn('ownerships.client_id', 'client_phone_numbers.client_id')
-                            ->whereIn('ownerships.marketing_area_id', $communityIds)
-                        );
-                    }
-
-                    $tagIds = $filters['tags']['values'] ?? [];
-                    if (filled($tagIds)) {
-                        $query->whereExists(fn ($q) => $q
-                            ->selectRaw('1')
-                            ->from('client_tags')
-                            ->whereColumn('client_tags.client_id', 'client_phone_numbers.client_id')
-                            ->whereIn('client_tags.tag_id', $tagIds)
-                        );
-                    }
-
-                    $relationshipTypes = $filters['relationship_types']['values'] ?? [];
-                    if (filled($relationshipTypes)) {
-                        $query->whereExists(fn ($q) => $q
-                            ->selectRaw('1')
-                            ->from('ownerships')
-                            ->whereColumn('ownerships.client_id', 'client_phone_numbers.client_id')
-                            ->whereIn('ownerships.relationship_type', $relationshipTypes)
-                        );
-                    }
-
-                    $query = self::activeExportQuery($query);
+                    // Build the exact query the export streams (base + filters + eligibility).
+                    // Shared with the modal's live count above so the two can never drift.
+                    $query = self::eligibleExportQuery($this->tableFilters ?? []);
 
                     if ($limit) {
                         // PostgreSQL forbids ORDER BY RANDOM() on a SELECT DISTINCT query
@@ -165,6 +135,59 @@ class ListIvrNumbers extends ListRecords
                         ->send();
                 }),
         ];
+    }
+
+    /**
+     * The exact set the export streams: the resource's scoped base query, plus each
+     * user-facing filter re-applied from Livewire state, plus the active/eligible rules.
+     * We read tableFilters directly (not getFilteredTableQuery()) so the result is
+     * deterministic — a missing table-query closure can never silently widen the export.
+     */
+    private static function eligibleExportQuery(array $filters): Builder
+    {
+        $query = IvrNumberResource::getEloquentQuery();
+
+        $emirate = $filters['emirate']['value'] ?? null;
+        if (filled($emirate)) {
+            $query->whereExists(fn ($q) => $q
+                ->selectRaw('1')
+                ->from('clients')
+                ->whereColumn('clients.id', 'client_phone_numbers.client_id')
+                ->where('clients.emirate', $emirate)
+            );
+        }
+
+        $communityIds = $filters['communities']['values'] ?? [];
+        if (filled($communityIds)) {
+            $query->whereExists(fn ($q) => $q
+                ->selectRaw('1')
+                ->from('ownerships')
+                ->whereColumn('ownerships.client_id', 'client_phone_numbers.client_id')
+                ->whereIn('ownerships.marketing_area_id', $communityIds)
+            );
+        }
+
+        $tagIds = $filters['tags']['values'] ?? [];
+        if (filled($tagIds)) {
+            $query->whereExists(fn ($q) => $q
+                ->selectRaw('1')
+                ->from('client_tags')
+                ->whereColumn('client_tags.client_id', 'client_phone_numbers.client_id')
+                ->whereIn('client_tags.tag_id', $tagIds)
+            );
+        }
+
+        $relationshipTypes = $filters['relationship_types']['values'] ?? [];
+        if (filled($relationshipTypes)) {
+            $query->whereExists(fn ($q) => $q
+                ->selectRaw('1')
+                ->from('ownerships')
+                ->whereColumn('ownerships.client_id', 'client_phone_numbers.client_id')
+                ->whereIn('ownerships.relationship_type', $relationshipTypes)
+            );
+        }
+
+        return self::activeExportQuery($query);
     }
 
     private static function activeExportQuery(Builder $query): Builder
