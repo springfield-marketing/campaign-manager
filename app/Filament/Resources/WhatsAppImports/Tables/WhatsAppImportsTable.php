@@ -9,11 +9,13 @@ use App\Modules\WhatsApp\Enums\WhatsAppPlatform;
 use App\Modules\WhatsApp\Jobs\ProcessWhatsAppCampaignResultsImport;
 use App\Modules\WhatsApp\Jobs\ProcessWhatsAppUnsubscriberImport;
 use App\Modules\WhatsApp\Models\WhatsAppImport;
+use App\Modules\WhatsApp\Support\WhatsAppUnsubscriberImportProcessor;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
@@ -245,6 +247,100 @@ class WhatsAppImportsTable
                     ->modalHeading('Upload WhatsApp Unsubscribers CSV')
                     ->modalDescription('CSV columns in order: phone, name, reason — only phone is required, the first row is treated as a header. Leave Platform blank to suppress across all WhatsApp platforms.')
                     ->modalSubmitActionLabel('Upload & Queue'),
+
+                Action::make('paste_unsubscribers')
+                    ->label('Paste Numbers')
+                    ->icon('heroicon-o-clipboard-document-list')
+                    ->color('warning')
+                    ->form([
+                        Textarea::make('numbers')
+                            ->label('Phone Numbers')
+                            ->required()
+                            ->rows(8)
+                            ->placeholder("+971501234567\n+971502345678, +971503456789")
+                            ->helperText('Paste numbers separated by new lines or commas — any format. Up to 1,000 at a time.'),
+
+                        Select::make('platform')
+                            ->label('Platform')
+                            ->options(WhatsAppPlatform::options())
+                            ->placeholder('All platforms (global suppression)')
+                            ->helperText('Leave blank to suppress the number across all WhatsApp platforms.'),
+
+                        TextInput::make('reason')
+                            ->label('Reason (optional)')
+                            ->placeholder('Applied to every pasted number, e.g. "Bulk opt-out"'),
+                    ])
+                    ->action(function (array $data): void {
+                        $phones = array_values(array_unique(array_filter(
+                            array_map('trim', preg_split('/[\r\n,;]+/', (string) $data['numbers'])),
+                            fn (string $p): bool => $p !== '',
+                        )));
+
+                        if ($phones === []) {
+                            Notification::make()->title('No phone numbers found in the pasted text.')->danger()->send();
+
+                            return;
+                        }
+
+                        if (count($phones) > 1000) {
+                            Notification::make()
+                                ->title('Too many numbers ('.number_format(count($phones)).').')
+                                ->body('Paste up to 1,000 at a time, or use the CSV upload for larger lists.')
+                                ->danger()
+                                ->send();
+
+                            return;
+                        }
+
+                        $reason = trim((string) ($data['reason'] ?? '')) ?: null;
+
+                        // Persist the pasted list as a CSV artifact so the import is tracked exactly
+                        // like a file upload (history, per-row errors, re-process), then process it
+                        // inline for an instant summary instead of queueing.
+                        $csv = "phone,name,reason\n";
+                        foreach ($phones as $phone) {
+                            $csv .= '"'.str_replace('"', '""', $phone).'",,'
+                                .($reason !== null ? '"'.str_replace('"', '""', $reason).'"' : '')."\n";
+                        }
+
+                        $name = 'pasted-'.now()->format('Ymd-His').'.csv';
+                        $relative = 'whatsapp/imports/unsubscribers/'.$name;
+                        Storage::disk('local')->put($relative, $csv);
+
+                        $import = WhatsAppImport::create([
+                            'type'               => WhatsAppImportType::Unsubscribers,
+                            'status'             => WhatsAppImportStatus::Pending,
+                            'original_file_name' => $name,
+                            'stored_file_name'   => $name,
+                            'storage_path'       => $relative,
+                            'source_name'        => $data['platform'] ?: null,
+                            'uploaded_by'        => auth()->id(),
+                            'summary'            => ['format' => 'phone,name,reason', 'source' => 'paste', 'pasted_count' => count($phones)],
+                        ]);
+
+                        // Same processor as the file upload — runs synchronously here so the result
+                        // is immediate. Unmatched numbers are created and suppressed.
+                        app(WhatsAppUnsubscriberImportProcessor::class)->process($import);
+                        $import->refresh();
+
+                        ActivityLog::record('import.upload', "Pasted WhatsApp Do Not Message list ({$import->processed_rows} numbers)", $import);
+
+                        if ($import->status === WhatsAppImportStatus::Failed->value) {
+                            Notification::make()->title('Import failed')->body($import->error_message)->danger()->send();
+
+                            return;
+                        }
+
+                        $added = (int) $import->successful_rows - (int) $import->duplicate_rows;
+                        $body = number_format($added).' added, '.number_format((int) $import->duplicate_rows).' already listed'
+                            .(($import->failed_rows ?? 0) > 0 ? ', '.number_format((int) $import->failed_rows).' failed' : '').'.';
+
+                        $notification = Notification::make()->title('Numbers processed')->body($body);
+                        (($import->failed_rows ?? 0) > 0 ? $notification->warning() : $notification->success())->send();
+                    })
+                    ->modalHeading('Paste WhatsApp Do Not Message numbers')
+                    ->modalDescription('Paste numbers separated by new lines or commas. Unmatched numbers are created and suppressed so they are blocked from future campaigns. Processed immediately.')
+                    ->modalSubmitActionLabel('Add to Do Not Message'),
             ])
             ->recordActions([
                 Action::make('view_errors')
