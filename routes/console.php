@@ -38,7 +38,8 @@ Schedule::command('activity-log:prune')
 
 // Keep the IVR & WhatsApp number stat cards warm. Their aggregates take ~8-11s over ~1M rows,
 // so we recompute them on a schedule and cache the result — a real user never waits for a cold
-// render. Cache TTL (5 min) is longer than this interval, so the keys never expire between runs.
+// render. Every 2 min keeps the ~19s/run aggregate off the DB most of the time while staying
+// comfortably inside the 5-min cache TTL, so the keys never expire between runs.
 Schedule::command('stats:warm-number-widgets')
-    ->everyMinute()
+    ->everyTwoMinutes()
     ->withoutOverlapping();
