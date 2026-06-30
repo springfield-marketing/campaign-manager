@@ -35,3 +35,10 @@ Schedule::command('whatsapp:prune-export-batches')
 Schedule::command('activity-log:prune')
     ->dailyAt('03:30')
     ->withoutOverlapping();
+
+// Keep the IVR & WhatsApp number stat cards warm. Their aggregates take ~8-11s over ~1M rows,
+// so we recompute them on a schedule and cache the result — a real user never waits for a cold
+// render. Cache TTL (5 min) is longer than this interval, so the keys never expire between runs.
+Schedule::command('stats:warm-number-widgets')
+    ->everyMinute()
+    ->withoutOverlapping();

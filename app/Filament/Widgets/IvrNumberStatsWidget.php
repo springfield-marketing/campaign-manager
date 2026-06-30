@@ -19,6 +19,10 @@ class IvrNumberStatsWidget extends StatsOverviewWidget
 
     protected static bool $isLazy = true;
 
+    public const CACHE_KEY = 'ivr-number-stats-totals';
+
+    public const CACHE_TTL = 300;
+
     protected function getTablePage(): string
     {
         return ListIvrNumbers::class;
@@ -31,12 +35,18 @@ class IvrNumberStatsWidget extends StatsOverviewWidget
 
     protected function getStats(): array
     {
-        // The global totals don't depend on the table filters, but this widget re-renders on
-        // every filter change to refresh the "Matching filters" card. Cache the heavy aggregate
-        // briefly so filtering stays snappy instead of re-running it on each change.
-        // Cache an array (not the stdClass from selectOne): a cached object can deserialize as
-        // an incomplete class under some cache drivers. Cast back to object for property access.
-        $counts = (object) Cache::remember('ivr-number-stats-totals', 120, fn () => (array) DB::selectOne("
+        // Global totals are cached and warmed by `stats:warm-number-widgets` every minute, so the
+        // heavy aggregate never blocks a page load. Cast to object for property access (a cached
+        // stdClass can deserialize as an incomplete class under some cache drivers).
+        $counts = (object) Cache::remember(self::CACHE_KEY, self::CACHE_TTL, fn (): array => self::globalTotals());
+
+        return $this->renderStats($counts);
+    }
+
+    /** The heavy global aggregate — shared by the widget cache and the warmer command. */
+    public static function globalTotals(): array
+    {
+        return (array) DB::selectOne("
             SELECT
                 COUNT(*) AS total,
 
@@ -131,8 +141,11 @@ class IvrNumberStatsWidget extends StatsOverviewWidget
             WHERE is_uae = true
               AND normalized_phone LIKE '+9715%'
               AND LENGTH(normalized_phone) = 13
-        "));
+        ");
+    }
 
+    private function renderStats(object $counts): array
+    {
         $total   = (int) $counts->total;
         $ready   = (int) $counts->ready;
         $noName  = (int) $counts->no_name;
