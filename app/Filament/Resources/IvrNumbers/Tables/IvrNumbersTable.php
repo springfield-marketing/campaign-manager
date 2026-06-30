@@ -5,9 +5,11 @@ namespace App\Filament\Resources\IvrNumbers\Tables;
 use App\Filament\Filters\PhoneSearchFilter;
 use App\Filament\Resources\Clients\ClientResource;
 use App\Models\ActivityLog;
+use App\Models\Client;
 use App\Models\ClientPhoneNumber;
 use App\Models\MarketingArea;
 use App\Models\Tag;
+use Illuminate\Support\Facades\Cache;
 use App\Modules\IVR\Support\IvrSuppressionService;
 use App\Support\IvrSuppressionDisplay;
 use Filament\Actions\Action;
@@ -123,15 +125,10 @@ class IvrNumbersTable
 
                 SelectFilter::make('emirate')
                     ->label('Emirate')
-                    ->options(fn () => ClientPhoneNumber::query()
-                        ->join('clients', 'clients.id', '=', 'client_phone_numbers.client_id')
-                        ->whereNotNull('clients.emirate')
-                        ->whereRaw("trim(clients.emirate) <> ''")
-                        ->distinct()
-                        ->orderBy('clients.emirate')
-                        ->pluck('clients.emirate', 'clients.emirate')
-                        ->all()
-                    )
+                    // Distinct emirates from clients alone — the old version joined ~1M phone
+                    // numbers to clients (~1.6s) just to list a handful of values. Cached since
+                    // the set barely changes.
+                    ->options(fn () => self::emirateOptions())
                     ->query(fn (Builder $query, array $data) =>
                         $query->when(
                             filled($data['value'] ?? null),
@@ -290,6 +287,20 @@ class IvrNumbersTable
         $suppression = $record->suppressions()->activeIvr()->latest('suppressed_at')->first();
 
         return $suppression ? IvrSuppressionDisplay::reasonLabel($suppression->reason) : '—';
+    }
+
+    /** Distinct emirate values for the filter dropdown, cached (the set rarely changes). */
+    private static function emirateOptions(): array
+    {
+        return Cache::remember('filter-emirate-options', now()->addHour(), fn (): array =>
+            Client::query()
+                ->whereNotNull('emirate')
+                ->whereRaw("trim(emirate) <> ''")
+                ->distinct()
+                ->orderBy('emirate')
+                ->pluck('emirate', 'emirate')
+                ->all()
+        );
     }
 
     private static function relationshipTypeOptions(): array

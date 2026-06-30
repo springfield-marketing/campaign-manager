@@ -5,8 +5,10 @@ namespace App\Filament\Resources\WhatsAppNumbers\Tables;
 use App\Filament\Filters\PhoneSearchFilter;
 use App\Modules\WhatsApp\Support\WhatsAppNumberResolver;
 use App\Filament\Resources\Clients\ClientResource;
+use App\Models\Client;
 use App\Models\ClientPhoneNumber;
 use App\Models\ContactSuppression;
+use Illuminate\Support\Facades\Cache;
 use App\Models\MarketingArea;
 use App\Models\Tag;
 use Filament\Actions\Action;
@@ -214,15 +216,10 @@ class WhatsAppNumbersTable
 
                 SelectFilter::make('emirate')
                     ->label('Emirate')
-                    ->options(fn () => ClientPhoneNumber::query()
-                        ->join('clients', 'clients.id', '=', 'client_phone_numbers.client_id')
-                        ->whereNotNull('clients.emirate')
-                        ->whereRaw("trim(clients.emirate) <> ''")
-                        ->distinct()
-                        ->orderBy('clients.emirate')
-                        ->pluck('clients.emirate', 'clients.emirate')
-                        ->all()
-                    )
+                    // Distinct emirates from clients alone — the old version joined ~1M phone
+                    // numbers to clients (~1.6s) just to list a handful of values. Cached since
+                    // the set barely changes.
+                    ->options(fn () => self::emirateOptions())
                     ->query(fn (Builder $query, array $data): Builder =>
                         $query->when(
                             filled($data['value'] ?? null),
@@ -470,5 +467,19 @@ class WhatsAppNumbersTable
                         }),
                 ]),
             ]);
+    }
+
+    /** Distinct emirate values for the filter dropdown, cached (the set rarely changes). */
+    private static function emirateOptions(): array
+    {
+        return Cache::remember('filter-emirate-options', now()->addHour(), fn (): array =>
+            Client::query()
+                ->whereNotNull('emirate')
+                ->whereRaw("trim(emirate) <> ''")
+                ->distinct()
+                ->orderBy('emirate')
+                ->pluck('emirate', 'emirate')
+                ->all()
+        );
     }
 }
