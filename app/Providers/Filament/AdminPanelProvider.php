@@ -14,6 +14,7 @@ use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\View\PanelsRenderHook;
 use Filament\Widgets\AccountWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -44,6 +45,20 @@ class AdminPanelProvider extends PanelProvider
             ->colors([
                 'primary' => Color::Indigo,
             ])
+            // Temporarily hide the boolean filter checkboxes on the Contacts page (Has Phone,
+            // Has Property, Multiple numbers) via CSS only — the filters still work, they're just
+            // not shown for now. These ids exist only on the Contacts filters. Remove this hook to
+            // bring them back.
+            ->renderHook(
+                PanelsRenderHook::HEAD_END,
+                fn (): string => <<<'HTML'
+                    <style>
+                        #tableFiltersForm\.has_phone,
+                        #tableFiltersForm\.has_ownership,
+                        #tableFiltersForm\.multi_number { display: none !important; }
+                    </style>
+                    HTML,
+            )
             ->navigationGroups([
                 NavigationGroup::make('Contacts'),
                 NavigationGroup::make('Imports'),
