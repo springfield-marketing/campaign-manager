@@ -174,6 +174,19 @@ class ClientsTable
                         )
                     )
                     ),
+
+                Filter::make('email_search')
+                    ->label('Search by Email')
+                    ->form([
+                        TextInput::make('email')
+                            ->label('Email')
+                            ->placeholder('name@example.com'),
+                    ])
+                    ->query(fn (Builder $query, array $data) => $query->when(
+                        filled($data['email'] ?? null),
+                        // Matches any of the contact's emails (not just the primary), case-insensitive.
+                        fn ($q) => $q->whereHas('emails', fn ($q2) => $q2->where('email', 'ilike', '%'.trim($data['email']).'%'))
+                    )),
             ])
             ->filtersLayout(FiltersLayout::AboveContentCollapsible)
             ->filtersFormColumns(3)
