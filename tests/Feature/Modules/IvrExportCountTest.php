@@ -59,7 +59,8 @@ class IvrExportCountTest extends TestCase
         // Eligible but different emirate.
         $this->number(['emirate' => 'Dubai']);
 
-        // NOT eligible: no client name.
+        // Eligible: a nameless number is NOT blocked (the name requirement was removed so we can
+        // try calling numbers imported without a contact name).
         $this->number(['emirate' => 'Abu Dhabi', 'full_name' => null]);
         // NOT eligible: resting (inactive profile).
         $resting = $this->number(['emirate' => 'Abu Dhabi']);
@@ -73,10 +74,10 @@ class IvrExportCountTest extends TestCase
             'suppressed_at' => now(),
         ]);
 
-        // All emirates: the two Abu Dhabi-eligible + the Dubai-eligible = 3.
-        $this->assertSame(3, $this->countMatching([]));
+        // All emirates: three Abu Dhabi-eligible (ready, active, nameless) + the Dubai-eligible = 4.
+        $this->assertSame(4, $this->countMatching([]));
 
-        // Filtered to Abu Dhabi: drops the Dubai number = 2.
-        $this->assertSame(2, $this->countMatching(['emirate' => ['value' => 'Abu Dhabi']]));
+        // Filtered to Abu Dhabi: drops the Dubai number = 3.
+        $this->assertSame(3, $this->countMatching(['emirate' => ['value' => 'Abu Dhabi']]));
     }
 }

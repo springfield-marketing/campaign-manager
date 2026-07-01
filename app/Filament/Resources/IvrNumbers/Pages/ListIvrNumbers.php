@@ -56,7 +56,7 @@ class ListIvrNumbers extends ListRecords
                             return new HtmlString(
                                 'This export will include <strong>'.number_format($count).'</strong> eligible number'
                                 .($count === 1 ? '' : 's').' matching the current filters'
-                                .'<br><span class="text-xs text-gray-500">Active &amp; callable, has a name, not on Do Not Call. A limit, if set, randomly samples from these.</span>'
+                                .'<br><span class="text-xs text-gray-500">Active &amp; callable, not on Do Not Call (includes numbers without a name for now). A limit, if set, randomly samples from these.</span>'
                             );
                         }),
 
@@ -203,9 +203,8 @@ class ListIvrNumbers extends ListRecords
             ->where('client_phone_numbers.normalized_phone', 'like', '+9715%')
             ->whereRaw('LENGTH(client_phone_numbers.normalized_phone) = 13')
             ->whereNotNull('client_phone_numbers.normalized_phone')
-            ->whereHas('client', fn (Builder $client): Builder =>
-                $client->whereNotNull('full_name')->whereRaw("trim(full_name) <> ''")
-            )
+            // Note: nameless numbers are intentionally NOT blocked for now — we want to try
+            // calling numbers that came in via campaign imports without a contact name.
             ->whereDoesntHave('suppressions', fn (Builder $q) => $q->activeIvr())
             ->whereNull('client_phone_numbers.unsubscribed_at')
             ->where(fn (Builder $profileQuery): Builder =>
